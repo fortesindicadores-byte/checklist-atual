@@ -580,7 +580,7 @@ function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 function nInt(v){ return (+v || 0).toLocaleString('pt-BR'); }
 function iniciais(nome){ return String(nome || '').trim().split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase() || '--'; }
 function primeiroNome(nome){ return String(nome || '').trim().split(/\s+/)[0] || ''; }
-function leituraTxt(a){ if (!a.medidor || a.leitura == null) return 'sem medidor'; return nInt(a.leitura) + (a.medidor === 'km' ? ' km' : ' h'); }
+function leituraTxt(a){ if (!a.medidor) return 'sem medidor'; if (a.leitura == null) return 'nenhuma ainda'; return nInt(a.leitura) + (a.medidor === 'km' ? ' km' : ' h'); }
 function chip(crit){ var c = CK.CRIT[crit] || CK.CRIT.baixa; return '<i class="chip" style="--c:' + c.cor + '">' + c.nome + '</i>'; }
 var STATUS = { aberta:'ABERTA', em_andamento:'EM ANDAMENTO', fechada:'FECHADA' };
 function statusTag(o){ return '<span class="status">' + (STATUS[o.status] || o.status) + '</span>'; }
@@ -1060,7 +1060,7 @@ async function iniciarChecklist(id, mid){
   limpaRascunho();
   var mPrev = CK.modelo(mid), prev = !!(mPrev && CK.catDe(mPrev) === 'preventivo');
   if (prev) {   /* preventivo = OS: abre em andamento agora; os itens são tarefas com check (Renan, 12/10/2026) */
-    var ex = await escolheExecucao(); if (!ex) return;   /* folha Interna/Externa (Renan, 12/10/2026: 'não OK e cancelar') */
+    if (!(await confirmaPreventiva(a, mPrev))) return; var ex = 'interna';   /* preventiva é sempre interna (Renan, 12/10/2026) */
     var rp = await CK.preventivaIniciar({ ativo:a.id, modelo:mid, usuario:EU.id, execucao:ex });
     if (!rp.ok) { alert(rp.erro || 'Não deu para iniciar a preventiva.'); return; }
     CK_ST = { ativo:a.id, tipo:a.tipo, modelo:mid, inicio:Date.now(), leitura:a.leitura, passo: a.medidor ? 1 : 2, idx:0, resp:{}, prev:true, os:rp.os.id, feito:{} };
@@ -1229,14 +1229,14 @@ function resumoHtml(itens){
     + '<button class="btn sec2" onclick="abreLista()">Revisar todos os itens</button></div></div>';
   return h;
 }
-/* folha de escolha do atendimento da preventiva: Interna / Externa (Renan, 12/10/2026) */
-function escolheExecucao(){
+/* confirmação da preventiva (Renan, 12/10/2026: sempre interna — quem marca as tarefas é o mecânico) */
+function confirmaPreventiva(a, m){
   return new Promise(function(res){
     fechaLista();
-    var h = '<div class="sheet" id="ckLista"><div class="sheet-box"><div class="sheet-cab"><b>Quem faz a preventiva?</b><button onclick="fechaLista();window.__exRes(null)" aria-label="Fechar">' + CK.ICONES.x + '</button></div>'
-      + '<button class="btn" style="margin-top:10px" onclick="fechaLista();window.__exRes(\'interna\')">Interna · equipe da Atual</button>'
-      + '<button class="btn" style="margin-top:10px;background:var(--card);border:1px solid var(--brd);color:var(--txt)" onclick="fechaLista();window.__exRes(\'externa\')">Externa · oficina ou fornecedor</button>'
-      + '<button class="na-link" style="margin-top:12px" onclick="fechaLista();window.__exRes(null)">Cancelar</button></div></div>';
+    var h = '<div class="sheet" id="ckLista"><div class="sheet-box"><div class="sheet-cab"><b>Iniciar a preventiva?</b><button onclick="fechaLista();window.__exRes(false)" aria-label="Fechar">' + CK.ICONES.x + '</button></div>'
+      + '<div style="font-size:13.5px;color:var(--txt2);line-height:1.5;margin:4px 0 6px"><b style="color:var(--txt)">' + esc(m.nome) + '</b> em <b style="color:var(--txt)">' + esc(nomeAt(a)) + '</b>. Abre uma OS agora, em seu nome; ela fecha quando você finalizar as tarefas.</div>'
+      + '<button class="btn" style="margin-top:10px" onclick="fechaLista();window.__exRes(true)">Iniciar</button>'
+      + '<button class="na-link" style="margin-top:12px" onclick="fechaLista();window.__exRes(false)">Cancelar</button></div></div>';
     window.__exRes = res;
     var d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d.firstChild);
   });
