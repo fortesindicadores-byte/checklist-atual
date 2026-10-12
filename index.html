@@ -769,10 +769,10 @@ function filtraMotoristas(){
     .sort(function(a, b){ return a.nome.localeCompare(b.nome); });
   var l = todos.filter(function(m){ return !q || (m.nome + ' ' + (m.unidade || '')).toLowerCase().indexOf(q) >= 0; });
   $('selSub').textContent = todos.length + ' motoristas ativos · toque num nome para entrar como ele';
-  var ativos = CK.load().ativos;
+  var lim = new Date(); lim.setDate(lim.getDate() - 30); var d0 = CK.isoDT(lim), cks = CK.load().checklists;
   $('selLista').innerHTML = l.map(function(m){
-    var n = ativos.filter(function(a){ return a.operador === m.id && a.status === 'ativo'; }).length;
-    return linha('<b style="font-size:11px">' + iniciais(m.nome) + '</b>', esc(m.nome), esc(m.unidade || 'sem unidade') + ' · ' + n + (n === 1 ? ' ativo' : ' ativos'), null, '', '', ' tap', ' data-id="' + m.id + '"');
+    var n = cks.filter(function(c){ return c.usuario === m.id && c.data >= d0; }).length;
+    return linha('<b style="font-size:11px">' + iniciais(m.nome) + '</b>', esc(m.nome), esc(m.unidade || 'sem unidade') + ' · ' + n + (n === 1 ? ' checklist' : ' checklists') + ' em 30 dias', null, '', '', ' tap', ' data-id="' + m.id + '"');
   }).join('') || '<div class="vazio">Ninguém com esse nome.</div>';
 }
 $('selBusca').addEventListener('input', filtraMotoristas);
@@ -914,7 +914,7 @@ function abrirInspecao(aid, mid){
 function meusAtivos(){
   var db = CK.load(), lim = new Date(); lim.setDate(lim.getDate() - 30); var d0 = CK.isoDT(lim), meus = {};
   db.checklists.forEach(function(c){ if (c.usuario === EU.id && c.data >= d0 && !ehInspecao(c.modelo)) meus[c.ativo] = 1; });
-  return db.ativos.filter(function(a){ return a.status === 'ativo' && (a.operador === EU.id || meus[a.id]); });
+  return db.ativos.filter(function(a){ return a.status === 'ativo' && meus[a.id]; });
 }
 function renderInicio(){
   var db = CK.load(), hoje = hojeIso(), mk = CK.mesKey(hoje);
@@ -946,10 +946,11 @@ function linhaAtivo(a){
   var semDiario = !CK.diarioAtivo(a.tipo);   /* diário do tipo desligado pelo admin */
   if (semDiario && !ult) sub = 'Este tipo de ativo não tem checklist diário';
   var farol = s.bloqueado ? '<span class="farol so blk" role="img" title="Não opere" aria-label="Não opere">Não opere</span>' : semDiario ? '<span class="farol so off" role="img" title="Sem checklist diário" aria-label="Sem checklist diário">Sem checklist</span>' : '<span class="farol so ok" role="img" title="Liberado" aria-label="Liberado">Liberado</span>';   /* motorista vê só o que importa (Renan, 11/10/2026: "tem que ser direto") */
-  return linha(icoTipo(a), esc(nomeAt(a)), sub, farol, '', '', ' tap' + (a.operador === EU.id ? ' eu' : '') + (s.bloqueado ? ' blk' : ''), ' data-ativo="' + esc(a.id) + '"');
+  return linha(icoTipo(a), esc(nomeAt(a)), sub, farol, '', '', ' tap' + (s.bloqueado ? ' blk' : ''), ' data-ativo="' + esc(a.id) + '"');
 }
 function renderOutros(){
-  var outros = CK.ativosPara(EU).filter(function(a){ return a.operador !== EU.id; });
+  var meusIds = {}; meusAtivos().forEach(function(a){ meusIds[a.id] = 1; });
+  var outros = CK.ativosPara(EU).filter(function(a){ return !meusIds[a.id]; });
   $('outrosCont').textContent = outros.length || '';
   $('outros').innerHTML = outros.slice(0, 8).map(linhaAtivo).join('')
     + (outros.length > 8 ? '<div class="vazio">Mais ' + (outros.length - 8) + ' ativos. Digite a placa ou o número da frota na busca lá em cima.</div>' : '');
