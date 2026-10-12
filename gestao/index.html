@@ -960,6 +960,16 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
         Criticidade<span class="ms-cnt"></span></button>
         <div class="ms-panel"><div class="ms-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Pesquisar…"></div><div class="ms-list"></div></div>
       </div>
+      <div class="ms-wrap" id="ms-cat"><button class="ms-btn" onclick="toggleMs('ms-cat')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
+        Categoria<span class="ms-cnt"></span></button>
+        <div class="ms-panel"><div class="ms-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Pesquisar…"></div><div class="ms-list"></div></div>
+      </div>
+      <div class="ms-wrap" id="ms-sit"><button class="ms-btn" onclick="toggleMs('ms-sit')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        Situação<span class="ms-cnt"></span></button>
+        <div class="ms-panel"><div class="ms-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Pesquisar…"></div><div class="ms-list"></div></div>
+      </div>
       <div class="ms-wrap" id="ms-status"><button class="ms-btn" onclick="toggleMs('ms-status')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Status OS<span class="ms-cnt"></span></button>
@@ -1110,8 +1120,6 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
           <div class="thead-row">
             <div class="ttit" style="display:none">Ativos</div>
             <div class="tsub" id="sub-at" style="flex:1 1 100%">—</div>
-            <div class="dims" id="at-st" style="margin-left:0"></div>
-            <div class="dims" id="at-chips" style="margin-left:0"></div>
             <div class="busca" style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" id="qAt" placeholder="Placa, frota, modelo…" oninput="renderAtivos()"></div>
             <button class="rt" onclick="abrirUnidades()" data-roles="master,admin">UNIDADES</button><button class="rt" onclick="baixarTplCad('ativos')" data-roles="master,admin" title="Planilha Excel para preencher e importar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>BAIXAR TEMPLATE</button><button class="rt" onclick="abrirImpCad('ativos')" data-roles="master,admin">IMPORTAR PLANILHA</button>
             <button class="btn pri sm" id="btNovoAtivo" onclick="abrirNovoAtivo()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo ativo</button>
@@ -1413,7 +1421,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.ms-wrap')) documen
 function getF(){
   const m=id=>$(id)&&$(id).style.display==='none'?[]:getMsValues(id);   /* filtro escondido na visão não vale nela */
   return { mes:m('ms-mes').map(l=>MAP.mes[l]).filter(Boolean), unidade:m('ms-unidade'), tipo:m('ms-tipo').map(l=>MAP.tipo[l]).filter(Boolean), modelo:m('ms-modelo').map(l=>MAP.modelo[l]).filter(Boolean),
-    ativo:m('ms-ativo').map(l=>MAP.ativo[l]).filter(Boolean), crit:m('ms-crit').map(l=>MAP.crit[l]).filter(Boolean), status:m('ms-status').map(l=>MAP.status[l]).filter(Boolean), exec:m('ms-exec').map(l=>MAP.exec[l]).filter(Boolean) };
+    ativo:m('ms-ativo').map(l=>MAP.ativo[l]).filter(Boolean), crit:m('ms-crit').map(l=>MAP.crit[l]).filter(Boolean), cat:m('ms-cat'), sit:m('ms-sit'), status:m('ms-status').map(l=>MAP.status[l]).filter(Boolean), exec:m('ms-exec').map(l=>MAP.exec[l]).filter(Boolean) };
 }
 function ativoOk(f,a,skip){
   if(!a) return false;
@@ -1425,10 +1433,11 @@ function ativoOk(f,a,skip){
 }
 const mesOk=(f,s)=>!f.mes.length||f.mes.includes(CK.mesKey(s));
 const critOk=(f,o)=>!f.crit.length||f.crit.includes(o.crit);
+const catOk=(f,o)=>!f.cat||!f.cat.length||f.cat.includes((CK.ITEM[o.item]||{}).cat);
 const osMod=o=>{ if(o.modelo) return o.modelo; const c=CKS[o.checklist]; return c?ckMod(c):('d-'+((ATV[o.ativo]||{}).tipo||'')); };
 const modOk=(f,k)=>!f.modelo||!f.modelo.length||f.modelo.includes(k);
 const execOk=(f,o)=>!f.exec||!f.exec.length||f.exec.includes(o.status==='aberta'||!o.execucao?'nao':o.execucao);
-const osOk=(f,o)=>ativoOk(f,ATV[o.ativo])&&critOk(f,o)&&modOk(f,osMod(o))&&execOk(f,o);
+const osOk=(f,o)=>ativoOk(f,ATV[o.ativo])&&critOk(f,o)&&catOk(f,o)&&modOk(f,osMod(o))&&execOk(f,o);
 const ehPrevOS=o=>CK.ehPrev(o);   /* preventiva = OS de serviço: fora de SLA/MTTR/MTBF/conformidade (Renan, 12/10/2026) */
 function fCks(f,mk,tudo){ return DB.checklists.filter(c=>(tudo||c.origem!=='preventiva')&&(mk?CK.mesKey(c.data)===mk:mesOk(f,c.data))&&ativoOk(f,ATV[c.ativo])&&modOk(f,ckMod(c))); }
 function fOS(f,mk,semStatus,tudo){
@@ -1450,6 +1459,7 @@ function populateFilters(){
   buildMsFilter('ms-modelo', []);
   buildMsFilter('ms-ativo', []);
   MAP.crit={}; buildMsFilter('ms-crit', Object.keys(CK.CRIT).map(k=>{ MAP.crit[CK.CRIT[k].nome]=k; return CK.CRIT[k].nome; }));
+  buildMsFilter('ms-cat', catsCatalogo()); buildMsFilter('ms-sit', ['Ativos','Inativos']);   /* situação do ativo: só na tela Ativos */   /* Categoria do item (Renan, 12/10/2026) */
   MAP.exec={Interna:'interna',Externa:'externa','Não iniciado':'nao'}; buildMsFilter('ms-exec', Object.keys(MAP.exec));
   MAP.status={}; buildMsFilter('ms-status', Object.keys(STATUS_LBL).map(k=>{ MAP.status[STATUS_LBL[k]]=k; return STATUS_LBL[k]; }));
   cascata();
@@ -1507,7 +1517,7 @@ function mesesYTD(f){
 const fmtH=h=>h==null||!isFinite(h)?'—':n(Math.round(h));
 
 /* ── agregação por dimensão (Resumo, NC, SLA e MTTR usam a mesma; MTBF tem a sua) ── */
-const DIM_LBL={unidade:'Unidade',tipo:'Tipo',ativo:'Ativo',item:'Item',motorista:'Motorista',mecanico:'Mecânico',crit:'Criticidade'};
+const DIM_LBL={unidade:'Unidade',tipo:'Tipo',ativo:'Ativo',item:'Item',cat:'Categoria',motorista:'Motorista',mecanico:'Mecânico',crit:'Criticidade'};
 /* mecânico da OS = quem fechou; se ainda aberta, quem iniciou o atendimento; sem ninguém = '_sem' (Renan, 12/10/2026: resultado por mecânico é um toggle nas visões) */
 const mecDe=o=>o.fechada_por||o.responsavel||'_sem';
 const novoSt=()=>({ck:0,itens:0,nc:0,os:0,venc:0,fech:0,ok:0,tr:0,ntr:0,trs:[],pz:0});
@@ -1516,15 +1526,15 @@ function statsPor(dim, f){
   const keyCk=(c,a)=>dim==='total'?'T':dim==='unidade'?a.unidade:dim==='tipo'?a.tipo:dim==='ativo'?a.id:c.usuario;
   if(dim!=='mecanico') fCks(f).forEach(c=>{
     const a=ATV[c.ativo]; if(!a) return;
-    if(dim==='item'||dim==='crit'){
-      const vist={};
-      CK.itensDoModelo(ckMod(c),a).forEach(it=>{ const k=dim==='item'?it.id:it.crit, s=g(k); s.itens++; if(!vist[k]){ vist[k]=1; s.ck++; } });
-      c.ncs.forEach(x=>{ const it=CK.ITEM[x.item]; g(dim==='item'?x.item:(it?it.crit:'baixa')).nc++; });
+    if(dim==='item'||dim==='crit'||dim==='cat'){
+      const vist={}, kd=it=>dim==='item'?it.id:dim==='cat'?it.cat:it.crit;
+      CK.itensDoModelo(ckMod(c),a).forEach(it=>{ const k=kd(it), s=g(k); s.itens++; if(!vist[k]){ vist[k]=1; s.ck++; } });
+      c.ncs.forEach(x=>{ const it=CK.ITEM[x.item]; g(dim==='item'?x.item:it?kd(it):(dim==='cat'?'—':'baixa')).nc++; });
     } else {
       const s=g(keyCk(c,a)); s.ck++; s.itens+=c.itens_total||0; s.nc+=c.nc;
     }
   });
-  const keyOS=(o,a)=>dim==='total'?'T':dim==='unidade'?a.unidade:dim==='tipo'?a.tipo:dim==='ativo'?a.id:dim==='item'?o.item:dim==='crit'?o.crit:dim==='mecanico'?mecDe(o):o.aberta_por;
+  const keyOS=(o,a)=>dim==='total'?'T':dim==='unidade'?a.unidade:dim==='tipo'?a.tipo:dim==='ativo'?a.id:dim==='item'?o.item:dim==='cat'?((CK.ITEM[o.item]||{}).cat||'—'):dim==='crit'?o.crit:dim==='mecanico'?mecDe(o):o.aberta_por;
   fOS(f).forEach(o=>{
     const a=ATV[o.ativo]; if(!a) return;
     const s=g(keyOS(o,a)); s.os++; if(CK.slaDe(o).vencida) s.venc++;
@@ -1542,7 +1552,7 @@ const deriv=s=>{ const tm=s.ntr?s.tr/s.ntr:null, pz=s.fech?s.pz/s.fech:null;
    dentro do grupo da dimensão, ambas no período: em dias corridos e em uso (leitura dos checklists de origem). */
 function mtbfPor(dim,f){
   const m={}, g=k=>m[k]||(m[k]={falhas:0,ativos:new Set(),nd:0,sd:0,ds:[],nkm:0,skm:0,nh:0,sh:0});
-  const key=(o,a)=>dim==='total'?'T':dim==='unidade'?a.unidade:dim==='tipo'?a.tipo:dim==='ativo'?a.id:dim==='item'?o.item:o.crit;
+  const key=(o,a)=>dim==='total'?'T':dim==='unidade'?a.unidade:dim==='tipo'?a.tipo:dim==='ativo'?a.id:dim==='item'?o.item:dim==='cat'?((CK.ITEM[o.item]||{}).cat||'—'):o.crit;
   const seq={};
   fOS(f,null,true).forEach(o=>{ const a=ATV[o.ativo]; if(!a) return; const k=key(o,a), s=g(k); s.falhas++; s.ativos.add(a.id);
     const sk=k+'|'+a.id; (seq[sk]=seq[sk]||{k,a,l:[]}).l.push(o); });
@@ -1701,21 +1711,21 @@ const diasTxt=d=>d==null||!isFinite(d)?'—':d.toFixed(1).replace('.',',')+' d';
 const usoTxt=(v,u)=>v==null||!isFinite(v)?'—':n(Math.round(v))+' '+u;
 const pctC=(v,c)=>nv(v, cls(pctAbs(v), c));
 const DIMV={
-  nc:{ dims:['tipo','ativo','item','motorista','crit','unidade'], per:[['Checklists',s=>n(s.ck)],['Itens verificados',s=>n(s.itens)],['NC',s=>n(s.nc)],['% NC',(s,d,ref,tot)=>cls(pctAbs(d.pnc), tot?'':cNC(d.pnc,ref.pnc))]],
+  nc:{ dims:['tipo','ativo','item','cat','motorista','crit','unidade'], per:[['Checklists',s=>n(s.ck)],['Itens verificados',s=>n(s.itens)],['NC',s=>n(s.nc)],['% NC',(s,d,ref,tot)=>cls(pctAbs(d.pnc), tot?'':cNC(d.pnc,ref.pnc))]],
        ytd:[['Checklists',s=>n(s.ck)],['NC',s=>n(s.nc)],['% NC',(s,d,ref,tot)=>cls(pctAbs(d.pnc), tot?'':cNC(d.pnc,ref.pnc))]],
        vazio:s=>!s.ck&&!s.nc, ord:(a,b)=>((b.dp.pnc==null?-1:b.dp.pnc)-(a.dp.pnc==null?-1:a.dp.pnc))||(b.p.nc-a.p.nc),
        sub:(rows,dT)=>`${n(rows.length)} linhas · por % NC (itens reprovados ÷ verificados) · vermelho acima da frota (${pctAbs(dT.pnc)})` },
-  sla:{ dims:['tipo','ativo','item','mecanico','motorista','crit','unidade'], per:[['OS fechadas',s=>n(s.fech)],['No prazo',s=>n(s.ok)],['Fora do prazo',(s,d,ref,tot)=>cls(n(s.fech-s.ok), !tot&&s.fech-s.ok?'cr':'')],['SLA %',(s,d,ref,tot)=>pctC(d.sla, tot?'':clsSla(d.sla))]],
+  sla:{ dims:['tipo','ativo','item','cat','mecanico','motorista','crit','unidade'], per:[['OS fechadas',s=>n(s.fech)],['No prazo',s=>n(s.ok)],['Fora do prazo',(s,d,ref,tot)=>cls(n(s.fech-s.ok), !tot&&s.fech-s.ok?'cr':'')],['SLA %',(s,d,ref,tot)=>pctC(d.sla, tot?'':clsSla(d.sla))]],
        ytd:[['OS fechadas',s=>n(s.fech)],['No prazo',s=>n(s.ok)],['SLA %',(s,d,ref,tot)=>pctC(d.sla, tot?'':clsSla(d.sla))]],
        vazio:s=>!s.fech, ord:(a,b)=>((a.dp.sla==null?1e9:a.dp.sla)-(b.dp.sla==null?1e9:b.dp.sla))||(b.p.fech-a.p.fech),
        sub:(rows,dT)=>`${n(rows.length)} linhas · pior primeiro · SLA = % das OS fechadas dentro do prazo do item (prazo em horas cadastrado em Itens e SLA) · frota ${pctAbs(dT.sla)} · verde ≥ ${numBR(MT().sla.verde)}%, âmbar ${numBR(MT().sla.amarelo)}–${numBR(MT().sla.verde)}%, vermelho < ${numBR(MT().sla.amarelo)}%` },
   /* MTTR: menor é melhor — verde até a média da frota, vermelho acima. MTTR é a última coluna de cada bloco (Renan, 11/10/2026) */
-  mttr:{ dims:['tipo','ativo','item','mecanico','motorista','crit','unidade'], per:[['OS fechadas',s=>n(s.fech)],['Mais longa',(s,d)=>hc(d.mx)],['MTTR',(s,d,ref,tot)=>hc(d.tm, cls(horasTxt(d.tm), tot?'':clsMttr(d.tm)))]],
+  mttr:{ dims:['tipo','ativo','item','cat','mecanico','motorista','crit','unidade'], per:[['OS fechadas',s=>n(s.fech)],['Mais longa',(s,d)=>hc(d.mx)],['MTTR',(s,d,ref,tot)=>hc(d.tm, cls(horasTxt(d.tm), tot?'':clsMttr(d.tm)))]],
        ytd:[['OS fechadas',s=>n(s.fech)],['MTTR',(s,d,ref,tot)=>hc(d.tm, cls(horasTxt(d.tm), tot?'':clsMttr(d.tm)))]],
        vazio:s=>!s.fech, ord:(a,b)=>((b.dp.tm==null?-1:b.dp.tm)-(a.dp.tm==null?-1:a.dp.tm))||(b.p.fech-a.p.fech),
        sub:(rows,dT)=>`${n(rows.length)} linhas · maior MTTR primeiro · MTTR = média do tempo abertura → fechamento das OS fechadas no período · frota ${horasTxt(dT.tm)} · verde até a meta de ${hdTxt(MT().mttr_h)}, vermelho acima (meta em Parâmetros)` },
   /* MTBF: maior é melhor — verde a partir da média da frota, vermelho abaixo. MTBF (dias) é a última coluna de cada bloco */
-  mtbf:{ dims:['ativo','tipo','item','unidade','crit'], stats:mtbfPor, deriv:derivBF, novo:novoBF,
+  mtbf:{ dims:['ativo','tipo','item','cat','unidade','crit'], stats:mtbfPor, deriv:derivBF, novo:novoBF,
        per:dim=>[['Falhas',s=>n(s.falhas)],['Ativos com falha',(s,d)=>n(d.na)]].concat(dim==='ativo'
          ?[['MTBF uso',(s,d)=>{ /* uma unidade por ativo; no total aparecem as duas. Ordena km primeiro e h depois, cada grupo pelo valor */
             if(d.km==null&&d.h==null) return nv(null,'—');
@@ -2010,13 +2020,10 @@ function renderAtivos(){
   const f=lastF; if(!f) return;
   const q=($('qAt').value||'').toLowerCase(), ed=podeEditar();
   const base=DB.ativos.filter(a=>ativoOk(f,a)), nAt=base.filter(a=>a.status==='ativo').length, nIn=base.length-nAt;
-  const ST={ativo:['Ativos',nAt], inativo:['Inativos',nIn], todos:['Todos',base.length]};
-  $('at-st').innerHTML=Object.keys(ST).map(k=>`<button class="dimb ${atSt===k?'on':''}" onclick="atSt='${k}';renderAtivos()">${ST[k][0]}<span class="n">${n(ST[k][1])}</span></button>`).join('');
-  const bs=base.filter(a=>atSt==='todos'||a.status===atSt), tipos=CK.TIPOS.filter(t=>bs.some(a=>a.tipo===t.id));
-  if(atChip&&!tipos.some(t=>t.id===atChip)) atChip='';
-  $('at-chips').innerHTML=`<button class="dimb ${!atChip?'on':''}" onclick="atChip='';renderAtivos()">Todos os tipos<span class="n">${n(bs.length)}</span></button>`+tipos.map(t=>`<button class="dimb ${atChip===t.id?'on':''}" onclick="atChip='${t.id}';renderAtivos()">${esc(t.nome)}<span class="n">${n(bs.filter(a=>a.tipo===t.id).length)}</span></button>`).join('');
+  /* situação pelo filtro do topo (vazio = todos); tipo já vem do filtro Tipo (Renan, 12/10/2026: 'poderia ser filtros') */
+  const sit=(f.sit||[]).map(x=>x==='Ativos'?'ativo':'inativo'), bs=base.filter(a=>!sit.length||sit.includes(a.status));
   $('btNovoAtivo').style.display=ed?'':'none';
-  const rows=bs.filter(a=>(!atChip||a.tipo===atChip)&&(!q||[ativoLbl(a),a.marca,a.modelo,a.unidade,CK.TIPO[a.tipo].nome].some(x=>String(x||'').toLowerCase().includes(q))))
+  const rows=bs.filter(a=>(!q||[ativoLbl(a),a.marca,a.modelo,a.unidade,CK.TIPO[a.tipo].nome].some(x=>String(x||'').toLowerCase().includes(q))))
     .sort((x,y)=>ativoLbl(x).localeCompare(ativoLbl(y),'pt-BR'));
   set('sub-at', `${n(nAt)} ${nAt===1?'ativo':'ativos'} · ${n(nIn)} ${nIn===1?'inativo':'inativos'} · clique no ativo para ${ed?'ver e editar':'ver a ficha'} · o QR leva o motorista direto ao checklist do ativo`);
   set('titSub', `Cadastro de ativos · filtram Unidade, Tipo e Ativo`);
@@ -2107,7 +2114,7 @@ function renderRelatorios(){
 function relFiltros(f){
   const out=[]; const add=(l,id)=>{ const w=$(id); if(!w||w.style.display==='none') return; const v=getMsValues(id); if(v.length) out.push(l+': '+v.join(', ')); };
   const w=$('ms-mes'); out.push('Período: '+(f.mes.length?f.mes.slice().sort().map(k=>CK.mesLabel(k)).join(', '):'todo'));
-  add('Unidade','ms-unidade'); add('Tipo','ms-tipo'); add('Tipo de checklist','ms-modelo'); add('Ativo','ms-ativo'); add('Criticidade','ms-crit'); add('Status OS','ms-status'); add('Atendimento','ms-exec');
+  add('Unidade','ms-unidade'); add('Tipo','ms-tipo'); add('Tipo de checklist','ms-modelo'); add('Ativo','ms-ativo'); add('Criticidade','ms-crit'); add('Categoria','ms-cat'); add('Situação','ms-sit'); add('Status OS','ms-status'); add('Atendimento','ms-exec');
   return out;
 }
 const relArq=r=>`checklist-atual_${r.id}_${CK.isoDT(new Date()).slice(0,10)}`;
@@ -2395,7 +2402,7 @@ function renderItens(){
   const insp=CK.modelos(true).filter(m=>!ehDiario(m)), usoInsp=id=>insp.filter(m=>(m.itens||[]).includes(id));
   /* cadastro: só Tipo e Criticidade filtram (item do diário = aplica ao tipo; item de inspeção = usado por inspeção do tipo) */
   const tipoOk=it=>!f.tipo.length||(it.insp?usoInsp(it.id).some(m=>m.tipos.some(t=>f.tipo.includes(t))):f.tipo.some(t=>CK.itemAplica(it,t)));
-  const base=CK.ITENS.filter(it=>CK.ITEM[it.id]===it), lista=base.filter(it=>tipoOk(it)&&(!f.crit.length||f.crit.includes(it.crit)));
+  const base=CK.ITENS.filter(it=>CK.ITEM[it.id]===it), lista=base.filter(it=>tipoOk(it)&&(!f.crit.length||f.crit.includes(it.crit))&&(!f.cat||!f.cat.length||f.cat.includes(it.cat)));
   const nInsp=lista.filter(it=>it.insp).length; $('btNovoItem').style.display=edit?'':'none';
   $('sub-it').innerHTML=`${n(lista.length-nInsp)} itens do diário · ${n(nInsp)} só de inspeção · clique no item para ${edit?'ver e editar · mudanças valem para OS novas; as já abertas mantêm o prazo do dia em que abriram.':'ver a ficha · somente leitura para o seu perfil.'}`+
     `<br>Criticidade ordena o Painel OS · prazo é a meta do SLA, contado da abertura da OS · bloqueia = o ativo não opera com o item reprovado.`;
@@ -2432,7 +2439,7 @@ function abrirItem(id,volta){
     (it.sugerido?`<div class="nota" style="margin:0 0 10px"><b>Item sugerido na validação: não estava na planilha da Atual.</b></div>`:'')+
     `<div class="fld"><label>Orientação para quem faz o checklist <span class="ctx">· opcional, aparece embaixo do item no app</span></label><textarea class="inp" id="fiDica" ${dis} rows="2" placeholder="Ex.: Sem folga excessiva ou ruído ao esterçar o volante.">${esc(it.dica||'')}</textarea></div>`+
     `<div class="fld"><label>Exemplo de observação <span class="ctx">· opcional, guia o motorista ao descrever o defeito</span></label><input class="inp" id="fiEx" ${dis} value="${esc(it.ex||'')}" placeholder="Ex.: Folga grande no volante"></div>`+
-    `<div class="fld"><label>Categoria</label><select class="inp" id="fiCat" ${dis}>${cats.map(c=>`<option ${c===it.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div>`+
+    `<div class="fld"><label>Categoria</label><select class="inp" id="fiCat" ${dis} onchange="$('fiCatNova').style.display=this.value==='__nova'?'':'none'; if(this.value==='__nova') $('fiCatNova').focus();">${cats.map(c=>`<option ${c===it.cat?'selected':''}>${esc(c)}</option>`).join('')}${ed?'<option value="__nova">+ Nova categoria…</option>':''}</select><input class="inp" id="fiCatNova" style="display:none;margin-top:6px" placeholder="NOME DA NOVA CATEGORIA"></div>`+
     `<div class="fld"><label>Criticidade <span class="ctx">· ordena o Painel OS</span></label><div class="fi-crit" id="fiCrit">${Object.keys(CK.CRIT).map(k=>`<button type="button" class="${FI.crit===k?'on':''}" ${dis} onclick="FI.crit='${k}';fiCritSel()">${farolCrit(k)}${esc(CK.CRIT[k].nome)}</button>`).join('')}</div></div>`+
     `<div class="fld"><label>Prazo para fechar a OS <span class="ctx">· é a meta do SLA</span></label>${prazoCtl(it,'void(0)',dis).replace('<span class="pz-ctl">','<span class="pz-ctl" id="fiPz">')}</div>`+
     `<div class="fld"><label>Bloqueia o ativo <span class="ctx">· com o item reprovado, o ativo não opera até fechar a OS</span></label><div class="seg" id="fiBl">${[[true,'Sim'],[false,'Não']].map(([v,l])=>`<button type="button" class="${FI.bloqueia===v?'on':''}" ${dis} onclick="FI.bloqueia=${v};fiBlSel()">${l}</button>`).join('')}</div></div>`+
@@ -2468,7 +2475,8 @@ async function fiSalvar(){
   if(!podeEditar()||!FI) return; const it=FI.novo?{insp:FI.insp}:CK.ITEM[FI.id]; if(!it) return; const err=t=>{ $('fiErro').textContent=t; };
   const nome=String($('fiNome').value||'').trim(); if(!nome) return err('Dê um nome ao item.');
   const pz=$('fiPz'), prazo=pzHoras(pz.querySelector('input').value, pz.querySelector('select').value); if(!(prazo>0)) return err('Informe o prazo.');
-  const patch={nome:nome.toUpperCase(), cat:$('fiCat').value, crit:FI.crit, prazo, bloqueia:FI.bloqueia, dica:String($('fiDica').value||'').trim(), ex:String($('fiEx').value||'').trim()};
+  let catV=$('fiCat').value; if(catV==='__nova'){ catV=String($('fiCatNova').value||'').trim().toUpperCase(); if(!catV) return err('Dê um nome à nova categoria.'); }
+  const patch={nome:nome.toUpperCase(), cat:catV, crit:FI.crit, prazo, bloqueia:FI.bloqueia, dica:String($('fiDica').value||'').trim(), ex:String($('fiEx').value||'').trim()};
   if(!it.insp){ if(!FI.tipos.size) return err('Escolha ao menos um tipo de ativo.'); patch.ap=CK.TIPOS.filter(t=>FI.tipos.has(t.id)).map(t=>t.id); }
   if(FI.novo){ const r=await CK.itemCriar(Object.assign({insp:FI.insp},patch)); if(!r.ok) return err(r.erro||'Não foi possível criar.'); delete MD_UN.__novo; }
   else { await CK.itemSet(FI.id,patch); delete MD_UN[FI.id]; }
@@ -2963,8 +2971,9 @@ function setVw(v){
   $('filtros').classList.toggle('oculto', v==='faturamento'||v==='fatura'||v==='usuarios'||v==='parametros'||v==='fornecedores');
   // Gestão à Vista é o estado atual: Período e Status OS não se aplicam
   /* filtros que não fazem sentido na visão ficam escondidos: Painel OS = estado atual; Itens e SLA = cadastro; Tipos de checklist = cadastro (Período vale só para Execuções) */
-  const FORA={gav:['ms-mes'], itens:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-status','ms-exec'], modelos:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-crit','ms-status','ms-exec'], ativos:['ms-mes','ms-modelo','ms-crit','ms-status','ms-exec'], nc:['ms-exec'], usuarios:['ms-modelo'], faturamento:['ms-modelo'], fatura:['ms-modelo']};
-  ['ms-mes','ms-unidade','ms-tipo','ms-modelo','ms-ativo','ms-crit','ms-status','ms-exec'].forEach(id=>{ $(id).style.display=(FORA[v]||[]).includes(id)?'none':''; });
+  const FORA={gav:['ms-mes'], itens:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-status','ms-exec'], modelos:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'], ativos:['ms-mes','ms-modelo','ms-crit','ms-cat','ms-status','ms-exec'], nc:['ms-exec'], usuarios:['ms-modelo','ms-cat'], faturamento:['ms-modelo','ms-cat'], fatura:['ms-modelo','ms-cat'], resumo:['ms-cat'], lanc:['ms-cat'], relatorios:['ms-cat'], fornecedores:['ms-cat'], parametros:['ms-cat']};
+  ['ms-mes','ms-unidade','ms-tipo','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'].forEach(id=>{ $(id).style.display=(FORA[v]||[]).includes(id)?'none':''; });
+  $('ms-sit').style.display=v==='ativos'?'':'none';
   if(lastF) atualizar();
   if(lastF && v==='resumo') setTimeout(()=>renderCharts(lastF),30);
 }
