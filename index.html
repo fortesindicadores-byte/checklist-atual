@@ -1240,14 +1240,21 @@ function atualizaProg(){
     navega(dx < 0 ? 1 : -1);
   }, { passive:true });
 })();
+var ENVIANDO = false;   /* trava: o checklist do CP221 foi gravado 3x com toques repetidos no botão (12/10/2026) */
 async function finalizar(){
+  if (ENVIANDO) return; ENVIANDO = true;
+  try { await finalizar2(); } finally { ENVIANDO = false; }
+}
+async function finalizar2(){
   var itens = itensCk(), e = $('ckErro');
   var p = proxPendente(0);
   if (p < itens.length) { CK_ST.idx = p; salvaRascunho(); renderCheck(1); return; }
   if (ehInspecao(CK_ST.modelo) && !equipe()) return recusaInsp();
   var resp = itens.map(function(it){ var r = CK_ST.resp[it.id]; return { item:it.id, ok:r.ok, obs:r.obs || '', foto:r.ok === false ? r.foto : null }; });
-  var res = await CK.salvarChecklist({ ativo:CK_ST.ativo, usuario:EU.id, leitura:CK_ST.leitura, duracao_s:Math.round((Date.now() - CK_ST.inicio) / 1000), itens:resp, modelo:CK_ST.modelo || ('d-' + CK_ST.tipo) });
-  if (!res.ok) { if (e) { e.textContent = res.erro || 'Não deu para salvar.'; e.style.display = ''; } return; }
+  if (!CK_ST.cid) { CK_ST.cid = CK.uid('ck'); salvaRascunho(); }   /* id fixo do checklist: reenviar não duplica */
+  var btns = document.querySelectorAll('#v-check button'); btns.forEach(function(b){ b.disabled = true; });
+  var res = await CK.salvarChecklist({ cliente_id:CK_ST.cid, ativo:CK_ST.ativo, usuario:EU.id, leitura:CK_ST.leitura, duracao_s:Math.round((Date.now() - CK_ST.inicio) / 1000), itens:resp, modelo:CK_ST.modelo || ('d-' + CK_ST.tipo) });
+  if (!res.ok) { btns.forEach(function(b){ b.disabled = false; }); if (e) { e.textContent = res.erro || 'Não deu para salvar.'; e.style.display = ''; } return; }
   limpaRascunho(); CK_ST = null;
   if (equipe()) renderResultadoEquipe(res); else renderResultado(res);
   mostra('result');

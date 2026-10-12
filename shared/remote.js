@@ -131,7 +131,7 @@
 
   CK.salvarChecklist = async function(resp){
     try {
-      var cid = CK.uid('ck'), itens = [];
+      var cid = resp.cliente_id || CK.uid('ck'), itens = [];
       for (var i = 0; i < resp.itens.length; i++) {
         var it = resp.itens[i], foto = null;
         if (it.ok === false) { if (!it.foto) throw Object.assign(new Error('FOTO_OBRIGATORIA'), { code:'FOTO_OBRIGATORIA' }); foto = await upload('fotos', cid + '/' + it.item + '.jpg', it.foto); }
@@ -140,6 +140,7 @@
       var r = await rpc('ck_salvar_checklist', { p_token:token, p:{ ativo:resp.ativo, modelo:(resp.modelo && !/^d-/.test(resp.modelo)) ? resp.modelo : null,
         leitura:resp.leitura, duracao_s:resp.duracao_s, cliente_id:cid, itens:itens } });
       var db = await sync(), ck = db.checklists.filter(function(c){ return c.id === r.id; })[0];
+      if (r.repetido) return { ok:true, checklist:ck, os_criadas:[], os_reincidentes:[], bloqueado:false, repetido:true };
       var cri = db.os.filter(function(o){ return (r.os_criadas || []).indexOf(o.num) >= 0; }), rei = db.os.filter(function(o){ return (r.reincidencias || []).indexOf(o.num) >= 0; });
       return { ok:true, checklist:ck, os_criadas:cri, os_reincidentes:rei, bloqueado:r.bloqueado };
     } catch(e){ return erro(e); }
