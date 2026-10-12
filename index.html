@@ -1375,6 +1375,7 @@ function renderAjuda(){
 modoLogin('entrar');
 (async function(){
   var lb = $('sPinLabel'); if (lb) lb.textContent = 'Crie uma senha de ' + CK.PIN_LEN + ' números';
+  if (CK.REMOTO) { var dbx = $('demoBox'); if (dbx) dbx.remove(); }   /* CPFs de teste só na demo */
   var id = LS.get('ck_app_sess'); if (!id && !(CK.REMOTO && CK.sessaoAtiva())) return;
   var u = CK.REMOTO ? await CK.restaurarSessao() : CK.usuario(id);
   if (!u || u.status !== 'ativo') { LS.del('ck_app_sess'); LS.del('ck_app_ver_como'); return; }

@@ -3100,7 +3100,7 @@ async function primeiroAcesso(cpf){
 function resetarDemo(){ if(!EU||EU.papel!=='master') return; if(!confirm('Apagar todos os dados locais e gerar a demo de novo?')) return; CK.reset(); location.reload(); }
 async function iniciar(){
   Object.keys(CK.CRIT).forEach(k=>document.documentElement.style.setProperty('--c-'+k, CK.CRIT[k].cor));
-  ['lgPin','pdPin'].forEach(id=>{ const x=$(id); if(x) x.maxLength=CK.PIN_LEN; }); document.querySelectorAll('.pin-len').forEach(el=>el.textContent=CK.PIN_LEN);
+  ['lgPin','pdPin'].forEach(id=>{ const x=$(id); if(x) x.maxLength=CK.PIN_LEN; }); if(CK.REMOTO){ const d=document.querySelector('#login .demo'); if(d) d.remove(); } document.querySelectorAll('.pin-len').forEach(el=>el.textContent=CK.PIN_LEN);
   refreshIdx(); CK.aplicarCfgItens();
   const sid=LS.get(SESS); let u=null;
   if(CK.REMOTO){ u=await CK.restaurarSessao(); if(u) refreshIdx(); } else u=sid?CK.usuario(sid):null;
