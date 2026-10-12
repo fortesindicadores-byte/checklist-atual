@@ -161,7 +161,7 @@ begin
                 'eventos', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 't', e.tipo, 'por', e.por, 'txt', e.texto, 'dados', e.dados) order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id),
                 'reprog', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 'por', e.por, 'motivo', e.dados->>'motivo', 'novo_limite', e.dados->>'novo_limite') order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id and e.tipo = 'reprogramada'))
                 order by o.abertura desc), '[]')
-                from ck_os o where o.abertura >= d0 or o.status <> 'fechada'),
+                from ck_os o where o.status <> 'cancelada' and (o.abertura >= d0 or o.status <> 'fechada')),
     'config', case when u.papel in ('master','admin','frota') then (select coalesce(jsonb_object_agg(chave, valor), '{}') from ck_config where chave <> 'pix' or u.papel = 'master')
                    else (select jsonb_build_object('metas', valor) from ck_config where chave = 'metas') end
   ) into r;
@@ -205,7 +205,7 @@ begin
       if coalesce(r->>'foto', '') = '' then raise exception 'FOTO_OBRIGATORIA %', it.nome; end if;
       insert into ck_respostas (checklist_id, item_id, resposta, obs, foto_path, foto_sha256) values (cid, it.id, 'nc', ck_up(r->>'obs'), r->>'foto', r->>'sha256');
       if it.bloqueia then bloq := true; end if;
-      select * into o from ck_os where ativo_id = a.id and item_id = it.id and status <> 'fechada' order by abertura desc limit 1;
+      select * into o from ck_os where ativo_id = a.id and item_id = it.id and status in ('aberta','em_andamento') order by abertura desc limit 1;
       if o.id is not null then                                                                               -- OS aberta: só reincidência
         update ck_os set reincidencias = reincidencias + 1 where id = o.id;
         insert into ck_os_eventos (os_id, tipo, por, texto, dados) values (o.id, 'reincidencia', u.id, 'REPROVADO DE NOVO NO CHECKLIST', jsonb_build_object('checklist_id', cid));
@@ -222,7 +222,7 @@ begin
   end loop;
   insert into ck_log (usuario_id, evento, origem) values (u.id, 'checklist', 'app');
   return jsonb_build_object('ok', true, 'id', cid, 'nc', nc_n, 'os_criadas', criadas, 'reincidencias', reinc,
-    'bloqueado', bloq or exists (select 1 from ck_os where ativo_id = a.id and bloqueia and status <> 'fechada'));
+    'bloqueado', bloq or exists (select 1 from ck_os where ativo_id = a.id and bloqueia and status in ('aberta','em_andamento')));
 end $$;
 
 -- farol do ativo (app): liberado / não opere / sem checklist hoje
@@ -230,8 +230,8 @@ create or replace function ck_farol(p_token uuid, p_ativo text) returns jsonb la
 declare u ck_usuarios := ck_sessao(p_token); ult ck_checklists;
 begin
   select * into ult from ck_checklists c where c.ativo_id = p_ativo order by data desc limit 1;
-  return jsonb_build_object('bloqueado', exists (select 1 from ck_os where ativo_id = p_ativo and bloqueia and status <> 'fechada'),
-    'ultimo', ult.data, 'hoje', ult.data::date = current_date, 'abertas', (select count(*) from ck_os where ativo_id = p_ativo and status <> 'fechada'));
+  return jsonb_build_object('bloqueado', exists (select 1 from ck_os where ativo_id = p_ativo and bloqueia and status in ('aberta','em_andamento')),
+    'ultimo', ult.data, 'hoje', ult.data::date = current_date, 'abertas', (select count(*) from ck_os where ativo_id = p_ativo and status in ('aberta','em_andamento')));
 end $$;
 
 -- ── OS ──
@@ -276,6 +276,19 @@ begin
   update ck_os set limite_atual = p_novo_limite where id = p_os;
   insert into ck_os_eventos (os_id, tipo, por, texto, dados) values (p_os, 'reprogramada', u.id, m || ' · NOVO PRAZO ' || to_char(p_novo_limite at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI'),
     jsonb_build_object('motivo', m, 'novo_limite', p_novo_limite, 'limite_anterior', coalesce(o.limite_atual, o.limite)));
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- excluir OS (SÓ master): a OS vira 'cancelada' — some do painel, dos indicadores e do app; o registro completo fica na auditoria (Renan, 12/10/2026)
+create or replace function ck_os_excluir(p_token uuid, p_os int, p_motivo text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); o ck_os;
+begin
+  perform ck_exige(u, array['master']::ck_papel[]);
+  select * into o from ck_os where id = p_os; if o.id is null then raise exception 'OS_NAO_ENCONTRADA'; end if;
+  if o.status = 'cancelada' then raise exception 'OS_JA_EXCLUIDA'; end if;
+  perform ck_audit(u.id, 'ck_os', p_os::text, 'delete', to_jsonb(o), jsonb_build_object('motivo', ck_up(p_motivo)));
+  update ck_os set status = 'cancelada' where id = p_os;
+  insert into ck_os_eventos (os_id, tipo, por, texto) values (p_os, 'cancelada', u.id, coalesce(ck_up(p_motivo), 'EXCLUÍDA PELO ADMIN MASTER'));
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -517,7 +530,7 @@ revoke all on all tables in schema public from anon, authenticated;
 revoke all on all functions in schema public from public, anon, authenticated;
 grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,text), ck_solicitar_acesso(jsonb), ck_situacao_cpf(text), ck_sair(uuid),
   ck_trocar_senha(uuid,text,text), ck_resetar_senha(uuid,uuid), ck_dataset(uuid,date), ck_salvar_checklist(uuid,jsonb), ck_farol(uuid,text),
-  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int),
+  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
   ck_metas_set(uuid,jsonb), ck_fatura(uuid,date)

@@ -13,7 +13,7 @@ do $$ begin
   create type ck_papel as enum ('master','admin','frota','motorista');   -- frota = mecânicos e encarregados (rótulo "Mecânico")
   create type ck_status_usuario as enum ('ativo','pendente','bloqueado');
   create type ck_crit as enum ('critica','alta','media','baixa');
-  create type ck_status_os as enum ('aberta','em_andamento','fechada');
+  create type ck_status_os as enum ('aberta','em_andamento','fechada','cancelada');   -- cancelada = excluída pelo master (12/10/2026)
   create type ck_resposta as enum ('ok','nc');                             -- sem N/A: o motorista só vê itens do ativo
   create type ck_execucao as enum ('interna','externa');
   create type ck_cat_modelo as enum ('inspecao','preventivo','preditivo');
@@ -243,8 +243,8 @@ select o.*,
        coalesce(o.fechada_em, now()) <= o.limite                              as no_prazo,          -- SLA original
        coalesce(o.fechada_em, now()) <= coalesce(o.limite_atual, o.limite)    as no_prazo_atual,
        extract(epoch from (coalesce(o.fechada_em, now()) - o.abertura))/3600  as horas_resolucao,
-       (o.status <> 'fechada' and now() > coalesce(o.limite_atual, o.limite)) as vencida
-from ck_os o;
+       (o.status in ('aberta','em_andamento') and now() > coalesce(o.limite_atual, o.limite)) as vencida
+from ck_os o where o.status <> 'cancelada';
 
 create or replace view ck_v_usuarios_mes as                 -- base da cobrança: usuário ativo no mês (login ou checklist)
 select date_trunc('month', l.quando)::date as mes, l.usuario_id

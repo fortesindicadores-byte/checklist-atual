@@ -834,6 +834,7 @@ var CK = (function(){
     var q = isoDT(new Date()); o.limite_atual = d.novo_limite; o.reprog.push({ q:q, novo_limite:d.novo_limite, motivo:UP(d.motivo), por:d.por });
     o.eventos.push({ q:q, t:'reprogramada', por:d.por, txt:UP(d.motivo) + ' · NOVO PRAZO ' + fmtDH(d.novo_limite) }); save(); return { ok:true, os:o };
   }
+  function osExcluir(id, por, motivo){ var db = load(), o = osPorId(id); if (!o) return { ok:false, erro:'OS não encontrada.' }; var u = usuario(por); if (!u || u.papel !== 'master') return { ok:false, erro:'Só o admin master exclui OS.' }; db.os = db.os.filter(function(x){ return x.id !== id; }); save(); return { ok:true }; }
   function osReabrir(id, por){ var o = osPorId(id); if (!o || o.status !== 'fechada') return { ok:false }; o.status = 'aberta'; o.fechada_em = null; o.eventos.push({ q:isoDT(new Date()), t:'reaberta', por:por }); save(); return { ok:true, os:o }; }
   function foto(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; return load().fotos[ref] || null; }
 
@@ -974,7 +975,7 @@ var CK = (function(){
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,
     usuario:usuario, ativo:ativo, login:login, criarPin:criarPin, solicitarAcesso:solicitarAcesso, ativosPara:ativosPara, situacaoAtivo:situacaoAtivo,
-    salvarChecklist:salvarChecklist, osPorId:osPorId, osIniciar:osIniciar, osFechar:osFechar, osReprogramar:osReprogramar, osReabrir:osReabrir, foto:foto, fotoDemo:fotoDemo,
+    salvarChecklist:salvarChecklist, osPorId:osPorId, osIniciar:osIniciar, osFechar:osFechar, osReprogramar:osReprogramar, osReabrir:osReabrir, osExcluir:osExcluir, foto:foto, fotoDemo:fotoDemo,
     usuarioSet:usuarioSet, usuarioCriar:usuarioCriar, ativoSet:ativoSet, ativoCriar:ativoCriar, itemSet:itemSet,
     metas:metas, metasSet:metasSet, faixa:faixa, METAS_PADRAO:METAS_PADRAO,
     unidades:unidades, nomesUnidades:nomesUnidades, unidadeCriar:unidadeCriar, unidadeSet:unidadeSet,

@@ -57,7 +57,7 @@
       usuarios:(d.usuarios || []).map(function(u){ return Object.assign({}, u, { criado_em:loc(u.criado_em), ultimo_acesso:loc(u.ultimo_acesso), unidade:u.unidade || '' }); }),
       checklists:(d.checklists || []).map(function(c){ return Object.assign({}, c, { data:loc(c.data), ncs:c.ncs || [] }); }).sort(function(a, b){ return a.data < b.data ? -1 : 1; }),
       os:(d.os || []).map(function(o){ return Object.assign({}, o, {
-        id:osId(o.id), num:o.id, abertura:loc(o.abertura), limite:loc(o.limite), limite_atual:loc(o.limite_atual), fechada_em:loc(o.fechada_em),
+        id:osId(o.id), num:o.id, prazo_h:+o.prazo, abertura:loc(o.abertura), limite:loc(o.limite), limite_atual:loc(o.limite_atual), fechada_em:loc(o.fechada_em),
         checklists:o.checklist ? [o.checklist] : [], retorno_de:osId(o.retorno_de), foto_fech:o.foto_fech,
         eventos:(o.eventos || []).map(function(e){ return { q:loc(e.q), t:e.t, por:e.por, txt:e.txt, dados:e.dados }; }),
         reprog:(o.reprog || []).map(function(r){ return { q:loc(r.q), por:r.por, motivo:r.motivo, novo_limite:loc(r.novo_limite) }; }) }); })
@@ -146,6 +146,7 @@
   };
   CK.osIniciar = function(id, por, execucao){ return escreve('ck_os_iniciar', { p_os:osNum(id), p_execucao:execucao }); };
   CK.osReabrir = function(id){ return escreve('ck_os_reabrir', { p_os:osNum(id) }); };
+  CK.osExcluir = function(id, por, motivo){ return escreve('ck_os_excluir', { p_os:osNum(id), p_motivo:motivo || '' }); };
   CK.osReprogramar = function(id, d){ return escreve('ck_os_reprogramar', { p_os:osNum(id), p_novo_limite:utc(d.novo_limite), p_motivo:d.motivo }); };
   CK.osFechar = async function(id, d){
     try {

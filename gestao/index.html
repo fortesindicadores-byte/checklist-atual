@@ -1880,6 +1880,7 @@ function abrirOS(id){
     acts+=`<button class="btn ok" onclick="formFechar()">Fechar OS</button><button class="btn" onclick="formReprog()">Reprogramar</button>`;
   }
   if(o.status==='fechada'&&podeReabrir()) acts+=`<button class="btn warn" onclick="doReabrir()">Reabrir OS</button>`;
+  if(EU&&EU.papel==='master') acts+=`<button class="btn" style="margin-left:auto;color:var(--vermelho)" title="Só o admin master. A OS some do painel e dos indicadores; fica o registro na auditoria." onclick="doExcluir()">Excluir OS</button>`;   /* Renan, 12/10/2026 */
   $('d-foot').innerHTML=acts||`<span class="muted" style="font-size:11px">Sem ações disponíveis para este perfil.</span>`;
   $('ov').classList.add('on'); $('drawer').classList.add('on'); $('d-body').scrollTop=0;
 }
@@ -1891,6 +1892,7 @@ function doIniciar(){
   $('os-form').scrollIntoView({behavior:'smooth',block:'end'});
 }
 async function confIniciar(){ const e=execSel(); if(!e){ $('inErro').textContent='Escolha se o atendimento é interno ou externo.'; return; } aposAcao(await CK.osIniciar(osAberta,EU.id,e), osAberta); }
+async function doExcluir(){ if(!EU||EU.papel!=='master') return; const m=prompt('Excluir a OS '+osNum(osAberta)+'? Ela some do painel e dos indicadores (fica só na auditoria). Motivo:'); if(m===null) return; const r=await CK.osExcluir(osAberta,EU.id,m.trim()); if(!r.ok){ alert(r.erro||'Não foi possível excluir.'); return; } fecharTudo(); refreshIdx(); atualizar(); }
 async function doReabrir(){ if(!confirm('Reabrir a OS '+osAberta+'?')) return; aposAcao(await CK.osReabrir(osAberta,EU.id), osAberta); }
 let docSel=null;
 function formFechar(){
