@@ -1424,13 +1424,14 @@ function ativoOk(f,a,skip){
 }
 const mesOk=(f,s)=>!f.mes.length||f.mes.includes(CK.mesKey(s));
 const critOk=(f,o)=>!f.crit.length||f.crit.includes(o.crit);
-const osMod=o=>{ const c=CKS[o.checklist]; return c?ckMod(c):('d-'+((ATV[o.ativo]||{}).tipo||'')); };
+const osMod=o=>{ if(o.modelo) return o.modelo; const c=CKS[o.checklist]; return c?ckMod(c):('d-'+((ATV[o.ativo]||{}).tipo||'')); };
 const modOk=(f,k)=>!f.modelo||!f.modelo.length||f.modelo.includes(k);
 const execOk=(f,o)=>!f.exec||!f.exec.length||f.exec.includes(o.status==='aberta'||!o.execucao?'nao':o.execucao);
 const osOk=(f,o)=>ativoOk(f,ATV[o.ativo])&&critOk(f,o)&&modOk(f,osMod(o))&&execOk(f,o);
-function fCks(f,mk){ return DB.checklists.filter(c=>(mk?CK.mesKey(c.data)===mk:mesOk(f,c.data))&&ativoOk(f,ATV[c.ativo])&&modOk(f,ckMod(c))); }
-function fOS(f,mk,semStatus){
-  return DB.os.filter(o=>(mk?CK.mesKey(o.abertura)===mk:mesOk(f,o.abertura))&&osOk(f,o)
+const ehPrevOS=o=>CK.ehPrev(o);   /* preventiva = OS de serviço: fora de SLA/MTTR/MTBF/conformidade (Renan, 12/10/2026) */
+function fCks(f,mk,tudo){ return DB.checklists.filter(c=>(tudo||c.origem!=='preventiva')&&(mk?CK.mesKey(c.data)===mk:mesOk(f,c.data))&&ativoOk(f,ATV[c.ativo])&&modOk(f,ckMod(c))); }
+function fOS(f,mk,semStatus,tudo){
+  return DB.os.filter(o=>(tudo||!ehPrevOS(o))&&(mk?CK.mesKey(o.abertura)===mk:mesOk(f,o.abertura))&&osOk(f,o)
     &&(semStatus||!f.status.length||f.status.includes(osStatus(o))));
 }
 /* OS fechadas no período, pela data de fechamento (base do SLA) */
@@ -1847,6 +1848,15 @@ function osRow(o,comCusto){ const a=ATV[o.ativo], it=CK.ITEM[o.item];
 const OS_TH='<th>OS</th><th>Ativo</th><th>Modelo</th><th>Item</th><th>Criticidade</th><th>Aberta em</th><th>Prazo</th><th>Status</th><th>Atendimento</th><th class="num">Reincid.</th><th>Responsável</th>';
 const podeAgirOS=()=>!!EU;
 const podeReabrir=()=>EU&&(EU.papel==='master'||EU.papel==='admin');
+/* preventiva na gaveta: tarefas feitas/pendentes em vez de não conformidade (Renan, 12/10/2026) */
+function prevTopo(o,a,ck){
+  const m=MOD[o.modelo]||{nome:'Preventiva'}, tf=(ck&&ck.tarefas)||[], feitas=tf.filter(t=>t.feito).length;
+  return `<div class="d-sec">Preventiva</div><div class="dkv"><span>Checklist</span><b>${esc(m.nome)}</b>`+
+    `<span>Ativo</span><b>${esc(ativoLbl(a))} · ${esc(a?a.marca+' '+a.modelo:'')} <span class="ctx">(${esc(a?CK.TIPO[a.tipo].nome:'')}${a&&a.unidade?', '+esc(a.unidade):''})</span></b>`+
+    `<span>Iniciada por</span><b>${esc(nomeU(o.aberta_por))} em ${CK.fmtDH(o.abertura)}</b>`+
+    (ck?`<span>Execução</span><b><a class="lnk" onclick="abrirCk('${ck.id}')">${CK.fmtDH(ck.data)}</a> por ${esc(nomeU(ck.usuario))} · ${feitas} de ${tf.length} tarefas feitas</b>`:`<span>Situação</span><b class="ca">em execução</b>`)+`</div>`+
+    (tf.length?`<div class="d-sec">Tarefas</div><div class="tl">`+tf.map(t=>{ const it=CK.ITEM[t.item]; return `<div><div class="t"><span class="${t.feito?'cg':'cr'}">${t.feito?'✓':'✗'}</span> ${esc(it?it.nome:t.item)}${t.feito?'':' <span class="ctx">· pendente</span>'}</div></div>`; }).join('')+`</div>`:'');
+}
 function abrirOS(id){
   const o=CK.osPorId(id); if(!o) return; osAberta=id; fotoSel=null;
   const a=ATV[o.ativo], it=CK.ITEM[o.item], s=CK.slaDe(o);
@@ -1854,7 +1864,7 @@ function abrirOS(id){
   $('d-chips').innerHTML=chipCrit(o.crit)+chipStatus(o);
   const foto=fotoSrc(o.foto, it?it.nome:o.item, CK.CRIT[o.crit].cor);
   const ck=DB.checklists.find(c=>c.id===o.checklist);
-  let h=`<div class="d-sec">Não conformidade registrada</div>`+(foto?`<img class="foto" src="${foto}" alt="Foto da não conformidade">`:'<div class="muted" style="font-size:11px">Sem foto anexada.</div>')+
+  let h=ehPrevOS(o)?prevTopo(o,a,ck):(`<div class="d-sec">Não conformidade registrada</div>`+(foto?`<img class="foto" src="${foto}" alt="Foto da não conformidade">`:'<div class="muted" style="font-size:11px">Sem foto anexada.</div>')+
     `<div class="obs">${esc(o.obs||'Sem observação do motorista.')}</div>`+
     `<div class="d-sec">Origem</div><div class="dkv">`+
     `<span>Ativo</span><b>${esc(ativoLbl(a))} · ${esc(a?a.marca+' '+a.modelo:'')} <span class="ctx">(${esc(a?CK.TIPO[a.tipo].nome:'')}, ${esc(a?a.unidade:'')})</span></b>`+
@@ -1867,7 +1877,7 @@ function abrirOS(id){
     `<div class="d-sec">SLA</div><div class="dkv"><span>Prazo original</span><b>${CK.fmtDH(o.limite)}</b>`+
     (o.limite_atual?`<span>Reprogramado para</span><b>${CK.fmtDH(o.limite_atual)}</b>`:'')+
     `<span>Situação</span><b>${prazoRel(o)}${o.status==='fechada'?` · resolvida em ${horasTxt(s.tempo_resolucao_h)}`:''}</b></div>`+
-    (o.reprog&&o.reprog.length?`<div class="d-sec">Reprogramações</div>`+o.reprog.map(r=>`<div class="obs" style="margin-top:6px"><b>${CK.fmtDH(r.q)}</b> · novo prazo ${CK.fmtDH(r.novo_limite)} · ${esc(nomeU(r.por))}<br><span class="ctx">${esc(r.motivo)}</span></div>`).join(''):'');
+    (o.reprog&&o.reprog.length?`<div class="d-sec">Reprogramações</div>`+o.reprog.map(r=>`<div class="obs" style="margin-top:6px"><b>${CK.fmtDH(r.q)}</b> · novo prazo ${CK.fmtDH(r.novo_limite)} · ${esc(nomeU(r.por))}<br><span class="ctx">${esc(r.motivo)}</span></div>`).join(''):''));
   h+=`<div class="d-sec">Atendimento</div><div class="dkv"><span>Tipo</span><b>${o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]+' <span class="ctx">· '+(o.execucao==='interna'?'equipe da Atual':'oficina ou fornecedor de fora')+'</span>':'<span class="ctx">ainda não iniciado</span>'}</b>`+
     (o.responsavel&&o.status!=='aberta'?`<span>Responsável</span><b>${esc(nomeU(o.responsavel))}</b>`:'')+`</div>`;
   if(o.status==='fechada'){ const ff=fotoSrc(o.foto_fech,'Correcao: '+(it?it.nome:o.item),'#3BB33B');
@@ -1950,7 +1960,7 @@ function setLcTab(t){ lcTab=t; $('qLc').value=''; renderLanc(); }
 function renderLanc(){
   const f=lastF; if(!f) return;
   const q=($('qLc').value||'').toLowerCase();
-  const cksAll=fCks(f), osAll=fOS(f);
+  const cksAll=fCks(f,null,true), osAll=fOS(f,null,false,true);
   $('lc-tabs').innerHTML=`<button class="dimb ${lcTab==='checklists'?'on':''}" onclick="setLcTab('checklists')">Checklists<span class="n">${n(cksAll.length)}</span></button>`+
     `<button class="dimb ${lcTab==='os'?'on':''}" onclick="setLcTab('os')">Ordens de Serviço<span class="n">${n(osAll.length)}</span></button>`;
   const LO={todos:['Todos',cksAll],diario:['Diários',cksAll.filter(c=>!ckInsp(c))],inspecao:['Inspeções',cksAll.filter(ckInsp)]};
@@ -2054,7 +2064,7 @@ const simN=b=>b?'Sim':'Não';
 const REL=[
   { id:'checklists', ic:'ck', tit:'Checklists realizados', desc:'Uma linha por checklist feito no período: ativo, quem fez, leitura, itens verificados, não conformidades e duração.',
     cols:[['Data/hora','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Checklist','t'],['Executado por','t'],['Leitura','n'],['Medidor','t'],['Itens verificados','n'],['Não conformidades','n'],['Conformidade','p'],['Duração (min)','d']],
-    linhas:f=>fCks(f).slice().sort((a,b)=>a.data<b.data?1:-1).map(c=>{ const a=ATV[c.ativo]||{}; const it=c.itens_total||0;
+    linhas:f=>fCks(f,null,true).slice().sort((a,b)=>a.data<b.data?1:-1).map(c=>{ const a=ATV[c.ativo]||{}; const it=c.itens_total||0;
       return [CK.fmtDH(c.data),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',modNome(c),nomeU(c.usuario),c.leitura||null,a.medidor||'',it,c.nc,it?(it-c.nc)/it*100:null,c.duracao_s?c.duracao_s/60:null]; }) },
   { id:'ncs', ic:'nc', tit:'Não conformidades', desc:'Uma linha por item reprovado nos checklists do período, com a observação de quem apontou e a OS gerada.',
     cols:[['Data/hora','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Item','t'],['Categoria','t'],['Criticidade','t'],['Bloqueia','t'],['Observação','t'],['Apontado por','t'],['OS','t'],['Status da OS','t']],
@@ -2063,7 +2073,7 @@ const REL=[
         out.push([CK.fmtDH(c.data),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',it?it.nome:x.item,it?it.cat:'',it?CK.CRIT[it.crit].nome:'',it?simN(it.bloqueia):'',x.obs||'',nomeU(c.usuario),os?osNum(os.id):'',os?STATUS_LBL[osStatus(os)]||osStatus(os):'']); }); }); return out; } },
   { id:'os', ic:'os', tit:'Ordens de serviço', desc:'Uma linha por OS aberta no período: prazos, status, atendimento interno ou externo, fechamento, fornecedor e valor.',
     cols:[['OS','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item','t'],['Criticidade','t'],['Bloqueia','t'],['Aberta em','t'],['Aberta por','t'],['Prazo original','t'],['Prazo reprogramado','t'],['Status','t'],['Atendimento','t'],['Responsável','t'],['Fechada em','t'],['Resolução (h)','d'],['No prazo','t'],['Solução','t'],['Fornecedor','t'],['Valor (R$)','r'],['Documento','t'],['Reincidências','n']],
-    linhas:f=>fOS(f).slice().sort((a,b)=>a.abertura<b.abertura?1:-1).map(o=>{ const a=ATV[o.ativo]||{}, it=CK.ITEM[o.item], s=CK.slaDe(o), fo=o.fornecedor?CK.fornecedor(o.fornecedor):null, fe=o.status==='fechada';
+    linhas:f=>fOS(f,null,false,true).slice().sort((a,b)=>a.abertura<b.abertura?1:-1).map(o=>{ const a=ATV[o.ativo]||{}, it=CK.ITEM[o.item], s=CK.slaDe(o), fo=o.fornecedor?CK.fornecedor(o.fornecedor):null, fe=o.status==='fechada';
       return [osNum(o.id),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',it?it.nome:o.item,CK.CRIT[o.crit].nome,simN(o.bloqueia),CK.fmtDH(o.abertura),nomeU(o.aberta_por),CK.fmtDH(o.limite),o.limite_atual?CK.fmtDH(o.limite_atual):'',
         STATUS_LBL[osStatus(o)]||osStatus(o),o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]:'',o.responsavel?nomeU(o.responsavel):'',fe?CK.fmtDH(o.fechada_em):'',fe?s.tempo_resolucao_h:null,fe?simN(s.no_prazo):'',fe?o.solucao||'':'',fo?fo.nome:'',fe&&o.custo!=null?o.custo:null,o.doc?(o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'):'',o.reincidencias||0]; }) },
   { id:'sla', ic:'sla', tit:'SLA por item', desc:'Para cada item, as OS fechadas no período: quantas no prazo, o SLA e o tempo médio e o maior tempo de resolução.',
@@ -2078,7 +2088,7 @@ const REL=[
         return [ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo].nome,a.unidade,a.operador?nomeU(a.operador):'',a.status==='ativo'?'Ativo':'Inativo',x.n,x.it,x.nc,x.it?(x.it-x.nc)/x.it*100:null,oss[a.id]||0,ab.length,simN(ab.some(o=>o.bloqueia)),bf[a.id]?derivBF(bf[a.id]).dias:null]; }); } },
   { id:'usuarios', ic:'us', tit:'Atividade por usuário', desc:'Quem fez checklist no período: quantos, em quantos ativos, quantas não conformidades apontou e o último registro.',
     cols:[['Usuário','t'],['Papel','t'],['Unidade','t'],['Checklists','n'],['Ativos diferentes','n'],['Não conformidades','n'],['Último checklist','t']],
-    linhas:f=>{ const g={}; fCks(f).forEach(c=>{ const x=g[c.usuario]||(g[c.usuario]={n:0,at:new Set(),nc:0,ult:''}); x.n++; x.at.add(c.ativo); x.nc+=c.nc; if(c.data>x.ult) x.ult=c.data; });
+    linhas:f=>{ const g={}; fCks(f,null,true).forEach(c=>{ const x=g[c.usuario]||(g[c.usuario]={n:0,at:new Set(),nc:0,ult:''}); x.n++; x.at.add(c.ativo); x.nc+=c.nc; if(c.data>x.ult) x.ult=c.data; });
       return Object.keys(g).map(id=>{ const u=USR[id]||{}, x=g[id]; return [u.nome||id,CK.PAPEL[u.papel]||'',u.unidade||'',x.n,x.at.size,x.nc,CK.fmtDH(x.ult)]; }).sort((a,b)=>b[3]-a[3]); } },
   { id:'inspecoes', ic:'insp', tit:'Checklists da equipe', desc:'Inspeções, preventivos e preditivos por ativo: última execução, quem fez, vencimento (quando há periodicidade) e situação.',
     cols:[['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Checklist','t'],['Tipo','t'],['Frequência','t'],['Última execução','t'],['Executada por','t'],['Vence em','t'],['Situação','t']],
@@ -2867,7 +2877,7 @@ function renderUsers(){
   const L={pendentes:'Pendentes',ativos:'Ativos',bloqueados:'Bloqueados'};
   $('us-tabs').innerHTML=Object.keys(L).map(k=>`<button class="dimb ${uTab===k?'on':''}" onclick="uTab='${k}';renderUsers()">${L[k]}<span class="n">${grp[k].length}</span></button>`).join('');
   set('sub-us', `${n(grp.ativos.length)} ativos · ${n(grp.pendentes.length)} aguardando aprovação · ${n(grp.bloqueados.length)} bloqueados · checklists contados no período do filtro`);
-  const cks=fCks(f); const porU={}; cks.forEach(c=>{ porU[c.usuario]=(porU[c.usuario]||0)+1; });
+  const cks=fCks(f,null,true); const porU={}; cks.forEach(c=>{ porU[c.usuario]=(porU[c.usuario]||0)+1; });
   const lista=grp[uTab].slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   $('body-us').innerHTML=lista.length?lista.map(u=>{ const ok=podeMexer(u), ehEu=u.id===EU.id;
     const papeis=['motorista','frota','admin'].concat(EU.papel==='master'&&u.papel==='master'?['master']:[]);

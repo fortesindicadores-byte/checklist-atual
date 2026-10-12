@@ -14,7 +14,7 @@ do $$ begin
   create type ck_status_usuario as enum ('ativo','pendente','bloqueado');
   create type ck_crit as enum ('critica','alta','media','baixa');
   create type ck_status_os as enum ('aberta','em_andamento','fechada','cancelada');   -- cancelada = excluída pelo master (12/10/2026)
-  create type ck_resposta as enum ('ok','nc');                             -- sem N/A: o motorista só vê itens do ativo
+  create type ck_resposta as enum ('ok','nc','nf');                        -- nf = tarefa de preventiva não feita (12/10/2026)                             -- sem N/A: o motorista só vê itens do ativo
   create type ck_execucao as enum ('interna','externa');
   create type ck_cat_modelo as enum ('inspecao','preventivo','preditivo');
   create type ck_freq as enum ('diario','semanal','quinzenal','mensal','livre');   -- livre = sob demanda
@@ -285,7 +285,7 @@ end $$;
 create or replace function ck_os_congelada() returns trigger language plpgsql as $$
 begin
   if tg_op = 'DELETE' then raise exception 'OS não pode ser apagada.'; end if;
-  if (new.ativo_id, new.item_id, new.crit, new.prazo_h, new.bloqueia, new.abertura, new.limite, new.checklist_id, new.obs, new.foto_path, new.aberta_por, new.retorno_de)
+  if (new.ativo_id, new.item_id, new.crit, new.prazo_h, new.bloqueia, new.abertura, new.limite, case when old.checklist_id is null then old.checklist_id else new.checklist_id end, new.obs, new.foto_path, new.aberta_por, new.retorno_de)
      is distinct from
      (old.ativo_id, old.item_id, old.crit, old.prazo_h, old.bloqueia, old.abertura, old.limite, old.checklist_id, old.obs, old.foto_path, old.aberta_por, old.retorno_de) then
     raise exception 'Campos de origem da OS não podem ser alterados.';

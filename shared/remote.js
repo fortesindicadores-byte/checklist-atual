@@ -55,9 +55,9 @@
       fornecedores:d.fornecedores || [],
       ativos:(d.ativos || []).map(function(a){ return Object.assign({ risco:0 }, a, { unidade:a.unidade || '' }); }),
       usuarios:(d.usuarios || []).map(function(u){ return Object.assign({}, u, { criado_em:loc(u.criado_em), ultimo_acesso:loc(u.ultimo_acesso), unidade:u.unidade || '' }); }),
-      checklists:(d.checklists || []).map(function(c){ return Object.assign({}, c, { data:loc(c.data), ncs:c.ncs || [] }); }).sort(function(a, b){ return a.data < b.data ? -1 : 1; }),
+      checklists:(d.checklists || []).map(function(c){ return Object.assign({}, c, { data:loc(c.data), ncs:c.ncs || [], tarefas:c.tarefas || [], pend:c.pend || 0 }); }).sort(function(a, b){ return a.data < b.data ? -1 : 1; }),
       os:(d.os || []).map(function(o){ return Object.assign({}, o, {
-        id:osId(o.id), num:o.id, prazo_h:+o.prazo, abertura:loc(o.abertura), limite:loc(o.limite), limite_atual:loc(o.limite_atual), fechada_em:loc(o.fechada_em),
+        id:osId(o.id), num:o.id, prazo_h:+o.prazo, preventiva:/^prev-/.test(o.item || ''), modelo:/^prev-/.test(o.item || '') ? o.item.slice(5) : null, abertura:loc(o.abertura), limite:loc(o.limite), limite_atual:loc(o.limite_atual), fechada_em:loc(o.fechada_em),
         checklists:o.checklist ? [o.checklist] : [], retorno_de:osId(o.retorno_de), foto_fech:o.foto_fech,
         eventos:(o.eventos || []).map(function(e){ return { q:loc(e.q), t:e.t, por:e.por, txt:e.txt, dados:e.dados }; }),
         reprog:(o.reprog || []).map(function(r){ return { q:loc(r.q), por:r.por, motivo:r.motivo, novo_limite:loc(r.novo_limite) }; }) }); })
@@ -145,6 +145,8 @@
       return { ok:true, checklist:ck, os_criadas:cri, os_reincidentes:rei, bloqueado:r.bloqueado };
     } catch(e){ return erro(e); }
   };
+  CK.preventivaIniciar = async function(d){ var r = await escreve('ck_preventiva_iniciar', { p_ativo:d.ativo, p_modelo:d.modelo, p_execucao:d.execucao || 'interna' }); if (r.ok) r.os = CK.osPorId(osId(r.id)); return r; };
+  CK.preventivaFinalizar = async function(id, d){ var r = await escreve('ck_preventiva_finalizar', { p_os:osNum(id), p:{ cliente_id:d.cliente_id, tarefas:d.tarefas, leitura:d.leitura, duracao_s:d.duracao_s, obs:d.obs } }); if (r.ok) { r.os = CK.osPorId(id); r.checklist = CK.load().checklists.filter(function(c){ return c.id === r.id; })[0]; } return r; };
   CK.osIniciar = function(id, por, execucao){ return escreve('ck_os_iniciar', { p_os:osNum(id), p_execucao:execucao }); };
   CK.osReabrir = function(id){ return escreve('ck_os_reabrir', { p_os:osNum(id) }); };
   CK.osExcluir = function(id, por, motivo){ return escreve('ck_os_excluir', { p_os:osNum(id), p_motivo:motivo || '' }); };

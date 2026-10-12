@@ -254,7 +254,7 @@ var CK = (function(){
     if (!itens.length) return { ok:false, erro:'O checklist precisa ter ao menos um item.' };
     var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
     db.modelos = db.modelos || []; db.modelos.push(m); save();
-    return { ok:true, modelo:m, itens_novos:novos.length };
+    garantePrevItens(); return { ok:true, modelo:m, itens_novos:novos.length };
   }
   /* itens do diário de um tipo (Renan, 11/10/2026: "deveria poder editar"): liga/desliga o tipo em cada item do catálogo.
      Só itens do diário (insp nunca entra); grava em itens_cfg[id].ap como lista explícita; vale para checklists e OS novos. */
@@ -278,7 +278,7 @@ var CK = (function(){
       var tipo = id.slice(2); if (!TIPO[tipo]) return { ok:false, erro:'Tipo não encontrado.' };
       if (patch.ativo == null) return { ok:false, erro:'Os itens do diário são editados em Itens e SLA.' };
       db.diarios_off = (db.diarios_off || []).filter(function(x){ return x !== tipo; }); if (!patch.ativo) db.diarios_off.push(tipo);
-      save(); return { ok:true, modelo:modelo(id) };
+      save(); garantePrevItens(); return { ok:true, modelo:modelo(id) };
     }
     var m = (db.modelos || []).filter(function(x){ return x.id === id; })[0];
     if (!m) return { ok:false, erro:'Checklist não encontrado.' };
@@ -286,7 +286,7 @@ var CK = (function(){
     if (!CATCK[cat2]) return { ok:false, erro:'Tipo de checklist inválido.' };
     if (!freqOk(cat2, fr2)) return { ok:false, erro:'Frequência não vale para ' + CATCK[cat2].nome.toLowerCase() + '.' };
     ['nome','categoria','freq','tipos','itens','ativo'].forEach(function(k){ if (patch[k] != null) m[k] = patch[k]; });
-    save(); return { ok:true, modelo:m };
+    save(); garantePrevItens(); return { ok:true, modelo:m };
   }
   /* inspeções da equipe para o usuário (admin/frota/master): modelo × ativo, com a situação pela última execução */
   function inspecoesPara(u){
@@ -590,13 +590,13 @@ var CK = (function(){
   }
 
   function dbVazio(){ return { versao:'remoto', ativos:[], usuarios:[], checklists:[], os:[], fotos:{}, anexos:{}, modelos:[], itens_extra:[], itens_cfg:{}, unidades:[], fornecedores:[], diarios_off:[], config:{ metas:JSON.parse(JSON.stringify(METAS_PADRAO)) }, maiusculas:true }; }
-  function setDB(d){ DB = d; return DB; }
-  function setCatalogo(lista){ ITENS.length = 0; Object.keys(ITEM).forEach(function(k){ delete ITEM[k]; }); (lista || []).forEach(function(i){ ITENS.push(i); ITEM[i.id] = i; }); }
+  function setDB(d){ DB = d; garantePrevItens(); return DB; }
+  function setCatalogo(lista){ ITENS.length = 0; Object.keys(ITEM).forEach(function(k){ delete ITEM[k]; }); (lista || []).forEach(function(i){ if (/^prev-/.test(i.id)) { i.preventiva = true; ITEM[i.id] = i; return; } ITENS.push(i); ITEM[i.id] = i; }); }
   function load(){
     if (DB) return DB;
     if (REMOTO) { DB = dbVazio(); return DB; }
-    try { var raw = localStorage.getItem(KEY); if (raw) { DB = JSON.parse(raw); if (DB.versao === 10) { registrarExtras(DB.itens_extra); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); if (!DB.unidades) { DB.unidades = UNIDADES.map(function(n, i){ return { id:'un' + (i+1), nome:n, ativa:true }; }); save(); } return DB; } } } catch(e){}
-    DB = gerarSeed(); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); save(); return DB;
+    try { var raw = localStorage.getItem(KEY); if (raw) { DB = JSON.parse(raw); if (DB.versao === 10) { registrarExtras(DB.itens_extra); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); if (!DB.unidades) { DB.unidades = UNIDADES.map(function(n, i){ return { id:'un' + (i+1), nome:n, ativa:true }; }); save(); } garantePrevItens(); return DB; } } } catch(e){}
+    DB = gerarSeed(); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); save(); garantePrevItens(); return DB;
   }
   function migraExecucao(){ var mud = 0; (DB.os || []).forEach(function(o){ if (o.execucao || o.status === 'aberta') return; var h = 0; for (var i = 0; i < o.id.length; i++) h = (h * 31 + o.id.charCodeAt(i)) % 997;
       o.execucao = /extern/i.test(o.solucao || '') || (o.reprog || []).some(function(r){ return /extern/i.test(r.motivo || ''); }) || h % 5 === 0 ? 'externa' : 'interna'; mud++; }); if (mud) save(); }
@@ -834,6 +834,42 @@ var CK = (function(){
     var q = isoDT(new Date()); o.limite_atual = d.novo_limite; o.reprog.push({ q:q, novo_limite:d.novo_limite, motivo:UP(d.motivo), por:d.por });
     o.eventos.push({ q:q, t:'reprogramada', por:d.por, txt:UP(d.motivo) + ' · NOVO PRAZO ' + fmtDH(d.novo_limite) }); save(); return { ok:true, os:o };
   }
+  /* ── PREVENTIVO = OS (Renan, 12/10/2026) ──
+     item virtual 'prev-<modelo>' representa a preventiva na OS (só em ITEM, nunca em ITENS: não aparece em Itens e SLA) */
+  function prevItemId(mid){ return 'prev-' + mid; }
+  function ehPrev(o){ return !!o && /^prev-/.test(String(o.item || '')); }
+  function garantePrevItens(){
+    (load().modelos || []).forEach(function(m){
+      if (catDe(m) !== 'preventivo') return;
+      var id = prevItemId(m.id), nome = /^PREVENTIV/i.test(m.nome) ? m.nome : 'PREVENTIVA · ' + m.nome;   /* não repete o prefixo */
+      if (!ITEM[id]) ITEM[id] = { id:id, cat:'PREVENTIVA', nome:nome, crit:'media', prazo:24, bloqueia:false, ap:[], insp:true, preventiva:true };
+      else ITEM[id].nome = nome;
+    });
+  }
+  function proxNumOS(db){ var mx = 0; db.os.forEach(function(o){ var n = parseInt(String(o.id).replace(/\D/g, ''), 10); if (n > mx) mx = n; }); return mx + 1; }
+  function preventivaIniciar(d){
+    var db = load(), a = ativo(d.ativo), m = modelo(d.modelo);
+    if (!a || !m || catDe(m) !== 'preventivo') return { ok:false, erro:'Preventiva não encontrada.' };
+    var u = usuario(d.usuario); if (!u || u.papel === 'motorista') return { ok:false, erro:'Só a equipe executa preventivas.' };
+    if (db.os.some(function(o){ return o.ativo === a.id && o.item === prevItemId(m.id) && o.status === 'em_andamento'; })) return { ok:false, erro:'Já há uma preventiva em andamento neste ativo.' };
+    garantePrevItens(); var q = isoDT(new Date()), ex = EXEC[d.execucao] ? d.execucao : 'interna';
+    var o = { id:'OS-' + String(proxNumOS(db)).padStart(4,'0'), ativo:a.id, item:prevItemId(m.id), modelo:m.id, preventiva:true, crit:'media', prazo_h:24, bloqueia:false,
+      abertura:q, limite:addH(q, 24), limite_atual:null, status:'em_andamento', checklists:[], checklist:null, obs:'', foto:null, aberta_por:u.id, responsavel:u.id, execucao:ex,
+      reincidencias:0, retorno_de:null, reprog:[], eventos:[{ q:q, t:'aberta', por:u.id, txt:'PREVENTIVA INICIADA · ' + m.nome }, { q:q, t:'em_andamento', por:u.id, txt:'ATENDIMENTO ' + UP(EXEC[ex]) }] };
+    db.os.push(o); save(); return { ok:true, os:o };
+  }
+  function preventivaFinalizar(id, d){
+    var db = load(), o = osPorId(id); if (!o || !ehPrev(o) || o.status !== 'em_andamento') return { ok:false, erro:'A preventiva não está em andamento.' };
+    var a = ativo(o.ativo), q = isoDT(new Date()), tarefas = (d.tarefas || []).map(function(t){ return { item:t.item, feito:!!t.feito }; });
+    var feitas = tarefas.filter(function(t){ return t.feito; }).length, pend = tarefas.filter(function(t){ return !t.feito; });
+    var ck = { id:uid('ck'), ativo:o.ativo, modelo:o.modelo, usuario:d.usuario, data:q, leitura:d.leitura || null, itens_total:tarefas.length, nc:0, ncs:[], tarefas:tarefas, pend:pend.length, duracao_s:d.duracao_s || null, origem:'preventiva', na:[] };
+    if (d.leitura && a) a.leitura = d.leitura;
+    db.checklists.push(ck);
+    o.status = 'fechada'; o.fechada_em = q; o.fechada_por = d.usuario; o.checklist = ck.id; o.checklists = [ck.id];
+    o.solucao = UP(feitas + ' DE ' + tarefas.length + ' TAREFAS FEITAS' + (pend.length ? ' · PENDENTE: ' + pend.map(function(t){ return ITEM[t.item] ? ITEM[t.item].nome : t.item; }).join(', ') : '') + (d.obs ? ' · ' + d.obs : ''));
+    o.eventos.push({ q:q, t:'fechada', por:d.usuario, txt:o.solucao }); save();
+    return { ok:true, checklist:ck, os:o };
+  }
   function osExcluir(id, por, motivo){ var db = load(), o = osPorId(id); if (!o) return { ok:false, erro:'OS não encontrada.' }; var u = usuario(por); if (!u || u.papel !== 'master') return { ok:false, erro:'Só o admin master exclui OS.' }; db.os = db.os.filter(function(x){ return x.id !== id; }); save(); return { ok:true }; }
   function osReabrir(id, por){ var o = osPorId(id); if (!o || o.status !== 'fechada') return { ok:false }; o.status = 'aberta'; o.fechada_em = null; o.eventos.push({ q:isoDT(new Date()), t:'reaberta', por:por }); save(); return { ok:true, os:o }; }
   function foto(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; return load().fotos[ref] || null; }
@@ -975,6 +1011,7 @@ var CK = (function(){
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,
     usuario:usuario, ativo:ativo, login:login, criarPin:criarPin, solicitarAcesso:solicitarAcesso, ativosPara:ativosPara, situacaoAtivo:situacaoAtivo,
+    preventivaIniciar:preventivaIniciar, preventivaFinalizar:preventivaFinalizar, prevItemId:prevItemId, ehPrev:ehPrev, garantePrevItens:garantePrevItens,
     salvarChecklist:salvarChecklist, osPorId:osPorId, osIniciar:osIniciar, osFechar:osFechar, osReprogramar:osReprogramar, osReabrir:osReabrir, osExcluir:osExcluir, foto:foto, fotoDemo:fotoDemo,
     usuarioSet:usuarioSet, usuarioCriar:usuarioCriar, ativoSet:ativoSet, ativoCriar:ativoCriar, itemSet:itemSet,
     metas:metas, metasSet:metasSet, faixa:faixa, METAS_PADRAO:METAS_PADRAO,

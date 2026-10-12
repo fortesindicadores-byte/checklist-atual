@@ -150,7 +150,9 @@ begin
                 'qr', case when u.papel in ('master','admin') then a.qr_token end) order by a.id), '[]') from ck_ativos a join ck_tipos t on t.id = a.tipo_id),
     'checklists', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'ativo', c.ativo_id, 'usuario', c.usuario_id, 'modelo', coalesce(c.modelo_id, 'd-' || a.tipo_id), 'data', c.data,
                 'leitura', c.leitura, 'duracao_s', c.duracao_s, 'itens_total', c.itens_total, 'nc', c.nc, 'origem', c.origem,
-                'ncs', (select coalesce(jsonb_agg(jsonb_build_object('item', r.item_id, 'obs', r.obs, 'foto', r.foto_path)), '[]') from ck_respostas r where r.checklist_id = c.id and r.resposta = 'nc'))
+                'ncs', (select coalesce(jsonb_agg(jsonb_build_object('item', r.item_id, 'obs', r.obs, 'foto', r.foto_path)), '[]') from ck_respostas r where r.checklist_id = c.id and r.resposta = 'nc'),
+                'tarefas', case when c.origem = 'preventiva' then (select coalesce(jsonb_agg(jsonb_build_object('item', r.item_id, 'feito', r.resposta = 'ok')), '[]') from ck_respostas r where r.checklist_id = c.id) end,
+                'pend', (select count(*) from ck_respostas r where r.checklist_id = c.id and r.resposta = 'nf'))
                 order by c.data desc), '[]')
                 from ck_checklists c join ck_ativos a on a.id = c.ativo_id where c.data >= d0),
     'os', (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'ativo', o.ativo_id, 'item', o.item_id, 'crit', o.crit, 'prazo', o.prazo_h, 'bloqueia', o.bloqueia,
@@ -277,6 +279,56 @@ begin
   insert into ck_os_eventos (os_id, tipo, por, texto, dados) values (p_os, 'reprogramada', u.id, m || ' · NOVO PRAZO ' || to_char(p_novo_limite at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI'),
     jsonb_build_object('motivo', m, 'novo_limite', p_novo_limite, 'limite_anterior', coalesce(o.limite_atual, o.limite)));
   return jsonb_build_object('ok', true);
+end $$;
+
+-- ── PREVENTIVO = OS (Renan, 12/10/2026) ──
+-- item virtual 'prev-<modelo>' em ck_itens (categoria PREVENTIVA, insp) representa a preventiva na OS; o cliente não o lista no catálogo.
+create or replace function ck_prev_item(p_modelo text) returns text language plpgsql security definer set search_path = public as $$
+declare m ck_modelos; iid text := 'prev-' || p_modelo;
+begin
+  select * into m from ck_modelos where id = p_modelo and categoria = 'preventivo'; if m.id is null then raise exception 'MODELO_INVALIDO'; end if;
+  insert into ck_itens (id, categoria, nome, crit, prazo_h, bloqueia, insp, ordem) values (iid, 'PREVENTIVA', case when m.nome ~* '^preventiv' then m.nome else 'PREVENTIVA · ' || m.nome end, 'media', 24, false, true, 9999)
+  on conflict (id) do update set nome = excluded.nome;
+  return iid;
+end $$;
+
+create or replace function ck_preventiva_iniciar(p_token uuid, p_ativo text, p_modelo text, p_execucao ck_execucao default 'interna') returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); iid text; nid int; m ck_modelos;
+begin
+  perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
+  if not exists (select 1 from ck_ativos where id = p_ativo and status = 'ativo') then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
+  iid := ck_prev_item(p_modelo); select * into m from ck_modelos where id = p_modelo;
+  if exists (select 1 from ck_os where ativo_id = p_ativo and item_id = iid and status = 'em_andamento') then raise exception 'PREVENTIVA_JA_EM_ANDAMENTO'; end if;
+  insert into ck_os (ativo_id, item_id, crit, prazo_h, bloqueia, limite, status, aberta_por, responsavel, execucao)
+  values (p_ativo, iid, 'media', 24, false, now() + interval '24 hours', 'em_andamento', u.id, u.id, p_execucao) returning id into nid;
+  insert into ck_os_eventos (os_id, tipo, por, texto) values (nid, 'aberta', u.id, 'PREVENTIVA INICIADA · ' || m.nome), (nid, 'em_andamento', u.id, 'ATENDIMENTO ' || upper(p_execucao::text));
+  return jsonb_build_object('ok', true, 'id', nid);
+end $$;
+
+-- p = {cliente_id?, tarefas:[{item, feito}], leitura?, duracao_s?, obs?}
+create or replace function ck_preventiva_finalizar(p_token uuid, p_os int, p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); o ck_os; cid uuid; t jsonb; tot int := 0; feitas int := 0; pend text[] := '{}'; sol text;
+begin
+  perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
+  select * into o from ck_os where id = p_os; if o.id is null or o.item_id not like 'prev-%' then raise exception 'OS_NAO_ENCONTRADA'; end if;
+  if o.status <> 'em_andamento' then raise exception 'PREVENTIVA_NAO_EM_ANDAMENTO'; end if;
+  if p->>'cliente_id' is not null then select id into cid from ck_checklists where cliente_id = p->>'cliente_id'; if cid is not null then return jsonb_build_object('ok', true, 'id', cid, 'repetido', true); end if; end if;
+  select count(*), count(*) filter (where (x->>'feito')::boolean) into tot, feitas from jsonb_array_elements(coalesce(p->'tarefas', '[]')) x;
+  insert into ck_checklists (ativo_id, usuario_id, modelo_id, leitura, duracao_s, itens_total, nc, origem, cliente_id)
+  values (o.ativo_id, u.id, substr(o.item_id, 6), (p->>'leitura')::numeric, (p->>'duracao_s')::int, tot, 0, 'preventiva', p->>'cliente_id') returning id into cid;
+  for t in select x from jsonb_array_elements(coalesce(p->'tarefas', '[]')) x loop
+    if not exists (select 1 from ck_itens where id = t->>'item') then continue; end if;
+    insert into ck_respostas (checklist_id, item_id, resposta) values (cid, t->>'item', case when (t->>'feito')::boolean then 'ok' else 'nf' end::ck_resposta) on conflict do nothing;
+    if not (t->>'feito')::boolean then pend := pend || (select nome from ck_itens where id = t->>'item'); end if;
+  end loop;
+  if (p->>'leitura')::numeric is not null then update ck_ativos set leitura = (p->>'leitura')::numeric where id = o.ativo_id; end if;
+  sol := ck_up(feitas || ' DE ' || tot || ' TAREFAS FEITAS' || case when cardinality(pend) > 0 then ' · PENDENTE: ' || array_to_string(pend, ', ') else '' end || case when ck_up(p->>'obs') is not null then ' · ' || ck_up(p->>'obs') else '' end);
+  update ck_os set status = 'fechada', fechada_por = u.id, solucao = sol, checklist_id = cid where id = p_os;
+  insert into ck_os_eventos (os_id, tipo, por, texto) values (p_os, 'fechada', u.id, sol);
+  insert into ck_log (usuario_id, evento, origem) values (u.id, 'checklist', 'app');
+  return jsonb_build_object('ok', true, 'id', cid, 'os', p_os);
 end $$;
 
 -- excluir OS (SÓ master): a OS vira 'cancelada' — some do painel, dos indicadores e do app; o registro completo fica na auditoria (Renan, 12/10/2026)
@@ -452,12 +504,14 @@ begin
     insert into ck_modelos (id, nome, categoria, freq, tipos, origem, criado_por)
     values (mid, ck_up(p->>'nome'), cat, fq, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), coalesce(p->>'origem', 'manual'), u.id);
     perform ck_audit(u.id, 'ck_modelos', mid, 'insert', null, p);
+    if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   else
     select * into antes from ck_modelos where id = mid; if antes.id is null then raise exception 'MODELO_NAO_ENCONTRADO'; end if;
     update ck_modelos set nome = coalesce(ck_up(p->>'nome'), nome), categoria = cat, freq = fq,
       tipos = case when p ? 'tipos' then (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x) else tipos end,
       ativo = coalesce((p->>'ativo')::boolean, ativo) where id = mid;
     perform ck_audit(u.id, 'ck_modelos', mid, 'update', to_jsonb(antes), p);
+    if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   end if;
   if p ? 'itens' or p ? 'novos' then
     delete from ck_modelos_itens where modelo_id = mid;
@@ -530,7 +584,7 @@ revoke all on all tables in schema public from anon, authenticated;
 revoke all on all functions in schema public from public, anon, authenticated;
 grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,text), ck_solicitar_acesso(jsonb), ck_situacao_cpf(text), ck_sair(uuid),
   ck_trocar_senha(uuid,text,text), ck_resetar_senha(uuid,uuid), ck_dataset(uuid,date), ck_salvar_checklist(uuid,jsonb), ck_farol(uuid,text),
-  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text),
+  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
   ck_metas_set(uuid,jsonb), ck_fatura(uuid,date)

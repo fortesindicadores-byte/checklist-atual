@@ -896,10 +896,11 @@ function abrirInspecao(aid, mid){
          + (x.vence ? '<br>' + (x.status === 'atrasada' ? 'Venceu em ' : 'Próxima até ') + '<b style="color:var(--txt);font-weight:600">' + CK.fmtData(x.vence) + '</b>' : '')
        : 'Esta inspeção nunca foi feita neste ativo.')
     + '</div></div>';
-  h += '<button class="btn" style="margin-top:0" onclick="iniciarChecklist(\'' + esc(a.id) + '\',\'' + esc(m.id) + '\')">Iniciar inspeção</button>';
+  var ehPv = CK.catDe(m) === 'preventivo';
+  h += '<button class="btn" style="margin-top:0" onclick="iniciarChecklist(\'' + esc(a.id) + '\',\'' + esc(m.id) + '\')">' + (ehPv ? 'Iniciar preventiva (abre OS)' : 'Iniciar inspeção') + '</button>';
   var cats = [], por = {};
   itens.forEach(function(it){ if (!por[it.cat]) { por[it.cat] = []; cats.push(it.cat); } por[it.cat].push(it); });
-  h += '<div class="sec" style="margin-top:20px">Itens da inspeção<span class="cont">' + itens.length + '</span></div>'
+  h += '<div class="sec" style="margin-top:20px">' + (ehPv ? 'Tarefas da preventiva' : 'Itens da inspeção') + '<span class="cont">' + itens.length + '</span></div>'
     + '<div class="card contorno" style="padding:4px 14px 8px">' + cats.map(function(c){
       return '<div class="sec" style="margin:12px 0 0">' + esc(c) + '</div>' + por[c].map(function(it){ return '<div class="lrow fixo"><i></i><span>' + esc(it.nome) + '</span>' + chip(it.crit) + '</div>'; }).join('');
     }).join('') + '</div>';
@@ -981,7 +982,7 @@ document.addEventListener('click', function(e){
 
 /* rascunho: checklist que ficou pela metade */
 function rascunho(){ try { var r = JSON.parse(LS.get('ck_app_rascunho') || 'null'); return r && EU && r.usuario === EU.id && CK.ativo(r.ativo) ? r : null; } catch(e){ return null; } }
-function salvaRascunho(){ if (!CK_ST) return; LS.set('ck_app_rascunho', JSON.stringify({ usuario:EU.id, ativo:CK_ST.ativo, modelo:CK_ST.modelo, inicio:CK_ST.inicio, leitura:CK_ST.leitura, passo:CK_ST.passo, idx:CK_ST.idx, resp:CK_ST.resp })); }
+function salvaRascunho(){ if (!CK_ST) return; LS.set('ck_app_rascunho', JSON.stringify({ usuario:EU.id, ativo:CK_ST.ativo, modelo:CK_ST.modelo, inicio:CK_ST.inicio, leitura:CK_ST.leitura, passo:CK_ST.passo, idx:CK_ST.idx, resp:CK_ST.resp, prev:CK_ST.prev, os:CK_ST.os, feito:CK_ST.feito, cid:CK_ST.cid })); }
 function limpaRascunho(){ LS.del('ck_app_rascunho'); }
 function renderRascunho(boxId){
   var r = rascunho(), box = $(boxId || (equipe() ? 'rascunhoInsp' : 'rascunhoBox'));
@@ -1005,7 +1006,8 @@ function retomar(){
   var mid = modeloDoCk(r);
   if (ehInspecao(mid) && !equipe()) return recusaInsp();
   if (!CK.itensDoModelo(mid, r.ativo).length) { alert('Este checklist não existe mais. O rascunho foi descartado.'); limpaRascunho(); CK_ST = null; irPara(ABA); return; }
-  CK_ST = { ativo:r.ativo, tipo:CK.ativo(r.ativo).tipo, modelo:mid, inicio:r.inicio, leitura:r.leitura, passo:r.passo || 1, idx:r.idx, resp:r.resp || {} };
+  CK_ST = { ativo:r.ativo, tipo:CK.ativo(r.ativo).tipo, modelo:mid, inicio:r.inicio, leitura:r.leitura, passo:r.passo || 1, idx:r.idx, resp:r.resp || {}, prev:!!r.prev, os:r.os || null, feito:r.feito || {}, cid:r.cid || null };
+  if (CK_ST.prev && !(CK.osPorId(CK_ST.os) && CK.osPorId(CK_ST.os).status === 'em_andamento')) { limpaRascunho(); CK_ST = null; irPara(ABA); return; }
   renderCheck(1); mostra('check');
 }
 function descartar(){
@@ -1037,7 +1039,7 @@ function linhaCk(c){
   return linha(nc ? CK.ICONES.alert : CK.ICONES.check, esc(a ? nomeAt(a) : c.ativo),
     (equipe() ? '<span style="display:inline;color:var(--acc2);font-weight:600;margin:0">' + esc(nomeModelo(modeloDoCk(c))) + '</span><br>' : '')   // equipe vê o modelo em cada linha
     + CK.fmtDataCurta(c.data) + ' ' + CK.fmtHora(c.data) + ' · ' + esc(primeiroNome(nomeUsuario(c.usuario))) + (c.leitura ? ' · ' + nInt(c.leitura) + (a && a.medidor === 'h' ? ' h' : ' km') : ''),
-    c.itens_total + ' itens', nc ? 'neg' : 'pos', nc ? nc + ' NC' : 'tudo OK', ' tap', ' data-ck="' + esc(c.id) + '"');
+    c.itens_total + (c.origem === 'preventiva' ? ' tarefas' : ' itens'), (c.origem === 'preventiva' ? (c.pend ? 'neg' : 'pos') : nc ? 'neg' : 'pos'), c.origem === 'preventiva' ? (c.pend ? c.pend + ' pend.' : 'tudo feito') : nc ? nc + ' NC' : 'tudo OK', ' tap', ' data-ck="' + esc(c.id) + '"');
 }
 
 /* ── CHECKLIST: um item por vez (card grande, avanço automático) ──
@@ -1045,7 +1047,7 @@ function linhaCk(c){
    sozinhos; Não conforme abre a foto (obrigatória) e a observação no próprio
    card. A barra de cima tem um segmento por item, colorido pela resposta. */
 /* mid = modelo do checklist; sem ele é o diário do tipo ("d-<TIPO>"). Inspeção só para a equipe. */
-function iniciarChecklist(id, mid){
+async function iniciarChecklist(id, mid){
   var a = CK.ativo(id); if (!a) return;
   mid = mid || ('d-' + a.tipo);
   if (ehInspecao(mid) && !equipe()) return recusaInsp();
@@ -1055,6 +1057,14 @@ function iniciarChecklist(id, mid){
   if (r && r.ativo === a.id && modeloDoCk(r) === mid) { retomar(); return; }
   if (r && !confirm('Há ' + (ehInspecao(modeloDoCk(r)) ? 'uma inspeção' : 'um checklist') + ' em andamento (' + nomeAt(CK.ativo(r.ativo)) + '). Descartar e começar este?')) return;
   limpaRascunho();
+  var mPrev = CK.modelo(mid), prev = !!(mPrev && CK.catDe(mPrev) === 'preventivo');
+  if (prev) {   /* preventivo = OS: abre em andamento agora; os itens são tarefas com check (Renan, 12/10/2026) */
+    var ex = confirm('A preventiva será feita pela equipe interna?\n\nOK = interna · Cancelar = externa (oficina/fornecedor)') ? 'interna' : 'externa';
+    var rp = await CK.preventivaIniciar({ ativo:a.id, modelo:mid, usuario:EU.id, execucao:ex });
+    if (!rp.ok) { alert(rp.erro || 'Não deu para iniciar a preventiva.'); return; }
+    CK_ST = { ativo:a.id, tipo:a.tipo, modelo:mid, inicio:Date.now(), leitura:a.leitura, passo: a.medidor ? 1 : 2, idx:0, resp:{}, prev:true, os:rp.os.id, feito:{} };
+    salvaRascunho(); renderCheck(1); mostra('check'); return;
+  }
   CK_ST = { ativo:a.id, tipo:a.tipo, modelo:mid, inicio:Date.now(), leitura:a.leitura, passo: a.medidor ? 1 : 2, idx:0, resp:{} };
   salvaRascunho(); renderCheck(1); mostra('check');
 }
@@ -1095,6 +1105,8 @@ function renderCheck(dir){
       + '<div class="dica">Última leitura registrada: <b>' + leituraTxt(a) + '</b>. Confira no painel e corrija se estiver diferente. Não pode ser menor que a última.</div>'
       + '<div class="lg-erro" id="ckLeituraErro" style="display:none"></div>'
       + '<button class="btn" onclick="confirmaLeitura()">Começar os ' + tot + ' itens</button></div>';
+  } else if (CK_ST.prev) {
+    h += prevHtml(itens);
   } else if (CK_ST.idx >= tot) {
     h += resumoHtml(itens);
   } else {
@@ -1183,6 +1195,20 @@ function fotoSel(input){
   });
 }
 /* resumo: aparece quando não sobra item pendente (ou ao passar do último) */
+/* preventiva: tarefas com um check cada; finalizar fecha a OS (Renan, 12/10/2026) */
+function prevHtml(itens){
+  var f = CK_ST.feito || {}, n = itens.filter(function(it){ return f[it.id]; }).length, o = CK.osPorId(CK_ST.os);
+  var h = '<div class="ck1"><div class="res-cab" style="padding-top:18px"><div class="ok' + (n === itens.length ? '' : ' nc') + '">' + CK.ICONES.wrench + '</div>'
+    + '<b>' + esc(nomeModelo(CK_ST.modelo)) + '</b><span>' + (o ? esc(o.id) + ' em andamento · ' : '') + n + ' de ' + itens.length + ' tarefas feitas</span></div>';
+  h += '<div class="card contorno" style="padding:4px 14px 8px">' + itens.map(function(it){
+    return '<label class="lrow tap" style="cursor:pointer;gap:12px"><input type="checkbox" style="width:22px;height:22px;accent-color:var(--acc);flex:0 0 22px" ' + (f[it.id] ? 'checked' : '') + ' onchange="prevMarca(\'' + esc(it.id) + '\', this.checked)"><span style="flex:1">' + esc(it.nome) + (it.dica ? '<br><small style="color:var(--txt3)">' + esc(it.dica) + '</small>' : '') + '</span></label>';
+  }).join('') + '</div>';
+  h += '<div class="campo" style="margin-top:14px"><label>Observação (opcional)</label><textarea id="prevObs" rows="2" style="width:100%;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px;color:var(--txt);font-family:inherit;font-size:13.5px;resize:none" oninput="CK_ST.obs=this.value">' + esc(CK_ST.obs || '') + '</textarea></div>';
+  h += '<div class="lg-erro" id="ckErro" style="display:none"></div>';
+  h += '<button class="btn" onclick="finalizar()">' + (n === itens.length ? 'Finalizar preventiva' : 'Finalizar com ' + (itens.length - n) + (itens.length - n === 1 ? ' pendência' : ' pendências')) + '</button></div>';
+  return h;
+}
+function prevMarca(id, v){ if (!CK_ST) return; CK_ST.feito = CK_ST.feito || {}; if (v) CK_ST.feito[id] = true; else delete CK_ST.feito[id]; salvaRascunho(); renderCheck(0); }
 function resumoHtml(itens){
   var n = { ok:0, nc:0, na:0 }, pend = [], ncs = [];
   itens.forEach(function(it){
@@ -1247,6 +1273,15 @@ async function finalizar(){
 }
 async function finalizar2(){
   var itens = itensCk(), e = $('ckErro');
+  if (CK_ST.prev) {
+    var f = CK_ST.feito || {}, pend = itens.filter(function(it){ return !f[it.id]; });
+    if (pend.length && !confirm(pend.length + (pend.length === 1 ? ' tarefa não foi marcada' : ' tarefas não foram marcadas') + ' como feita. Finalizar assim mesmo? Elas ficam registradas como pendentes na OS.')) return;
+    if (!CK_ST.cid) { CK_ST.cid = CK.uid('ck'); salvaRascunho(); }
+    var bts = document.querySelectorAll('#v-check button'); bts.forEach(function(b){ b.disabled = true; });
+    var rp = await CK.preventivaFinalizar(CK_ST.os, { cliente_id:CK_ST.cid, usuario:EU.id, leitura:CK_ST.leitura, duracao_s:Math.round((Date.now() - CK_ST.inicio) / 1000), obs:CK_ST.obs || '', tarefas:itens.map(function(it){ return { item:it.id, feito:!!f[it.id] }; }) });
+    if (!rp.ok) { bts.forEach(function(b){ b.disabled = false; }); if (e) { e.textContent = rp.erro || 'Não deu para finalizar.'; e.style.display = ''; } return; }
+    limpaRascunho(); CK_ST = null; renderResultadoPrev(rp); mostra('result'); return;
+  }
   var p = proxPendente(0);
   if (p < itens.length) { CK_ST.idx = p; salvaRascunho(); renderCheck(1); return; }
   if (ehInspecao(CK_ST.modelo) && !equipe()) return recusaInsp();
@@ -1260,6 +1295,16 @@ async function finalizar2(){
   mostra('result');
 }
 /* resultado da equipe: técnico — quantas NC, quais OS abriram, criticidade e prazo */
+function renderResultadoPrev(rp){
+  var ck = rp.checklist, o = rp.os, a = CK.ativo(ck.ativo), pend = (ck.tarefas || []).filter(function(t){ return !t.feito; });
+  var h = '<div class="res-cab"><div class="ok' + (pend.length ? ' nc' : '') + '">' + (pend.length ? CK.ICONES.alert : CK.ICONES.check) + '</div>'
+    + '<b>Preventiva concluída' + (pend.length ? ' com ' + plural(pend.length, 'pendência', 'pendências') : '') + '</b>'
+    + '<span>' + esc(nomeAt(a)) + '</span><span>' + esc(nomeModelo(modeloDoCk(ck))) + ' · ' + CK.fmtDH(ck.data) + (o ? ' · ' + esc(o.id) + ' fechada' : '') + '</span></div>';
+  h += '<div class="res-nums"><div class="n"><b class="pos">' + ((ck.tarefas || []).length - pend.length) + '</b><span>feitas</span></div><div class="n"><b class="' + (pend.length ? 'neg' : '') + '">' + pend.length + '</b><span>pendentes</span></div></div>';
+  if (pend.length) h += '<div class="sec">Ficaram pendentes</div>' + pend.map(function(t){ var it = CK.ITEM[t.item]; return linha(CK.ICONES.wrench, esc(it ? it.nome : t.item), 'registrado na ' + esc(o ? o.id : 'OS'), null, '', '', '', ''); }).join('');
+  h += '<button class="btn" onclick="irPara(\'inspecoes\')">Voltar aos checklists</button>';
+  $('v-result').innerHTML = h;
+}
 function renderResultadoEquipe(res){
   var ck = res.checklist, a = CK.ativo(ck.ativo), nc = ck.nc || 0, cri = res.os_criadas, rei = res.os_reincidentes;
   var bloq = cri.concat(rei).filter(function(o){ return o.bloqueia; });
@@ -1316,6 +1361,10 @@ function abrirCk(id){
   var a = CK.ativo(c.ativo), nc = c.nc || 0;
   var h = '<button class="volta" onclick="irPara(\'' + (ABA === 'historico' || ABA === 'inspecoes' ? ABA : 'inicio') + '\')">' + CK.ICONES.back + 'Voltar</button>';
   h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b>' + (equipe() ? '<span style="color:var(--acc2);font-weight:600">' + esc(nomeModelo(modeloDoCk(c))) + '</span>' : '') + '<span>' + CK.fmtDH(c.data) + ' · por ' + esc(nomeUsuario(c.usuario)) + '</span><span>' + c.itens_total + ' itens · <b style="display:inline;font-size:11px" class="' + (nc ? 'neg' : 'pos') + '">' + nc + ' NC</b>' + (c.leitura ? ' · leitura ' + nInt(c.leitura) + (a.medidor === 'h' ? ' h' : ' km') : '') + (c.duracao_s ? ' · ' + Math.round(c.duracao_s / 60) + ' min' : '') + '</span></div></div>';
+  if (c.origem === 'preventiva') {
+    h += '<div class="sec">Tarefas<span class="cont">' + (c.tarefas || []).length + '</span></div><div class="card contorno" style="padding:4px 14px 8px">' + (c.tarefas || []).map(function(t){ var it = CK.ITEM[t.item]; return '<div class="lrow fixo"><span style="color:' + (t.feito ? 'var(--verde,#3DD47A)' : 'var(--vermelho,#F4544A)') + '">' + (t.feito ? '✓' : '✗') + '</span><span>' + esc(it ? it.nome : t.item) + '</span></div>'; }).join('') + '</div>';
+    $('v-ckdet').innerHTML = h; mostra('ckdet'); return;
+  }
   h += '<div class="sec">Não conformidades<span class="cont">' + (nc || '') + '</span></div>';
   h += (c.ncs || []).map(function(n){
     var it = CK.ITEM[n.item], f = CK.foto(n.foto), src = f === 'demo' ? CK.fotoDemo(it.nome) : f;
