@@ -859,6 +859,10 @@ function filtraInspecoes(lista){
       + por[k].map(linhaInsp).join('');
   }).join('');
   if (!l.length) h += q ? '<div class="vazio">Confira a placa ou o número da frota e tente de novo.</div>' : '<div class="vazio">Nenhum checklist da equipe cadastrado. O admin cria inspeções, preventivos e preditivos no portal gestor.</div>';
+  /* equipe também vê os ativos (Renan, 12/10/2026: 'os ativos estão lá'): todos os ativos ativos, com o farol; a busca filtra junto */
+  var at = CK.ativosPara(EU).filter(function(a){ return !q || normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0; })
+    .sort(function(a, b){ var x = ultimoDiario(a.id), y = ultimoDiario(b.id); return (y ? y.data : '') > (x ? x.data : '') ? 1 : (y ? y.data : '') < (x ? x.data : '') ? -1 : nomeAt(a).localeCompare(nomeAt(b)); });
+  h += '<div class="sec" style="margin-top:14px">Ativos<span class="cont">' + at.length + '</span></div>' + (at.map(linhaAtivo).join('') || '<div class="vazio">Nenhum ativo encontrado.</div>');
   $('inspLista').innerHTML = h;
 }
 function linhaInsp(x){
@@ -906,7 +910,11 @@ function abrirInspecao(aid, mid){
 }
 
 /* ── INÍCIO ── */
-function meusAtivos(){ return CK.load().ativos.filter(function(a){ return a.status === 'ativo' && a.operador === EU.id; }); }
+function meusAtivos(){
+  var db = CK.load(), lim = new Date(); lim.setDate(lim.getDate() - 30); var d0 = CK.isoDT(lim), meus = {};
+  db.checklists.forEach(function(c){ if (c.usuario === EU.id && c.data >= d0 && !ehInspecao(c.modelo)) meus[c.ativo] = 1; });
+  return db.ativos.filter(function(a){ return a.status === 'ativo' && (a.operador === EU.id || meus[a.id]); });
+}
 function renderInicio(){
   var db = CK.load(), hoje = hojeIso(), mk = CK.mesKey(hoje);
   var meus = db.checklists.filter(function(c){ return c.usuario === EU.id && CK.mesKey(c.data) === mk; });
@@ -924,7 +932,7 @@ function renderInicio(){
   $('hojeTxt').innerHTML = '<b>' + feitos + '</b> / ' + mine.length + (mine.length === 1 ? ' ativo' : ' ativos');
   $('hojePct').textContent = mine.length ? pct + '%' : '';
   $('meusCont').textContent = mine.length || '';
-  $('meus').innerHTML = mine.map(linhaAtivo).join('') || '<div class="vazio">Você ainda não é o operador habitual de nenhum ativo. Procure o seu na lista abaixo.</div>';
+  $('meus').innerHTML = mine.map(linhaAtivo).join('') || '<div class="vazio">Procure o seu ativo pela placa ou pelo nº da frota. Depois do primeiro checklist ele fica aqui.</div>';
   renderOutros();
   renderRascunho('rascunhoBox');
   buscaAtivos();

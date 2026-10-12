@@ -97,10 +97,10 @@
     if (!r.ok) return null;
     var j = await r.json(), url = URL0 + '/storage/v1' + j.signedURL; ASS[k] = { url:url, ate:Date.now() + 50 * 60000 }; return url;
   }
-  /* <img src="ckfoto:caminho"> vira URL assinada sozinho (o app e o portal não mudam) */
+  /* <img src="data:,ckfoto/caminho"> vira URL assinada sozinho (o app e o portal não mudam) */
   function resolverFotos(root){
-    (root || document).querySelectorAll('img[src^="ckfoto:"]').forEach(function(img){
-      var path = img.getAttribute('src').slice(7); img.removeAttribute('src'); img.dataset.ckfoto = path;
+    (root || document).querySelectorAll('img[src^="data:,ckfoto/"]').forEach(function(img){
+      var path = img.getAttribute('src').slice(13); img.removeAttribute('src'); img.dataset.ckfoto = path;
       assinar('fotos', path).then(function(u){ if (u) img.src = u; });
     });
   }
@@ -155,7 +155,7 @@
       return await escreve('ck_os_fechar', { p_os:num, p:{ solucao:d.solucao, foto:foto, execucao:d.execucao, custo:d.custo, fornecedor:d.fornecedor, doc:doc } });
     } catch(e){ return erro(e); }
   };
-  CK.foto = function(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; if (/^(data:|https?:)/.test(ref)) return ref; return 'ckfoto:' + ref; };
+  CK.foto = function(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; if (/^(data:image|https?:)/.test(ref)) return ref; return 'data:,ckfoto/' + ref; };   /* data: vazio evita erro de esquema no console até a URL assinada chegar */
   CK.anexo = function(path){ if (!path) return null; return { nome:String(path).split('/').pop().replace(/^\d+-/, ''), remoto:true, path:path }; };
   CK.anexoUrl = function(path){ return assinar('anexos', path); };
 
