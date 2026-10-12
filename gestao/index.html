@@ -109,11 +109,12 @@ body.tv .app{inset:0;border-radius:0;border:0;}   /* Modo TV continua tela cheia
 .side.mini .s-user{flex-wrap:wrap;gap:6px;justify-content:center;padding:12px 0 2px;}
 .s-sec{display:flex;align-items:center;gap:6px;padding:14px 8px 8px;
   font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1.1px;}
-.s-item{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:0;border-radius:7px;
+.s-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 8px;border:0;border-radius:7px;
   background:transparent;color:var(--txt2);font-family:inherit;font-size:12.5px;font-weight:500;text-align:left;cursor:pointer;text-decoration:none;}   /* 12,5px = igual ao Scorecard / guia (Renan, 11/10/2026) */
 .s-item:hover{background:var(--hover);color:var(--txt);}
 .s-item.on{background:var(--hover);color:var(--txt);font-weight:600;}
 .s-item .n{margin-left:auto;font-size:11px;color:var(--txt3);font-weight:600;}
+.s-item>svg{color:var(--azul);flex:0 0 auto;}   /* ícones pintados, como no GeM (Renan, 12/10/2026) */
 .s-item[hidden],.s-sec[hidden]{display:none;}
 .s-leg{padding:0 8px 2px;display:grid;grid-template-columns:1fr;}   /* criticidade uma abaixo da outra (Renan, 11/10/2026) */
 .s-leg div{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:500;color:var(--txt2);padding:2px 0;}
@@ -892,8 +893,6 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
       Parâmetros
     </button>
-    <div class="s-sec">Criticidade</div>
-    <div class="s-leg" id="s-leg"></div>
 
     <div class="s-sec" data-roles="master">Administração</div>
     <button class="s-item" data-vw="faturamento" data-roles="master">
@@ -2979,7 +2978,7 @@ function setVw(v){
   if(lastF && v==='resumo') setTimeout(()=>renderCharts(lastF),30);
 }
 document.querySelectorAll('.s-item[data-vw]').forEach(b=>b.addEventListener('click',()=>setVw(b.dataset.vw)));
-$('s-leg').innerHTML=Object.keys(CK.CRIT).map(k=>`<div>${farolCrit(k)}${esc(CK.CRIT[k].nome)}</div>`).join('');
+
 
 /* ── lateral recolhida + dica ── */
 const DICA=document.createElement('div'); DICA.className='dica'; document.body.appendChild(DICA);
@@ -3022,15 +3021,15 @@ new MutationObserver(_espAgenda).observe(document.documentElement,{childList:tru
 window.addEventListener('resize',_espAgenda);
 function ajustaLateral(){
   const sd=document.querySelector('.side'); if(!sd||innerWidth<=860) return;
-  sd.style.setProperty('--ip','3px'); sd.style.setProperty('--sp','7px');
+  sd.style.setProperty('--ip','6px'); sd.style.setProperty('--sp','7px');   /* itens mais espaçados (Renan, 12/10/2026, ref. GeM) */
   const itens=[...sd.querySelectorAll('.s-item')].filter(x=>x.offsetParent&&!x.closest('.s-volta')), secs=[...sd.querySelectorAll('.s-sec')].filter(x=>x.offsetParent);
   const fim=sd.querySelector('.s-volta')||sd.querySelector('.s-user'); if(!itens.length||!fim) return;
   const sobra=fim.getBoundingClientRect().top-itens[itens.length-1].getBoundingClientRect().bottom-28;   /* deixa ~28px de respiro antes do rodapé */
   if(sobra<=0) return;
   /* a maior parte da sobra vai para o espaço entre os grupos (Renan, 11/10/2026: "grupos muito colados");
      itens ganham no máximo +3px de cada lado; cada seção recebe o resto (1,55 partes: em cima + 0,55 embaixo) */
-  const addI=Math.min(4, sobra*.3/(2*itens.length)), addS=secs.length?(sobra-2*itens.length*addI)/(secs.length*1.55):0;
-  sd.style.setProperty('--ip',(3+addI).toFixed(1)+'px');
+  const addI=Math.min(5, sobra*.45/(2*itens.length)), addS=secs.length?(sobra-2*itens.length*addI)/(secs.length*1.55):0;
+  sd.style.setProperty('--ip',(6+addI).toFixed(1)+'px');
   sd.style.setProperty('--sp',Math.min(34,7+addS).toFixed(1)+'px');
 }
 window.addEventListener('resize',()=>{ clearTimeout(window._lt); window._lt=setTimeout(ajustaLateral,120); });
