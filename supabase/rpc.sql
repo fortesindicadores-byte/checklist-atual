@@ -154,7 +154,7 @@ begin
                 'tarefas', case when c.origem = 'preventiva' then (select coalesce(jsonb_agg(jsonb_build_object('item', r.item_id, 'feito', r.resposta = 'ok')), '[]') from ck_respostas r where r.checklist_id = c.id) end,
                 'pend', (select count(*) from ck_respostas r where r.checklist_id = c.id and r.resposta = 'nf'))
                 order by c.data desc), '[]')
-                from ck_checklists c join ck_ativos a on a.id = c.ativo_id where c.data >= d0),
+                from ck_checklists c join ck_ativos a on a.id = c.ativo_id where c.cancelado_em is null and c.data >= d0),
     'os', (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'ativo', o.ativo_id, 'item', o.item_id, 'crit', o.crit, 'prazo', o.prazo_h, 'bloqueia', o.bloqueia,
                 'abertura', o.abertura, 'limite', o.limite, 'limite_atual', o.limite_atual, 'status', o.status, 'checklist', o.checklist_id, 'obs', o.obs, 'foto', o.foto_path,
                 'aberta_por', o.aberta_por, 'responsavel', o.responsavel, 'execucao', o.execucao, 'reincidencias', o.reincidencias, 'retorno_de', o.retorno_de,
@@ -329,6 +329,23 @@ begin
   insert into ck_os_eventos (os_id, tipo, por, texto) values (p_os, 'fechada', u.id, sol);
   insert into ck_log (usuario_id, evento, origem) values (u.id, 'checklist', 'app');
   return jsonb_build_object('ok', true, 'id', cid, 'os', p_os);
+end $$;
+
+-- excluir checklist (SÓ master): marca cancelado (some do dataset e dos indicadores), cancela as OS que ele abriu; tudo na auditoria (Renan, 12/10/2026)
+create or replace function ck_checklist_excluir(p_token uuid, p_checklist uuid, p_motivo text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); c ck_checklists; o ck_os; m text := coalesce(ck_up(p_motivo), 'EXCLUÍDO PELO ADMIN MASTER');
+begin
+  perform ck_exige(u, array['master']::ck_papel[]);
+  select * into c from ck_checklists where id = p_checklist; if c.id is null then raise exception 'CHECKLIST_NAO_ENCONTRADO'; end if;
+  if c.cancelado_em is not null then raise exception 'CHECKLIST_JA_EXCLUIDO'; end if;
+  perform ck_audit(u.id, 'ck_checklists', p_checklist::text, 'delete', to_jsonb(c), jsonb_build_object('motivo', m));
+  update ck_checklists set cancelado_em = now(), cancelado_por = u.id, cancelado_motivo = m where id = p_checklist;
+  for o in select * from ck_os where checklist_id = p_checklist and status <> 'cancelada' loop
+    perform ck_audit(u.id, 'ck_os', o.id::text, 'delete', to_jsonb(o), jsonb_build_object('motivo', 'CHECKLIST EXCLUÍDO · ' || m));
+    update ck_os set status = 'cancelada' where id = o.id;
+    insert into ck_os_eventos (os_id, tipo, por, texto) values (o.id, 'cancelada', u.id, 'CHECKLIST EXCLUÍDO · ' || m);
+  end loop;
+  return jsonb_build_object('ok', true);
 end $$;
 
 -- excluir OS (SÓ master): a OS vira 'cancelada' — some do painel, dos indicadores e do app; o registro completo fica na auditoria (Renan, 12/10/2026)
@@ -584,7 +601,7 @@ revoke all on all tables in schema public from anon, authenticated;
 revoke all on all functions in schema public from public, anon, authenticated;
 grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,text), ck_solicitar_acesso(jsonb), ck_situacao_cpf(text), ck_sair(uuid),
   ck_trocar_senha(uuid,text,text), ck_resetar_senha(uuid,uuid), ck_dataset(uuid,date), ck_salvar_checklist(uuid,jsonb), ck_farol(uuid,text),
-  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
+  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
   ck_metas_set(uuid,jsonb), ck_fatura(uuid,date)

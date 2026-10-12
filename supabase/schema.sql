@@ -152,6 +152,7 @@ create table if not exists ck_checklists (
   lat         numeric, lng numeric,
   cliente_id  text                                     -- id gerado no celular (idempotência offline)
 );
+alter table ck_checklists add column if not exists cancelado_em timestamptz, add column if not exists cancelado_por uuid references ck_usuarios(id), add column if not exists cancelado_motivo text;   -- excluído pelo master (12/10/2026)
 create unique index if not exists ck_checklists_cliente on ck_checklists (cliente_id) where cliente_id is not null;
 create index if not exists ck_checklists_ativo_data on ck_checklists (ativo_id, data desc);
 create index if not exists ck_checklists_usuario_data on ck_checklists (usuario_id, data desc);
@@ -273,8 +274,21 @@ create trigger ck_checklists_carimbo before insert on ck_checklists for each row
 -- 2) checklist, respostas, eventos de OS e log: sem UPDATE e sem DELETE, para ninguém
 create or replace function ck_bloqueia_alteracao() returns trigger language plpgsql as $$
 begin raise exception 'Registro de resultado não pode ser alterado nem apagado (%).', tg_table_name; end $$;
+-- checklist: imutável, exceto a marcação de cancelamento pelo master (uma vez só)
+create or replace function ck_checklist_imutavel() returns trigger language plpgsql as $$
+begin
+  if tg_op = 'DELETE' then raise exception 'Checklist não pode ser apagado.'; end if;
+  if old.cancelado_em is not null or new.cancelado_em is null then raise exception 'Checklist não pode ser alterado.'; end if;
+  if (new.ativo_id, new.usuario_id, new.modelo_id, new.data, new.leitura, new.duracao_s, new.itens_total, new.nc, new.origem, new.cliente_id)
+     is distinct from (old.ativo_id, old.usuario_id, old.modelo_id, old.data, old.leitura, old.duracao_s, old.itens_total, old.nc, old.origem, old.cliente_id) then
+    raise exception 'Checklist não pode ser alterado.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists ck_checklists_imutavel on ck_checklists;
+create trigger ck_checklists_imutavel before update or delete on ck_checklists for each row execute function ck_checklist_imutavel();
 do $$ declare t text; begin
-  foreach t in array array['ck_checklists','ck_respostas','ck_os_eventos','ck_log'] loop
+  foreach t in array array['ck_respostas','ck_os_eventos','ck_log'] loop
     execute format('drop trigger if exists %I_imutavel on %I', t, t);
     execute format('create trigger %I_imutavel before update or delete on %I for each row execute function ck_bloqueia_alteracao()', t, t);
   end loop;

@@ -870,6 +870,8 @@ var CK = (function(){
     o.eventos.push({ q:q, t:'fechada', por:d.usuario, txt:o.solucao }); save();
     return { ok:true, checklist:ck, os:o };
   }
+  function checklistExcluir(id, por, motivo){ var db = load(), c = db.checklists.filter(function(x){ return x.id === id; })[0]; if (!c) return { ok:false, erro:'Checklist não encontrado.' }; var u = usuario(por); if (!u || u.papel !== 'master') return { ok:false, erro:'Só o admin master exclui checklists.' };
+    db.checklists = db.checklists.filter(function(x){ return x.id !== id; }); db.os = db.os.filter(function(o){ return o.checklist !== id && (o.checklists || []).indexOf(id) < 0; }); save(); return { ok:true }; }
   function osExcluir(id, por, motivo){ var db = load(), o = osPorId(id); if (!o) return { ok:false, erro:'OS não encontrada.' }; var u = usuario(por); if (!u || u.papel !== 'master') return { ok:false, erro:'Só o admin master exclui OS.' }; db.os = db.os.filter(function(x){ return x.id !== id; }); save(); return { ok:true }; }
   function osReabrir(id, por){ var o = osPorId(id); if (!o || o.status !== 'fechada') return { ok:false }; o.status = 'aberta'; o.fechada_em = null; o.eventos.push({ q:isoDT(new Date()), t:'reaberta', por:por }); save(); return { ok:true, os:o }; }
   function foto(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; return load().fotos[ref] || null; }
@@ -1012,7 +1014,7 @@ var CK = (function(){
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,
     usuario:usuario, ativo:ativo, login:login, criarPin:criarPin, solicitarAcesso:solicitarAcesso, ativosPara:ativosPara, situacaoAtivo:situacaoAtivo,
     preventivaIniciar:preventivaIniciar, preventivaFinalizar:preventivaFinalizar, prevItemId:prevItemId, ehPrev:ehPrev, garantePrevItens:garantePrevItens,
-    salvarChecklist:salvarChecklist, osPorId:osPorId, osIniciar:osIniciar, osFechar:osFechar, osReprogramar:osReprogramar, osReabrir:osReabrir, osExcluir:osExcluir, foto:foto, fotoDemo:fotoDemo,
+    salvarChecklist:salvarChecklist, osPorId:osPorId, osIniciar:osIniciar, osFechar:osFechar, osReprogramar:osReprogramar, osReabrir:osReabrir, osExcluir:osExcluir, checklistExcluir:checklistExcluir, foto:foto, fotoDemo:fotoDemo,
     usuarioSet:usuarioSet, usuarioCriar:usuarioCriar, ativoSet:ativoSet, ativoCriar:ativoCriar, itemSet:itemSet,
     metas:metas, metasSet:metasSet, faixa:faixa, METAS_PADRAO:METAS_PADRAO,
     unidades:unidades, nomesUnidades:nomesUnidades, unidadeCriar:unidadeCriar, unidadeSet:unidadeSet,

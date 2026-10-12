@@ -149,6 +149,7 @@
   CK.preventivaFinalizar = async function(id, d){ var r = await escreve('ck_preventiva_finalizar', { p_os:osNum(id), p:{ cliente_id:d.cliente_id, tarefas:d.tarefas, leitura:d.leitura, duracao_s:d.duracao_s, obs:d.obs } }); if (r.ok) { r.os = CK.osPorId(id); r.checklist = CK.load().checklists.filter(function(c){ return c.id === r.id; })[0]; } return r; };
   CK.osIniciar = function(id, por, execucao){ return escreve('ck_os_iniciar', { p_os:osNum(id), p_execucao:execucao }); };
   CK.osReabrir = function(id){ return escreve('ck_os_reabrir', { p_os:osNum(id) }); };
+  CK.checklistExcluir = function(id, por, motivo){ return escreve('ck_checklist_excluir', { p_checklist:id, p_motivo:motivo || '' }); };
   CK.osExcluir = function(id, por, motivo){ return escreve('ck_os_excluir', { p_os:osNum(id), p_motivo:motivo || '' }); };
   CK.osReprogramar = function(id, d){ return escreve('ck_os_reprogramar', { p_os:osNum(id), p_novo_limite:utc(d.novo_limite), p_motivo:d.motivo }); };
   CK.osFechar = async function(id, d){

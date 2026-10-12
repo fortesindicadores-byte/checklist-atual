@@ -2011,8 +2011,9 @@ function abrirCk(id){
     return `<div class="nc-row">${ft?`<img src="${ft}" alt="">`:'<div class="muted" style="font-size:10px">sem foto</div>'}<div><div class="nm"><span class="dot" style="background:${it?CK.CRIT[it.crit].cor:'#888'}"></span>${esc(it?it.nome:x.item)}</div><div class="ob">${esc(x.obs||'Sem observação.')}</div><div class="ob" style="margin-top:5px">${os?`OS vinculada: <a class="lnk" onclick="abrirOS('${os.id}')">${os.id}</a> ${chipStatus(os)}`:'<span class="muted">sem OS vinculada</span>'}</div></div></div>`; }).join('')
     :`<div class="muted" style="font-size:12px">Nenhum item reprovado.</div>`;
   if(c.na&&c.na.length) h+=`<div class="d-sec">Itens não aplicáveis (N/A)</div><div class="chips">${c.na.map(i=>chip(CK.ITEM[i]?CK.ITEM[i].nome:i)).join('')}</div>`;
-  abrirModal('Checklist · '+CK.fmtDH(c.data), h, `<button class="btn" onclick="fecharModal()">Fechar</button>`);
+  abrirModal('Checklist · '+CK.fmtDH(c.data), h, `<button class="btn" onclick="fecharModal()">Fechar</button>`+(EU&&EU.papel==='master'?`<button class="btn" style="margin-left:auto;color:var(--vermelho)" title="Só o admin master. Some dos indicadores; as OS abertas por ele são canceladas; fica o registro na auditoria." onclick="doExcluirCk('${c.id}')">Excluir checklist</button>`:''));
 }
+async function doExcluirCk(id){ if(!EU||EU.papel!=='master') return; const m=prompt('Excluir este checklist? Ele some dos indicadores e as OS que ele abriu são canceladas (fica só na auditoria). Motivo:'); if(m===null) return; const r=await CK.checklistExcluir(id,EU.id,m.trim()); if(!r.ok){ alert(r.erro||'Não foi possível excluir.'); return; } fecharTudo(); refreshIdx(); atualizar(); }
 
 /* ── ATIVOS ── */
 const podeEditar=()=>EU&&(EU.papel==='master'||EU.papel==='admin');
