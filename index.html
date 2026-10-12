@@ -889,10 +889,10 @@ function abrirInspecao(aid, mid){
   }
   var u = x && x.ultima;
   h += '<div class="card contorno"><div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><b style="display:block;font-size:14px;font-weight:600;line-height:1.3">' + esc(m.nome) + '</b>'
-    + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:4px">' + esc(f ? f.nome : m.freq) + (f ? ' · a cada ' + plural(f.dias, 'dia', 'dias') : '') + ' · ' + plural(itens.length, 'item', 'itens') + '</span></div>'
+    + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:4px">' + esc(f ? f.nome : m.freq) + (f && f.dias ? ' · a cada ' + plural(f.dias, 'dia', 'dias') : '') + ' · ' + plural(itens.length, 'item', 'itens') + '</span></div>'
     + (x ? farolInsp(x) : '') + '</div>'
     + '<div style="font-size:11.5px;color:var(--txt2);margin-top:10px;line-height:1.5">'
-    + (u ? 'Última execução: <b style="color:var(--txt);font-weight:600">' + CK.fmtDH(u.data) + '</b> por ' + esc(nomeUsuario(u.usuario)) + ' · ' + (u.nc ? '<span class="neg">' + plural(u.nc, 'não conformidade', 'não conformidades') + '</span>' : '<span class="pos">sem não conformidades</span>')
+    + (u ? 'Última execução: <b style="color:var(--txt);font-weight:600">' + CK.fmtDH(u.data) + '</b> por ' + esc(nomeUsuario(u.usuario)) + ' · ' + (u.origem === 'preventiva' ? ((u.itens_total - (u.pend || 0)) + ' de ' + u.itens_total + ' tarefas feitas') : u.nc ? '<span class="neg">' + plural(u.nc, 'não conformidade', 'não conformidades') + '</span>' : '<span class="pos">sem não conformidades</span>')
          + (x.vence ? '<br>' + (x.status === 'atrasada' ? 'Venceu em ' : 'Próxima até ') + '<b style="color:var(--txt);font-weight:600">' + CK.fmtData(x.vence) + '</b>' : '')
        : 'Esta inspeção nunca foi feita neste ativo.')
     + '</div></div>';
@@ -1060,7 +1060,7 @@ async function iniciarChecklist(id, mid){
   limpaRascunho();
   var mPrev = CK.modelo(mid), prev = !!(mPrev && CK.catDe(mPrev) === 'preventivo');
   if (prev) {   /* preventivo = OS: abre em andamento agora; os itens são tarefas com check (Renan, 12/10/2026) */
-    var ex = confirm('A preventiva será feita pela equipe interna?\n\nOK = interna · Cancelar = externa (oficina/fornecedor)') ? 'interna' : 'externa';
+    var ex = await escolheExecucao(); if (!ex) return;   /* folha Interna/Externa (Renan, 12/10/2026: 'não OK e cancelar') */
     var rp = await CK.preventivaIniciar({ ativo:a.id, modelo:mid, usuario:EU.id, execucao:ex });
     if (!rp.ok) { alert(rp.erro || 'Não deu para iniciar a preventiva.'); return; }
     CK_ST = { ativo:a.id, tipo:a.tipo, modelo:mid, inicio:Date.now(), leitura:a.leitura, passo: a.medidor ? 1 : 2, idx:0, resp:{}, prev:true, os:rp.os.id, feito:{} };
@@ -1228,6 +1228,18 @@ function resumoHtml(itens){
     + (pend.length ? '' : '<button class="btn" id="ckFim" onclick="finalizar()">' + (ehInspecao(CK_ST.modelo) ? 'Finalizar inspeção' : 'Finalizar checklist') + '</button>')
     + '<button class="btn sec2" onclick="abreLista()">Revisar todos os itens</button></div></div>';
   return h;
+}
+/* folha de escolha do atendimento da preventiva: Interna / Externa (Renan, 12/10/2026) */
+function escolheExecucao(){
+  return new Promise(function(res){
+    fechaLista();
+    var h = '<div class="sheet" id="ckLista"><div class="sheet-box"><div class="sheet-cab"><b>Quem faz a preventiva?</b><button onclick="fechaLista();window.__exRes(null)" aria-label="Fechar">' + CK.ICONES.x + '</button></div>'
+      + '<button class="btn" style="margin-top:10px" onclick="fechaLista();window.__exRes(\'interna\')">Interna · equipe da Atual</button>'
+      + '<button class="btn" style="margin-top:10px;background:var(--card);border:1px solid var(--brd);color:var(--txt)" onclick="fechaLista();window.__exRes(\'externa\')">Externa · oficina ou fornecedor</button>'
+      + '<button class="na-link" style="margin-top:12px" onclick="fechaLista();window.__exRes(null)">Cancelar</button></div></div>';
+    window.__exRes = res;
+    var d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d.firstChild);
+  });
 }
 function abreLista(){
   fechaLista();
