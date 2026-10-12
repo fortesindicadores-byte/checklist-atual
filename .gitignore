@@ -1,0 +1,5 @@
+# locais / temporários
+*.before-*
+*.bak
+Thumbs.db
+.DS_Store

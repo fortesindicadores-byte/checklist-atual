@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#07090D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Checklist">
+<meta name="build" content="202610101500">
+<title>Checklist Atual</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="img/icone-192.png">
+<link rel="icon" href="img/icone-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="shared/ativos.js"></script>
+<script src="shared/config.js"></script>
+<script src="shared/core.js"></script>
+<script src="shared/remote.js"></script>
+<style>
+/* ============================================================
+   CHECKLIST ATUAL — app do motorista (PWA)
+   OneSpot · Construtora e Pavimentadora Atual · 10/10/2026
+   Casca clonada do DriverPro (aprovado pelo cliente): Inter, grafite,
+   saudação + toggle de tema + avatar no topo, cards .li com ícone quadrado,
+   barra flutuante embaixo. Acento = azul Atual. Sem emoji: ícones de linha.
+   Dados: shared/core.js (CK.*), 100% local nesta fase.
+   ============================================================ */
+:root{
+  /* paleta azul Atual (Renan, 10/10/2026: "as cores com tom de azul precisa ficar mais bonito"):
+     fundo navy, cards azul-grafite, acento em degradê do azul do logo */
+  --bg:#07090D; --card:#10151C; --card2:#1D2530; --brd:#1A212B; --linha:#0B0F14;   /* paleta OneSpot, mais escura (Renan, 11/10/2026) */
+  --txt:#E8ECF1; --txt2:#97A1AE; --txt3:#667180;
+  --acc:#0098DA; --acc2:#22B4F2; --verde:#3DD47A; --vermelho:#F4544A; --ambar:#F5A623; --nav:#10151C;
+  --acc-sombra:rgba(0,152,218,.36); --acc-fundo:rgba(0,152,218,.15); --moldura:#050608;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bot:env(safe-area-inset-bottom,0px);
+}
+body.claro{
+  --bg:#EEF0F3; --card:#FFFFFF; --card2:#D9DDE3; --brd:rgba(20,24,32,.12); --linha:#F6F7F9;
+  --txt:#181C24; --txt2:#5E6674; --txt3:#9AA2AE; --verde:#1E9E52; --vermelho:#D93A2E; --ambar:#C47E00; --nav:#FFFFFF;
+  --acc:#0079B3; --acc2:#169BD6; --acc-sombra:rgba(0,121,179,.28); --acc-fundo:rgba(0,121,179,.10); --moldura:#D7DEE7;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--txt);font-family:'Inter',-apple-system,'Segoe UI',sans-serif;font-size:13px;overflow:hidden;overscroll-behavior:none;}
+.app{height:100%;display:flex;flex-direction:column;position:relative;}
+.corpo{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px 96px;}
+.app.foco .corpo{padding-bottom:24px;}
+.tela{display:none;} .tela.on{display:block;}
+svg{display:block;}
+button{font-family:inherit;}
+img.logo-img{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:0 0 auto;display:block;background:#201736;}
+img.lgA{display:block;width:230px;height:auto;margin:0 0 22px -2px;}
+img.lgA.cla{display:none;} body.claro img.lgA.esc{display:none;} body.claro img.lgA.cla{display:block;}
+img.logo-img.lg{width:64px;height:64px;border-radius:16px;margin-bottom:16px;}
+
+/* ── topo ── */
+.topo{padding:calc(var(--safe-top) + 16px) 20px 6px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+/* logo da Atual igual ao do portal (Renan, 11/10/2026: "logos iguais") — linha 1: logo + ações; linha 2: saudação */
+img.lgT{display:block;height:26px;width:auto;}
+img.lgT.cla{display:none;} body.claro img.lgT.esc{display:none;} body.claro img.lgT.cla{display:block;}
+.topo .saud{flex:1 0 100%;margin-top:6px;min-width:0;}
+.sel-cab{flex-wrap:wrap;} .sel-cab .marca{flex:1 0 100%;margin-bottom:10px;}
+.app.foco .topo{display:none;}
+.topo b{display:block;font-size:15px;font-weight:600;line-height:1.2;}
+.topo span{display:block;font-size:11px;color:var(--txt2);font-weight:400;margin-top:3px;}
+.topo .acoes{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.tema{width:22px;height:22px;border-radius:50%;border:2px solid var(--txt);background:linear-gradient(90deg,var(--txt) 50%,transparent 50%);cursor:pointer;}
+.topo .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:#fff;
+  background:linear-gradient(145deg,#6B7075,#464B4F);cursor:pointer;border:0;}
+.menu{position:absolute;right:20px;top:calc(var(--safe-top) + 58px);z-index:20;background:var(--card);border:1px solid var(--brd);border-radius:12px;
+  padding:6px;min-width:200px;box-shadow:0 12px 30px rgba(0,0,0,.4);display:none;}
+.menu.on{display:block;}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);font-size:12.5px;font-weight:500;padding:11px 12px;border-radius:8px;cursor:pointer;}
+.menu button:hover{background:var(--brd);}
+
+/* ── bloco grande (estilo "saldo") ── */
+.rot{font-size:10.5px;color:var(--txt2);font-weight:400;}
+.saldo{margin:26px 0 18px;}
+.saldo .val{font-size:33px;font-weight:600;letter-spacing:.4px;line-height:1.1;margin-top:8px;}
+.saldo .aviso{font-size:11px;color:var(--txt2);margin-top:8px;line-height:1.45;}
+.saldo .aviso b{color:var(--txt);font-weight:600;}
+
+/* ── card com barra ── */
+.card{background:var(--card);border-radius:10px;padding:15px 16px;margin-bottom:18px;}
+.meta b{display:block;font-size:15px;font-weight:600;}
+.barra{height:11px;border-radius:6px;background:var(--card2);overflow:hidden;margin:16px 0 12px;}
+.barra i{display:block;height:100%;border-radius:6px;background:var(--acc);transition:width .4s;}
+.meta .pe{display:flex;justify-content:space-between;font-size:10.5px;color:var(--txt2);font-weight:400;}
+.meta .pe b{display:inline;font-size:10.5px;font-weight:500;color:var(--txt2);}
+.card.contorno{background:var(--linha);border:1px solid var(--brd);border-radius:9px;}
+
+/* ── lista ── */
+.sec{font-size:10.5px;color:var(--txt2);font-weight:400;margin:4px 0 10px;display:flex;align-items:center;gap:8px;}
+.sec .cont{margin-left:auto;color:var(--txt3);}
+.li{display:flex;align-items:center;gap:12px;background:var(--linha);border:1px solid var(--brd);border-radius:9px;padding:9px 12px;margin-bottom:10px;min-height:52px;}
+.li.tap{cursor:pointer;} .li.tap:active{border-color:var(--acc);}
+.li .ic{width:30px;height:30px;border-radius:7px;background:none;border:1px solid var(--txt3);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:var(--txt);}
+.li .ic svg{width:14px;height:14px;}
+.li .tx{flex:1;min-width:0;}
+.li .tx b{display:block;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.li .tx span{display:block;font-size:10.5px;color:var(--txt2);font-weight:400;margin-top:2px;line-height:1.35;}
+.li .vl{flex:0 1 auto;min-width:0;max-width:44%;font-size:11.5px;font-weight:600;text-align:right;}
+.li .vl small{display:block;font-size:10px;color:var(--txt3);font-weight:400;margin-top:2px;white-space:normal;line-height:1.35;}
+.pos{color:var(--verde);} .neg{color:var(--vermelho);} .amb{color:var(--ambar);}
+.li.eu .ic{border-color:var(--acc);color:var(--acc);}
+.li.blk .ic{border-color:var(--vermelho);color:var(--vermelho);}
+/* linhas de OS: o nome do item importa, então quebra em até 2 linhas em vez de cortar */
+.li.os2 .tx b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.vazio{font-size:11.5px;color:var(--txt2);padding:14px 12px;background:var(--linha);border:1px dashed var(--brd);border-radius:9px;margin-bottom:10px;line-height:1.5;}
+
+/* farol à direita das linhas de ativo */
+.farol{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;white-space:nowrap;color:var(--txt2);}   /* discreto: ponto colorido + texto (Renan, 11/10/2026) */
+.farol::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;flex:0 0 auto;}
+.farol.ok::before{background:var(--verde);}
+.farol.blk{color:var(--vermelho);}
+.farol.os{color:var(--ambar);}
+.farol.off{color:var(--txt3);}
+.farol.atr{color:var(--vermelho);}
+.farol.nun{color:var(--txt3);}
+/* linha do ativo: só a bolinha, maior (Renan, 11/10/2026); o texto fica no title e no leitor de tela */
+.farol.so{font-size:0;gap:0;padding:4px;}
+.farol.so::before{width:13px;height:13px;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 20%,transparent);}
+.farol.so.ok{color:var(--verde);}
+.ckbar .tit span.mod{color:var(--acc2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lrow.fixo{cursor:default;}
+/* chip de criticidade: a cor vem do CK.CRIT */
+.chip{display:inline-block;font-style:normal;font-size:9.5px;font-weight:600;border-radius:5px;padding:1px 6px;border:1px solid var(--c,var(--txt3));color:var(--c,var(--txt3));vertical-align:middle;white-space:nowrap;}
+.status{display:inline-block;font-size:9.5px;font-weight:600;color:var(--txt2);background:var(--brd);border-radius:5px;padding:2px 6px;}
+
+/* busca */
+.busca{width:100%;background:var(--linha);border:1px solid var(--brd);border-radius:9px;padding:12px 14px;color:var(--txt);font-family:inherit;font-size:14px;margin-bottom:12px;}
+.busca:focus{outline:none;border-color:var(--acc);}
+
+/* ── barra de baixo ── */
+.nav{position:absolute;left:16px;right:16px;bottom:calc(var(--safe-bot) + 14px);display:flex;justify-content:space-between;align-items:center;
+  background:var(--nav);border-radius:18px;padding:8px 10px;box-shadow:0 14px 34px rgba(0,0,0,.45);z-index:10;}
+body.claro .nav{box-shadow:0 14px 34px rgba(20,24,32,.16);border:1px solid var(--brd);}
+.app.foco .nav{display:none;}
+.nav button{flex:1;background:none;border:0;color:var(--txt2);font-size:10px;font-weight:500;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0 4px;border-radius:12px;min-height:46px;}
+.nav button svg{width:21px;height:21px;}
+.nav button.on{color:#fff;background:linear-gradient(135deg,var(--acc2),var(--acc));}
+
+/* ── sub-telas: voltar + cabeçalho ── */
+.volta{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--txt2);font-size:12px;font-weight:500;padding:12px 0 8px;cursor:pointer;min-height:44px;}
+.volta svg{width:16px;height:16px;}
+.acab{display:flex;align-items:center;gap:12px;margin:4px 0 16px;}
+.acab .ic{width:44px;height:44px;border-radius:10px;border:1px solid var(--txt3);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.acab .ic svg{width:20px;height:20px;}
+.acab b{display:block;font-size:16px;font-weight:600;line-height:1.25;}
+.acab span{display:block;font-size:11px;color:var(--txt2);margin-top:3px;}
+.faixa{display:flex;gap:10px;align-items:flex-start;background:var(--vermelho);color:#fff;border-radius:9px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.45;}
+.faixa svg{width:18px;height:18px;flex:0 0 auto;margin-top:1px;}
+.faixa b{display:block;font-weight:700;margin-bottom:2px;}
+.faixa .lst{opacity:.92;font-size:11.5px;}
+.btn{width:100%;border:0;border-radius:12px;padding:16px;font-size:14.5px;font-weight:600;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--acc2),var(--acc));margin-top:10px;box-shadow:0 10px 24px var(--acc-sombra);min-height:48px;}
+.btn[disabled]{opacity:.6;cursor:default;}
+.btn.sec2{background:var(--linha);color:var(--txt);border:1px solid var(--brd);box-shadow:none;}
+.btn.perigo{background:var(--vermelho);box-shadow:none;}
+.btn.liso{background:none;color:var(--txt2);box-shadow:none;padding:12px;}
+
+/* ── CHECKLIST: um item por vez, em card grande (Renan, 10/10/2026: "quero assim") ── */
+.ckbar{position:sticky;top:0;z-index:5;background:var(--bg);margin:0 -20px;padding:calc(var(--safe-top) + 8px) 20px 12px;border-bottom:1px solid var(--brd);}
+.ckbar .lin{display:flex;align-items:center;gap:8px;}
+.ckbar .volta{padding:8px 0;flex:0 0 auto;}
+.ckbar .tit{flex:1;min-width:0;}
+.ckbar .tit b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ckbar .tit span{display:block;font-size:10.5px;color:var(--txt2);margin-top:2px;}
+.ckbar .cont{font-size:12px;font-weight:600;flex:0 0 auto;}
+.cont-bt{display:flex;align-items:center;gap:6px;flex:0 0 auto;background:var(--acc-fundo);color:var(--acc2);border:0;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;min-height:36px;}
+.cont-bt svg{width:15px;height:15px;}
+.segs{display:flex;gap:2px;height:6px;margin-top:10px;}
+.segs:empty{display:none;}
+.segs i{flex:1;border-radius:3px;background:var(--card2);transition:background .2s;}
+.segs i.ok{background:var(--verde);} .segs i.nc{background:var(--vermelho);} .segs i.na{background:var(--txt3);}
+.segs i.cur{background:var(--acc2);box-shadow:0 0 8px var(--acc-sombra);}
+.leitura{margin-top:22px;}
+.leitura .campo input{font-size:22px;font-weight:600;letter-spacing:.5px;}
+.leitura .dica{font-size:11.5px;color:var(--txt2);margin-top:8px;line-height:1.5;}
+.leitura .dica b{color:var(--txt);font-weight:600;}
+
+.ck1{padding-top:16px;}
+.ck1 .cat{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--txt2);text-transform:uppercase;letter-spacing:.9px;font-weight:600;}
+.ck1 .cat span:last-child{color:var(--acc2);}
+.ck1 .dica{margin-top:8px;font-size:13.5px;line-height:1.45;color:var(--txt2);font-weight:400;}
+.card1{margin-top:10px;background:linear-gradient(165deg,var(--card) 0%,var(--linha) 100%);border:1px solid var(--brd);border-radius:22px;
+  padding:24px 20px 18px;min-height:min(56vh,470px);display:flex;flex-direction:column;box-shadow:0 22px 50px rgba(0,0,0,.35);animation:entra .26s ease;}
+body.claro .card1{box-shadow:0 16px 40px rgba(13,37,64,.12);}
+.card1.back{animation-name:entraVolta;}
+.card1.sai{animation:sai .18s ease forwards;}
+@keyframes entra{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:none;}}
+@keyframes entraVolta{from{opacity:0;transform:translateX(-30px);}to{opacity:1;transform:none;}}
+@keyframes sai{to{opacity:0;transform:translateX(-30px) scale(.98);}}
+.card1 .ico{width:54px;height:54px;border-radius:16px;background:var(--acc-fundo);color:var(--acc2);display:flex;align-items:center;justify-content:center;}
+.card1 .ico svg{width:26px;height:26px;}
+.card1 h2{font-size:23px;font-weight:700;line-height:1.25;letter-spacing:-.3px;margin:18px 0 12px;}
+.attrs{display:flex;flex-wrap:wrap;gap:6px;}
+.attr{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:999px;padding:5px 10px;background:var(--brd);color:var(--txt2);}
+.attr svg{width:12px;height:12px;}
+.attr.crit{background:color-mix(in srgb,var(--c) 17%,transparent);color:var(--c);}
+.attr.blk{background:rgba(244,84,74,.14);color:var(--vermelho);}
+.card1 .esp{flex:1;min-height:20px;}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.duo button{min-height:98px;border-radius:18px;border:2px solid transparent;color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:transform .12s,opacity .2s;}
+.duo button svg{width:30px;height:30px;}
+.duo button:active{transform:scale(.96);}
+.duo .b-ok{background:linear-gradient(145deg,#43DB82,#1C9F55);box-shadow:0 10px 24px rgba(61,212,122,.26);}
+.duo .b-nc{background:linear-gradient(145deg,#F6625A,#CC3329);box-shadow:0 10px 24px rgba(244,84,74,.26);}
+.duo.marcado button{opacity:.32;box-shadow:none;}
+.duo.marcado button.sel{opacity:1;border-color:rgba(255,255,255,.35);}
+.na-link{display:block;margin:12px auto 0;background:none;border:0;color:var(--txt2);font-size:12.5px;font-weight:600;cursor:pointer;min-height:40px;text-decoration:underline;text-underline-offset:3px;}
+.na-link.sel{color:var(--txt);text-decoration:none;background:var(--brd);border-radius:999px;padding:0 14px;}
+.ck-nav{display:flex;gap:8px;margin:14px 0 6px;}
+.ck-nav button{flex:1;min-height:46px;border-radius:12px;border:1px solid var(--brd);background:var(--linha);color:var(--txt);font-size:12.5px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+.ck-nav button svg{width:16px;height:16px;}
+.ck-nav button[disabled]{opacity:.35;cursor:default;}
+.ck-nav .prox svg{transform:rotate(180deg);}
+.nc1-t{display:flex;align-items:center;gap:8px;color:var(--vermelho);font-weight:700;font-size:13px;margin-bottom:12px;}
+.nc1-t svg{width:18px;height:18px;}
+.fbt1{width:100%;min-height:124px;border-radius:16px;border:2px dashed var(--vermelho);background:rgba(244,84,74,.08);color:var(--vermelho);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+.fbt1 svg{width:32px;height:32px;} .fbt1 b{font-size:14px;} .fbt1 small{font-size:11px;opacity:.8;}
+.fbt1[disabled]{opacity:.6;}
+.foto1{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;background:#000;}
+.foto1 img{width:100%;height:180px;object-fit:cover;display:block;}
+.foto1 span{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.62);color:#fff;font-size:11.5px;font-weight:600;border-radius:999px;padding:6px 11px;display:flex;gap:6px;align-items:center;}
+.foto1 span svg{width:14px;height:14px;}
+.nc1 textarea{width:100%;margin-top:10px;background:var(--bg);border:1px solid var(--brd);border-radius:12px;padding:12px;color:var(--txt);font-family:inherit;font-size:13.5px;min-height:64px;resize:none;}
+body.claro .nc1 textarea{background:#fff;}
+.nc1 textarea:focus{outline:none;border-color:var(--acc);}
+.nc1 .btn{margin-top:12px;}
+.li img.mini{width:44px;height:44px;border-radius:9px;object-fit:cover;flex:0 0 auto;background:#000;}
+.ckfim{margin:14px 0 8px;}
+.ckfim .erro{font-size:12px;color:var(--vermelho);font-weight:500;margin-bottom:8px;line-height:1.45;text-align:center;}
+/* folha com a lista de todos os itens */
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;}
+.sheet-box{width:100%;max-width:430px;max-height:82vh;background:var(--card);border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding:14px 18px calc(16px + var(--safe-bot));animation:sobe .22s ease;}
+@keyframes sobe{from{transform:translateY(40px);opacity:0;}to{transform:none;opacity:1;}}
+.sheet-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.sheet-cab b{font-size:15px;font-weight:700;}
+.sheet-cab button{background:none;border:0;color:var(--txt2);width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.sheet-cab button svg{width:20px;height:20px;}
+.sheet-lst{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.sheet-lst .sec{margin-top:12px;}
+.lrow{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--brd);cursor:pointer;font-size:13px;min-height:44px;}
+.lrow span{flex:1;line-height:1.3;}
+.lrow > i:not(.chip){width:11px;height:11px;border-radius:50%;border:2px solid var(--txt3);flex:0 0 auto;}
+.lrow.ok > i:not(.chip){background:var(--verde);border-color:var(--verde);}
+.lrow.nc > i:not(.chip){background:var(--vermelho);border-color:var(--vermelho);}
+.lrow.na > i:not(.chip){background:var(--txt3);}
+.lrow.cur{background:var(--acc-fundo);border-radius:8px;}
+
+/* ── resultado ── */
+.res-cab{text-align:center;padding:36px 0 18px;}
+.res-cab .ok{width:64px;height:64px;border-radius:50%;background:var(--verde);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.res-cab .ok.nc{background:var(--ambar);}
+.res-cab .ok.blk{background:var(--vermelho);}
+.res-cab .ok svg{width:30px;height:30px;color:#fff;}
+.res-cab b{display:block;font-size:20px;font-weight:700;}
+.res-cab span{display:block;font-size:12px;color:var(--txt2);margin-top:6px;}
+.res-nums{display:flex;gap:10px;margin-bottom:18px;}
+.res-nums .n{flex:1;background:var(--linha);border:1px solid var(--brd);border-radius:9px;padding:12px;text-align:center;}
+.res-nums .n b{display:block;font-size:22px;font-weight:600;}
+.res-nums .n span{display:block;font-size:10.5px;color:var(--txt2);margin-top:3px;}
+
+/* ── detalhe do checklist / OS ── */
+.ft{width:100%;max-height:220px;object-fit:cover;border-radius:8px;border:1px solid var(--brd);margin-top:10px;background:#000;}
+.nc-det{background:var(--linha);border:1px solid var(--brd);border-radius:9px;padding:12px;margin-bottom:10px;}
+.nc-det .cab{display:flex;align-items:flex-start;gap:8px;}
+.nc-det .cab b{flex:1;font-size:13px;font-weight:500;line-height:1.35;}
+.nc-det .obs{font-size:12px;color:var(--txt2);margin-top:6px;line-height:1.5;}
+.nc-det .os{font-size:11.5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--brd);display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.os-exp{display:none;font-size:11.5px;color:var(--txt2);line-height:1.6;padding:0 12px 12px;margin:-6px 0 10px;background:var(--linha);border:1px solid var(--brd);border-top:0;border-radius:0 0 9px 9px;}
+.os-exp.on{display:block;}
+.li.aberto{margin-bottom:0;border-radius:9px 9px 0 0;}
+.os-exp b{color:var(--txt);font-weight:600;}
+
+/* ── AJUDA ── */
+.passo{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;background:var(--linha);border:1px solid var(--brd);border-radius:9px;margin-bottom:10px;}
+.passo .n{width:30px;height:30px;border-radius:7px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;border:1px solid var(--txt3);color:var(--txt);}
+.passo .t b{display:block;font-size:13px;font-weight:600;margin:4px 0 3px;}
+.passo .t span{font-size:11.5px;color:var(--txt2);line-height:1.5;display:block;}
+.passo .t span b{display:inline;font-size:11.5px;color:var(--txt);margin:0;}
+.tcrit{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;}
+.tcrit td{padding:10px 8px;border-bottom:1px solid var(--brd);vertical-align:top;line-height:1.45;}
+.tcrit td:first-child{width:92px;white-space:nowrap;}
+.tcrit td:last-child{color:var(--txt2);font-size:11.5px;}
+.tcrit .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px;}
+
+/* ── ADMIN: lista de motoristas ── */
+#tela-sel{display:none;height:100%;flex-direction:column;padding:calc(var(--safe-top) + 16px) 20px 16px;}
+#tela-sel.on{display:flex;}
+.sel-cab{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.sel-cab b{display:block;font-size:15px;font-weight:600;}
+.sel-cab span{display:block;font-size:11px;color:var(--txt2);margin-top:3px;}
+.rb-sair{margin-left:auto;background:none;border:1px solid var(--brd);color:var(--txt2);font-size:11.5px;font-weight:500;border-radius:8px;padding:9px 12px;cursor:pointer;min-height:40px;}
+.sel-lista{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.sel-pe{padding-top:10px;}
+.sel-pe a.btn{display:block;text-align:center;text-decoration:none;}
+
+/* ── LOGIN ── */
+#tela-login{display:none;height:100%;flex-direction:column;justify-content:center;padding:0 28px;overflow-y:auto;}
+#tela-login.on{display:flex;}
+.lg-wrap{margin:auto 0;padding:24px 0;}
+.lg-t{font-size:28px;font-weight:700;letter-spacing:-.6px;}
+.lg-s{font-size:12px;color:var(--txt2);margin:6px 0 4px;}
+.por{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--txt3);margin:0 0 26px;}
+.por img{width:14px;height:14px;}
+.por b{color:#F18F2F;font-weight:600;}
+.campo{margin-bottom:12px;}
+.campo label{display:block;font-size:10.5px;color:var(--txt2);margin-bottom:7px;}
+.campo input,.campo select{width:100%;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:15px 16px;color:var(--txt);font-family:inherit;font-size:15px;font-weight:500;letter-spacing:.5px;}
+.campo select{appearance:none;-webkit-appearance:none;letter-spacing:0;}
+.campo input::placeholder{color:var(--txt3);font-weight:400;}
+.campo input[type=text],.nc1 textarea,textarea{text-transform:uppercase;}
+.li .tx,.nc-det,.chip,.farol,.sub,.hist,.os-li,.tag{text-transform:uppercase;}   /* 'tudo é tudo' (Renan, 12/10/2026) */   /* tudo em maiúsculas (Renan, 12/10/2026) */
+.campo input:focus,.campo select:focus{outline:none;border-color:var(--acc);}
+.lg-rodape{text-align:center;font-size:12px;color:var(--txt2);margin-top:20px;line-height:1.8;}
+.lg-rodape a{color:var(--txt);font-weight:600;cursor:pointer;}
+.lg-erro{font-size:12px;color:var(--vermelho);font-weight:500;margin:2px 0 6px;line-height:1.4;}
+.demo-box{margin-top:22px;border:1px dashed var(--brd);border-radius:10px;padding:10px 12px;}
+.demo-box .t{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+.demo-box .r{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:7px 0;color:var(--txt2);cursor:pointer;min-height:32px;}
+.demo-box .r + .r{border-top:1px solid var(--brd);}
+.demo-box .r b{color:var(--txt);font-weight:500;}
+.demo-box .r span{font-variant-numeric:tabular-nums;}
+.demo-box .pe{font-size:10.5px;color:var(--txt3);margin-top:6px;}
+.inst-link{text-align:center;font-size:12px;margin-top:14px;}
+.inst-link a{color:var(--txt2);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+.inst{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;}
+.inst.on{display:flex;}
+.inst-box{width:100%;max-width:440px;background:var(--card);border:1px solid var(--brd);border-radius:18px 18px 0 0;padding:20px 22px calc(22px + var(--safe-bot,0px));}
+.inst-box b{display:block;font-size:15px;margin-bottom:6px;}
+.inst-box p{font-size:12.5px;color:var(--txt2);line-height:1.55;margin:0 0 6px;}
+.inst-box .btn{margin-top:14px;}
+.recebido{text-align:center;padding:10px 0;}
+.recebido .ok{width:56px;height:56px;border-radius:50%;border:2px solid var(--verde);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--verde);}
+.recebido .ok svg{width:26px;height:26px;}
+.recebido b{display:block;font-size:17px;font-weight:700;}
+.recebido p{font-size:12.5px;color:var(--txt2);margin-top:8px;line-height:1.55;}
+
+/* ── busca grande do Início ── */
+.busca-top{position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:10px;margin:14px -20px 0;padding:10px 20px 12px;background:var(--bg);}
+.busca-top > svg{position:absolute;left:36px;width:20px;height:20px;color:var(--txt2);pointer-events:none;}
+.busca-top input{flex:1;min-width:0;height:54px;border-radius:14px;border:1.5px solid var(--brd);background:var(--card);color:var(--txt);
+  font-family:inherit;font-size:18px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:0 48px 0 46px;}
+.busca-top input::placeholder{text-transform:none;letter-spacing:0;font-weight:500;color:var(--txt3);font-size:15px;}
+.busca-top input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-fundo);}
+.busca-top input::-webkit-search-cancel-button{display:none;}
+.busca-top button{position:absolute;right:30px;width:36px;height:36px;border-radius:50%;border:0;background:var(--brd);color:var(--txt);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.busca-top button svg{width:16px;height:16px;}
+.saldo{margin-top:16px;}
+
+/* ── computador / app instalado em janela: ocupa a janela inteira, com o mesmo fundo,
+   e só o conteúdo fica numa coluna central (antes era uma faixa estreita com bordas
+   pretas, que no app instalado ficou feio — Renan, 11/10/2026) ── */
+@media(min-width:700px){
+  .topo,#tela-sel{padding-left:max(20px,calc(50% - 280px));padding-right:max(20px,calc(50% - 280px));}
+  .corpo{padding-left:max(20px,calc(50% - 280px));padding-right:max(20px,calc(50% - 280px));}
+  .ckbar,.busca-top{margin-left:0;margin-right:0;padding-left:0;padding-right:0;}
+  .busca-top > svg{left:16px;} .busca-top button{right:10px;}
+  .nav{left:max(16px,calc(50% - 280px));right:max(16px,calc(50% - 280px));}
+  .menu{right:max(20px,calc(50% - 280px));}
+  .lg-wrap{width:100%;max-width:420px;margin:auto;}
+}
+/* barra de rolagem discreta (a padrão do Windows aparecia branca) */
+*{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--txt3) 45%,transparent) transparent;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--txt3) 45%,transparent);border:3px solid transparent;background-clip:content-box;border-radius:9px;}
+::-webkit-scrollbar-button{display:none;width:0;height:0;}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="tela-login" class="on">
+  <div class="lg-wrap">
+    <img class="lgA esc" src="img/logo-atual-escuro.png" alt="Construtora e Pavimentadora Atual"><img class="lgA cla" src="img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual">
+    <div class="lg-t">Checklist</div>
+    <div class="lg-s">Construtora e Pavimentadora Atual</div>
+    <div class="por"><img src="img/onespot-icon.svg" alt="">por <b>OneSpot</b></div>
+
+    <!-- entrar / criar senha -->
+    <div id="lgForm">
+      <div class="campo"><label>Seu CPF</label><input id="cpf" type="tel" inputmode="numeric" placeholder="000.000.000-00" maxlength="14" autocomplete="off"></div>
+      <div class="campo"><label id="pinLabel">Sua senha de 4 números</label><input id="pin" type="password" inputmode="numeric" placeholder="••••" maxlength="4"></div>
+      <div class="lg-erro" id="lgErro" style="display:none"></div>
+      <button class="btn" id="btEntrar" onclick="entrar()">Entrar</button>
+      <div class="lg-rodape" id="lgRodape"></div>
+      <div class="demo-box" id="demoBox">
+        <div class="t">Ambiente de demonstração</div>
+        <div class="r" onclick="preenche('10000000001')"><b>Motorista</b><span>100.000.000-01</span></div>
+        <div class="r" onclick="preenche('11111111111')"><b>Gestor</b><span>111.111.111-11</span></div>
+        <div class="r" onclick="preenche('00000000191')"><b>Admin master</b><span>000.000.001-91</span></div>
+        <div class="pe">Senha 1234 para todos. Toque para preencher.</div>
+      </div>
+    </div>
+
+    <!-- solicitar acesso -->
+    <div id="lgSolic" style="display:none">
+      <div class="campo"><label>Seu nome completo</label><input id="sNome" type="text" placeholder="Nome e sobrenome" autocomplete="off" autocapitalize="characters"></div>
+      <div class="campo"><label>Seu CPF</label><input id="sCpf" type="tel" inputmode="numeric" placeholder="000.000.000-00" maxlength="14" autocomplete="off"></div>
+      <div class="campo"><label>Sua unidade</label><select id="sUni"></select></div>
+      <div class="campo"><label id="sPinLabel">Crie uma senha de 4 números</label><input id="sPin" type="password" inputmode="numeric" placeholder="••••" maxlength="4"></div>
+      <div class="lg-erro" id="sErro" style="display:none"></div>
+      <button class="btn" id="btSolic" onclick="solicitar()">Enviar pedido de acesso</button>
+      <div class="lg-rodape">Já tem cadastro? <a onclick="modoLogin('entrar')">Entrar</a></div>
+    </div>
+
+    <!-- pedido recebido -->
+    <div id="lgRecebido" style="display:none">
+      <div class="recebido">
+        <div class="ok" id="recIco"></div>
+        <b>Cadastro recebido</b>
+        <p>Aguarde a liberação do gestor da frota. Quando ele aprovar, é só entrar com seu CPF e a senha que você criou.</p>
+      </div>
+      <button class="btn sec2" onclick="modoLogin('entrar')">Voltar</button>
+    </div>
+
+    <div class="inst-link" id="lgInstalar" style="display:none"><a onclick="instalar()">Instalar o app no celular</a></div>
+  </div>
+</div>
+
+<!-- ══════════ ADMIN: ver como motorista ══════════ -->
+<div id="tela-sel">
+  <div><button class="volta" style="padding-top:0" onclick="voltaEquipe()"><span id="selVoltaIco"></span>Checklists da equipe</button></div>
+  <div class="sel-cab"><div class="marca"><img class="lgT esc" src="img/logo-atual-escuro.png" alt="Construtora e Pavimentadora Atual"><img class="lgT cla" src="img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual"></div><div><b>Ver o app como um motorista</b><span id="selSub">toque num nome para entrar como ele</span></div>
+    <button class="rb-sair" onclick="sair()">Sair</button></div>
+  <input id="selBusca" class="busca" type="search" placeholder="Buscar por nome ou unidade" autocomplete="off">
+  <div class="sel-lista" id="selLista"></div>
+  <div class="sel-pe">
+    <a class="btn sec2" href="gestao/">Abrir portal gestor</a>
+    <div class="inst-link" id="selInstalar" style="display:none"><a onclick="instalar()">Instalar o app no celular</a></div>
+  </div>
+</div>
+
+<!-- folha de instalação (iPhone / sem prompt) -->
+<div class="inst" id="inst" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="inst-box">
+    <b>Instalar o Checklist Atual</b>
+    <div id="instTxt"></div>
+    <button class="btn" onclick="document.getElementById('inst').classList.remove('on')">Entendi</button>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div class="app" id="app" style="display:none">
+  <div class="topo">
+    <div class="marca"><img class="lgT esc" src="img/logo-atual-escuro.png" alt="Construtora e Pavimentadora Atual"><img class="lgT cla" src="img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual"></div>
+    <div class="acoes">
+      <div class="tema" id="btTema" role="button" aria-label="Tema"></div>
+      <button class="av" id="av" onclick="document.getElementById('menu').classList.toggle('on')">--</button>
+    </div>
+    <div class="saud"><b id="ola">Olá!</b><span id="sub"></span></div>
+  </div>
+  <div class="menu" id="menu">
+    <button id="btInstalar" onclick="instalar();fechaMenu()" style="display:none">Instalar no celular</button>
+    <button id="btTrocar" onclick="trocarMotorista()" style="display:none">Trocar motorista</button>
+    <button id="btEquipe" onclick="voltaEquipe()" style="display:none">Voltar às inspeções</button>
+    <button id="btTemaMenu" onclick="alternaTema();fechaMenu()">Modo claro</button>
+    <button onclick="sair()">Sair</button>
+  </div>
+
+  <div class="corpo" id="corpo">
+
+    <!-- ── INÍCIO ── -->
+    <section class="tela on" id="v-inicio">
+      <div class="busca-top" id="buscaTopBox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        <input id="buscaTop" type="search" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Placa ou nº da frota" aria-label="Buscar ativo pela placa ou número da frota">
+        <button id="buscaLimpa" type="button" aria-label="Limpar busca" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div id="buscaRes" style="display:none"></div>
+      <div id="inicioCorpo">
+      <div id="rascunhoBox"></div>
+      <div class="saldo">
+        <div class="rot" id="rotMes">Checklists feitos em outubro</div>
+        <div class="val" id="qtdMes">0</div>
+        <div class="aviso" id="avisoMes"></div>
+      </div>
+      <div class="card meta">
+        <b>Meus ativos inspecionados hoje</b>
+        <div class="barra"><i id="barraHoje" style="width:0%"></i></div>
+        <div class="pe"><span id="hojeTxt"></span><span id="hojePct"></span></div>
+      </div>
+      <div class="sec">Meus ativos<span class="cont" id="meusCont"></span></div>
+      <div id="meus"></div>
+      <div class="sec" style="margin-top:14px">Outros ativos<span class="cont" id="outrosCont"></span></div>
+      <div id="outros"></div>
+      </div>
+    </section>
+
+    <!-- ── INSPEÇÕES (só equipe: master/admin/frota) ── -->
+    <section class="tela" id="v-inspecoes">
+      <div class="busca-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        <input id="buscaInsp" type="search" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Placa ou nº da frota" aria-label="Filtrar inspeções pela placa ou número da frota">
+        <button id="buscaInspLimpa" type="button" aria-label="Limpar busca" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div id="inspTopo">
+        <div id="rascunhoInsp"></div>
+        <div class="saldo">
+          <div class="rot">Inspeções periódicas em aberto</div>
+          <div class="val" id="qtdInsp">0</div>
+          <div class="aviso" id="avisoInsp"></div>
+        </div>
+      </div>
+      <div id="inspLista"></div>
+    </section>
+
+    <!-- ── TELA DA INSPEÇÃO (ativo × modelo) ── -->
+    <section class="tela" id="v-insp"></section>
+
+    <!-- ── ATIVO ── -->
+    <section class="tela" id="v-ativo"></section>
+
+    <!-- ── CHECKLIST ── -->
+    <section class="tela" id="v-check"></section>
+
+    <!-- ── RESULTADO ── -->
+    <section class="tela" id="v-result"></section>
+
+    <!-- ── HISTÓRICO ── -->
+    <section class="tela" id="v-historico">
+      <div class="sec" style="margin-top:20px"><span id="histTit">Meus checklists</span><span class="cont" id="histCont"></span></div>
+      <div id="hist"></div>
+    </section>
+
+    <!-- ── DETALHE DO CHECKLIST ── -->
+    <section class="tela" id="v-ckdet"></section>
+
+    <!-- ── OS ── -->
+    <section class="tela" id="v-os">
+      <div class="sec" style="margin-top:20px">Ordens de serviço abertas<span class="cont" id="osCont"></span></div>
+      <div id="osAbertas"></div>
+      <div class="sec" style="margin-top:14px">Fechadas recentemente</div>
+      <div id="osFechadas"></div>
+    </section>
+
+    <!-- ── AJUDA ── -->
+    <section class="tela" id="v-ajuda">
+      <div class="sec" style="margin-top:20px">Como funciona</div>
+      <div class="passo"><div class="n">1</div><div class="t"><b>Faça o checklist antes de começar o turno</b><span>Abra o seu ativo no Início (ou leia o QR colado nele), informe o km ou horímetro e responda item por item. Leva poucos minutos e fica registrado com seu nome e horário.</span></div></div>
+      <div class="passo"><div class="n">2</div><div class="t"><b>Não conforme pede foto</b><span>Marcou "Não conforme"? Tire uma foto do problema e, se quiser, escreva o que viu. Sem a foto o checklist não fecha. A foto vai direto para a equipe da frota.</span></div></div>
+      <div class="passo"><div class="n">3</div><div class="t"><b>Bolinha vermelha quer dizer parar</b><span>Se o ativo aparece com a <b>bolinha vermelha</b>, ele tem um problema de segurança aberto. Não ligue e avise o gestor.</span></div></div>
+      <div class="passo"><div class="n">4</div><div class="t"><b>A frota resolve</b><span>Todo problema que você aponta vai direto para a equipe da frota consertar. Quando estiver resolvido, o ativo volta a aparecer com a <b>bolinha verde</b>, liberado para operar.</span></div></div>
+    </section>
+
+  </div>
+
+  <nav class="nav" id="nav"></nav>
+</div>
+
+<script>
+/* ============================================================
+   CHECKLIST ATUAL — app do motorista
+   Camada de dados: CK.* (shared/core.js). Sem fetch nesta fase.
+   Chaves locais: ck_app_sess (id do usuário), ck_app_ver_como (admin vendo
+   como motorista), ck_app_theme, ck_app_rascunho (checklist em andamento).
+   ============================================================ */
+var $ = function(id){ return document.getElementById(id); };
+var DEMO = /[?&]demo=1/.test(location.search);
+var ATIVO_URL = (function(){ var m = location.search.match(/[?&]ativo=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; })();
+var SESS = null;      // usuário logado (objeto)
+var EU = null;        // usuário "efetivo" (o motorista cuja visão está na tela)
+var VER_COMO = null;  // id do motorista escolhido pelo admin
+var ABA = 'inicio';
+var CK_ST = null;     // estado do checklist em andamento
+var LS = {
+  get: function(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set: function(k, v){ try { localStorage.setItem(k, v); } catch(e){} },
+  del: function(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+function nInt(v){ return (+v || 0).toLocaleString('pt-BR'); }
+function iniciais(nome){ return String(nome || '').trim().split(/\s+/).map(function(p){ return p[0]; }).join('').slice(0,2).toUpperCase() || '--'; }
+function primeiroNome(nome){ return String(nome || '').trim().split(/\s+/)[0] || ''; }
+function leituraTxt(a){ if (!a.medidor || a.leitura == null) return 'sem medidor'; return nInt(a.leitura) + (a.medidor === 'km' ? ' km' : ' h'); }
+function chip(crit){ var c = CK.CRIT[crit] || CK.CRIT.baixa; return '<i class="chip" style="--c:' + c.cor + '">' + c.nome + '</i>'; }
+var STATUS = { aberta:'ABERTA', em_andamento:'EM ANDAMENTO', fechada:'FECHADA' };
+function statusTag(o){ return '<span class="status">' + (STATUS[o.status] || o.status) + '</span>'; }
+/* "vence em 3h" / "vencida há 2 dias" */
+function horasTxt(h){ h = Math.abs(h); if (h < 1) return 'menos de 1h'; if (h < 48) return Math.round(h) + 'h'; return Math.round(h / 24) + ' dias'; }
+function slaTxt(o){
+  var s = CK.slaDe(o);
+  if (o.status === 'fechada') return { txt: s.no_prazo ? 'no prazo' : 'fora do prazo', cls: s.no_prazo ? 'pos' : 'neg' };
+  return s.horas_restantes >= 0 ? { txt:'vence em ' + horasTxt(s.horas_restantes), cls: s.horas_restantes < 4 ? 'amb' : '' } : { txt:'vencida há ' + horasTxt(s.horas_restantes), cls:'neg' };
+}
+function hojeIso(){ return CK.iso(new Date()); }
+function dataExtenso(d){ return cap(d.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })); }
+function nomeUsuario(id){ var u = CK.usuario(id); return u ? u.nome : '—'; }
+function linha(ico, nome, sub, valor, cls, small, extra, attrs){
+  return '<div class="li' + (extra || '') + '"' + (attrs || '') + '><div class="ic">' + ico + '</div><div class="tx"><b>' + nome + '</b><span>' + sub + '</span></div>'
+    + (valor != null ? '<div class="vl ' + (cls || '') + '">' + valor + (small ? '<small>' + small + '</small>' : '') + '</div>' : '') + '</div>';
+}
+/* nome do ativo sem o " · " solto quando marca/modelo vieram vazios na listagem */
+function nomeAt(a){ return CK.nomeAtivo(a).replace(/\s*·\s*$/, ''); }
+function icoTipo(a){ var t = CK.TIPO[a.tipo]; return CK.ICONES[t && t.icone] || CK.ICONES.tool; }
+
+/* ── ícones da barra (vêm do core) ── */
+$('recIco').innerHTML = CK.ICONES.check; $('selVoltaIco').innerHTML = CK.ICONES.back;
+CK.aplicarCfgItens();
+
+/* ── papéis ──
+   Renan, 11/10/2026: o motorista faz só o checklist diário. As inspeções (semanal,
+   quinzenal, mensal) são criadas pelo admin e executadas SÓ pelo admin e pela frota.
+   equipe() = a visão na tela é de master/admin/frota (não o "ver como motorista"). */
+function equipe(){ return !!(EU && GESTOR[EU.papel]); }
+/* modelo de inspeção = qualquer modelo que não seja o diário ("d-<TIPO>") */
+function ehInspecao(mid){ if (!mid) return false; var m = CK.modelo(mid); return m ? m.freq !== 'diario' : !/^d-/.test(mid); }
+function modeloDoCk(x){ var a = CK.ativo(x.ativo); return x.modelo || (a ? 'd-' + a.tipo : null); }
+function nomeModelo(mid){ var m = CK.modelo(mid); return m ? m.nome : 'Checklist'; }
+
+/* ── navegação ── */
+var FOCO = { check:true, result:true };   // sub-telas sem topo e sem barra
+var ICO_AJUDA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7"/><path d="M12 17h.01"/></svg>';
+/* barra de baixo: motorista = Início · Histórico · Ajuda; equipe = Inspeções · Histórico · Ver como motorista */
+function montaNav(eq){
+  var bts = eq ? [['inspecoes', CK.ICONES.calendar, 'Checklists'], ['historico', CK.ICONES.history, 'Histórico'], ['vercomo', CK.ICONES.user, 'Ver como motorista']]
+               : [['inicio', CK.ICONES.home, 'Início'], ['historico', CK.ICONES.history, 'Histórico'], ['ajuda', ICO_AJUDA, 'Ajuda']];
+  $('nav').innerHTML = bts.map(function(b){ return '<button data-v="' + b[0] + '">' + b[1] + b[2] + '</button>'; }).join('');
+}
+function mostra(id, aba){
+  document.querySelectorAll('.tela').forEach(function(s){ s.classList.toggle('on', s.id === 'v-' + id); });
+  if (aba) ABA = aba;
+  document.querySelectorAll('#nav button').forEach(function(x){ x.classList.toggle('on', x.dataset.v === ABA); });
+  $('app').classList.toggle('foco', !!FOCO[id]);
+  $('corpo').scrollTop = 0; fechaMenu();
+}
+function irPara(v){
+  if (v === 'inspecoes' && !equipe()) v = 'inicio';   // motorista nunca vê inspeções
+  if (v === 'inicio' && equipe()) v = 'inspecoes';
+  if (v === 'inicio') renderInicio(); else if (v === 'inspecoes') renderInspecoes(); else if (v === 'historico') renderHistorico(); else if (v === 'os') renderOS(); else if (v === 'ajuda') renderAjuda();
+  mostra(v, v);
+}
+$('nav').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-v]'); if (!b) return;
+  if (b.dataset.v === 'vercomo') { escolheMotorista(); return; }
+  irPara(b.dataset.v);
+});
+function fechaMenu(){ $('menu').classList.remove('on'); }
+$('corpo').addEventListener('click', fechaMenu);
+
+/* ── tema ── */
+function aplicaTema(t){
+  var claro = t === 'claro';
+  document.body.classList.toggle('claro', claro);
+  LS.set('ck_app_theme', claro ? 'light' : 'dark');
+  document.querySelector('meta[name=theme-color]').content = claro ? '#EEF0F3' : '#07090D';
+  $('btTemaMenu').textContent = claro ? 'Modo escuro' : 'Modo claro';
+}
+function alternaTema(){ aplicaTema(document.body.classList.contains('claro') ? 'escuro' : 'claro'); }
+$('btTema').addEventListener('click', alternaTema);
+aplicaTema(LS.get('ck_app_theme') === 'light' ? 'claro' : 'escuro');
+
+/* ── PWA: service worker com as três blindagens contra versão velha ── */
+var INSTALL = null;
+if ('serviceWorker' in navigator) window.addEventListener('load', function(){
+  // updateViaCache:'none' (o próprio sw.js não passa pelo cache HTTP), reg.update()
+  // ao abrir e ao voltar para a tela, e reload quando o SW novo assume.
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){
+    reg.update();
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) reg.update(); });
+  }).catch(function(e){ console.warn('sw:', e.message); });
+  var recarregou = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){ if (recarregou) return; recarregou = true; location.reload(); });
+});
+var INSTALADO = !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+function mostraInstalar(){ ['btInstalar','lgInstalar','selInstalar'].forEach(function(id){ var b = $(id); if (b) b.style.display = INSTALADO ? 'none' : ''; }); }
+window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); INSTALL = e; mostraInstalar(); });
+window.addEventListener('appinstalled', function(){ INSTALADO = true; INSTALL = null; mostraInstalar(); });
+function instalar(){
+  if (INSTALL) { INSTALL.prompt(); INSTALL.userChoice.then(function(){ INSTALL = null; }); return; }
+  var ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  $('instTxt').innerHTML = ios
+    ? '<p>No iPhone o app se instala pelo <b style="display:inline">Safari</b>:</p><p>1. Toque no botão <b style="display:inline">Compartilhar</b> (o quadrado com a seta para cima, embaixo da tela).</p><p>2. Role e toque em <b style="display:inline">Adicionar à Tela de Início</b>.</p><p>3. Toque em <b style="display:inline">Adicionar</b>. O Checklist fica na tela inicial e abre sem o navegador.</p>'
+    : /Android/i.test(ua)
+    ? '<p>Toque no menu do navegador (os três pontinhos, no canto de cima) e depois em <b style="display:inline">Instalar aplicativo</b> ou <b style="display:inline">Adicionar à tela inicial</b>. O Checklist fica na tela inicial e abre sem o navegador.</p>'
+    : '<p>No computador, use o Chrome ou o Edge: clique no ícone de instalar no fim da barra de endereço (ou no menu do navegador, em <b style="display:inline">Instalar Checklist Atual</b>). O app abre numa janela própria, sem as abas do navegador.</p>';
+  $('inst').classList.add('on');
+}
+mostraInstalar();
+
+/* ══════════════════════════════════════════════════════════
+   LOGIN
+   ══════════════════════════════════════════════════════════ */
+var MODO = 'entrar';
+function mascaraCpf(el){
+  el.addEventListener('input', function(e){
+    var v = e.target.value.replace(/\D/g, '').slice(0, 11);
+    e.target.value = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  });
+}
+mascaraCpf($('cpf')); mascaraCpf($('sCpf'));
+function erroLogin(t){ var e = $('lgErro'); e.textContent = t || ''; e.style.display = t ? '' : 'none'; }
+function erroSolic(t){ var e = $('sErro'); e.textContent = t || ''; e.style.display = t ? '' : 'none'; }
+function modoLogin(m){
+  MODO = m; erroLogin(''); erroSolic('');
+  $('lgForm').style.display = (m === 'entrar' || m === 'criar') ? '' : 'none';
+  $('lgSolic').style.display = m === 'solicitar' ? '' : 'none';
+  $('lgRecebido').style.display = m === 'recebido' ? '' : 'none';
+  $('demoBox').style.display = m === 'entrar' ? '' : 'none';
+  $('btEntrar').textContent = m === 'criar' ? 'Criar senha e entrar' : 'Entrar';
+  $('pinLabel').textContent = m === 'criar' ? 'Crie uma senha de ' + CK.PIN_LEN + ' números' : 'Sua senha de ' + CK.PIN_LEN + ' números';
+  $('pin').maxLength = CK.PIN_LEN; $('sPin').maxLength = CK.PIN_LEN; $('pin').placeholder = $('sPin').placeholder = '•'.repeat(CK.PIN_LEN);
+  $('lgRodape').innerHTML = m === 'criar'
+    ? 'Já tem senha? <a onclick="modoLogin(\'entrar\')">Entrar</a>'
+    : 'Primeira vez aqui? <a onclick="modoLogin(\'criar\')">Criar senha</a><br>Não tem cadastro? <a onclick="modoLogin(\'solicitar\')">Solicitar acesso</a>';
+  if (m === 'solicitar') $('sUni').innerHTML = CK.UNIDADES.map(function(u){ return '<option value="' + esc(u) + '">' + esc(u) + '</option>'; }).join('');
+}
+function preenche(cpf){ $('cpf').value = CK.cpfFmt(cpf); $('pin').value = '1234'; erroLogin(''); $('pin').focus(); }
+async function entrar(){
+  var cpf = $('cpf').value.replace(/\D/g, ''), pin = $('pin').value.replace(/\D/g, '');
+  if (cpf.length !== 11) return erroLogin('Digite o CPF completo.');
+  if (pin.length !== CK.PIN_LEN)  return erroLogin('A senha são ' + CK.PIN_LEN + ' números.');
+  erroLogin(''); var bt = document.querySelector('#tela-login button.btn'); if (bt) bt.disabled = true;
+  var r = await (MODO === 'criar' ? CK.criarPin(cpf, pin) : CK.login(cpf, pin)); if (bt) bt.disabled = false;
+  if (!r.ok) { if (r.primeira_vez) modoLogin('criar'); return erroLogin(r.erro || 'Não deu certo.'); }
+  LS.set('ck_app_sess', r.usuario.id);
+  $('pin').value = '';
+  aposLogin(r.usuario);
+}
+async function solicitar(){
+  var nome = $('sNome').value.trim(), cpf = $('sCpf').value.replace(/\D/g, ''), pin = $('sPin').value.replace(/\D/g, ''), uni = $('sUni').value;
+  if (nome.split(/\s+/).length < 2) return erroSolic('Escreva nome e sobrenome.');
+  if (cpf.length !== 11) return erroSolic('Digite o CPF completo.');
+  if (pin.length !== CK.PIN_LEN) return erroSolic('A senha são ' + CK.PIN_LEN + ' números.');
+  var r = await CK.solicitarAcesso({ nome:nome, cpf:cpf, pin:pin, unidade:uni });
+  if (!r.ok) return erroSolic(r.erro || 'Não deu certo.');
+  $('sNome').value = ''; $('sCpf').value = ''; $('sPin').value = '';
+  modoLogin('recebido');
+}
+var GESTOR = { master:1, admin:1, frota:1 };
+function aposLogin(u){
+  SESS = u;
+  if (GESTOR[u.papel]) {
+    var vc = VER_COMO ? CK.usuario(VER_COMO) : null;
+    if (vc && vc.papel === 'motorista' && vc.status === 'ativo') return entraComo(vc);
+    VER_COMO = null; LS.del('ck_app_ver_como');
+  }
+  entraComo(u);   // equipe entra direto na aba Inspeções
+}
+function sair(){
+  if (CK.REMOTO && CK.sair) CK.sair();
+  LS.del('ck_app_sess'); LS.del('ck_app_ver_como');
+  SESS = null; EU = null; VER_COMO = null; CK_ST = null;
+  $('app').style.display = 'none'; $('tela-sel').classList.remove('on'); $('tela-login').classList.add('on');
+  $('pin').value = ''; fechaMenu(); modoLogin('entrar'); ABA = 'inicio';
+}
+
+/* ══════════════════════════════════════════════════════════
+   ADMIN: ver como motorista
+   ══════════════════════════════════════════════════════════ */
+function escolheMotorista(){
+  $('app').style.display = 'none'; $('tela-login').classList.remove('on'); $('tela-sel').classList.add('on'); fechaMenu();
+  $('selBusca').value = ''; filtraMotoristas();
+}
+function trocarMotorista(){ VER_COMO = null; LS.del('ck_app_ver_como'); CK_ST = null; escolheMotorista(); }
+/* sai do "ver como motorista" e volta para a visão da equipe */
+function voltaEquipe(){ if (!SESS || !GESTOR[SESS.papel]) return; VER_COMO = null; LS.del('ck_app_ver_como'); CK_ST = null; entraComo(SESS); }
+function filtraMotoristas(){
+  var q = ($('selBusca').value || '').toLowerCase().trim();
+  var todos = CK.load().usuarios.filter(function(u){ return u.papel === 'motorista' && u.status === 'ativo'; })
+    .sort(function(a, b){ return a.nome.localeCompare(b.nome); });
+  var l = todos.filter(function(m){ return !q || (m.nome + ' ' + (m.unidade || '')).toLowerCase().indexOf(q) >= 0; });
+  $('selSub').textContent = todos.length + ' motoristas ativos · toque num nome para entrar como ele';
+  var ativos = CK.load().ativos;
+  $('selLista').innerHTML = l.map(function(m){
+    var n = ativos.filter(function(a){ return a.operador === m.id && a.status === 'ativo'; }).length;
+    return linha('<b style="font-size:11px">' + iniciais(m.nome) + '</b>', esc(m.nome), esc(m.unidade || 'sem unidade') + ' · ' + n + (n === 1 ? ' ativo' : ' ativos'), null, '', '', ' tap', ' data-id="' + m.id + '"');
+  }).join('') || '<div class="vazio">Ninguém com esse nome.</div>';
+}
+$('selBusca').addEventListener('input', filtraMotoristas);
+$('selLista').addEventListener('click', function(e){
+  var li = e.target.closest('.li[data-id]'); if (!li) return;
+  var m = CK.usuario(li.dataset.id); if (!m) return;
+  VER_COMO = m.id; LS.set('ck_app_ver_como', m.id);
+  entraComo(m);
+});
+
+/* ══════════════════════════════════════════════════════════
+   APP
+   ══════════════════════════════════════════════════════════ */
+function entraComo(u){
+  EU = u;
+  $('tela-login').classList.remove('on'); $('tela-sel').classList.remove('on'); $('app').style.display = 'flex';
+  $('ola').textContent = 'Olá, ' + primeiroNome(u.nome) + '!';
+  var eq = equipe(), vendo = !!(SESS && SESS.id !== u.id);
+  $('sub').textContent = dataExtenso(new Date()) + (vendo ? ' · vendo como ' + primeiroNome(u.nome) : eq ? ' · ' + (CK.PAPEL[u.papel] || '') : '');
+  $('av').textContent = iniciais(u.nome);
+  $('btTrocar').style.display = vendo ? '' : 'none';
+  $('btEquipe').style.display = vendo ? '' : 'none';
+  montaNav(eq);
+  CK_ST = null;
+  if (eq) $('buscaInsp').value = '';
+  irPara(eq ? 'inspecoes' : 'inicio');
+  if (ATIVO_URL) {
+    var a = CK.ativo(ATIVO_URL); ATIVO_URL = null; try { history.replaceState(null, '', location.pathname); } catch(e){}
+    if (a && eq) { $('buscaInsp').value = a.placa || a.frota || ''; filtraInspecoes(); }   // QR lido pela equipe: filtra as inspeções do ativo
+    else if (a) abrirAtivo(a.id);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   INSPEÇÕES DA EQUIPE (master/admin/frota)
+   ══════════════════════════════════════════════════════════ */
+function recusaInsp(){
+  alert('Inspeção é feita pela equipe da frota.');
+  var r = null; try { r = JSON.parse(LS.get('ck_app_rascunho') || 'null'); } catch(e){}
+  if (r && ehInspecao(r.modelo)) limpaRascunho();
+  CK_ST = null; fechaLista();
+  irPara(equipe() ? 'inspecoes' : 'inicio');
+}
+function farolInsp(x){
+  if (x.status === 'atrasada') return '<span class="farol atr">Atrasada</span>';
+  if (x.status === 'vence') return '<span class="farol os">Vence ' + CK.fmtDataCurta(x.vence) + '</span>';
+  if (x.status === 'em_dia') return '<span class="farol ok">Em dia</span>';
+  if (x.status === 'livre') return '<span class="farol off">Sob demanda</span>';
+  return '<span class="farol nun">Nunca feita</span>';
+}
+function plural(n, s, p){ return n + ' ' + (n === 1 ? s : p); }
+function renderInspecoes(){
+  if (!equipe()) return;
+  var l = CK.inspecoesPara(EU);
+  var atr = 0, nun = 0, ven = 0;
+  l.forEach(function(x){ if (x.status === 'atrasada') atr++; else if (x.status === 'nunca') nun++; else if (x.status === 'vence') ven++; });
+  $('qtdInsp').textContent = atr + nun + ven;
+  var partes = [];
+  if (nun) partes.push('<b>' + nun + '</b> ' + (nun === 1 ? 'nunca feita' : 'nunca feitas'));
+  if (ven) partes.push('<b>' + ven + '</b> ' + (ven === 1 ? 'vence' : 'vencem') + ' em 48 h');
+  $('avisoInsp').innerHTML = (atr + nun + ven)
+    ? '<b class="neg">' + plural(atr, 'atrasada', 'atrasadas') + '</b>' + (partes.length ? ' · ' + partes.join(' · ') : '') + ' · de ' + l.filter(function(x){ return x.status !== 'livre'; }).length + ' periódicas'
+    : (l.some(function(x){ return x.status !== 'livre'; }) ? 'Todas as ' + l.filter(function(x){ return x.status !== 'livre'; }).length + ' inspeções periódicas estão em dia.' : 'Nenhuma inspeção periódica.')
+      + (l.some(function(x){ return x.status === 'livre'; }) ? ' Preventivos e preditivos são sob demanda.' : '');
+  renderRascunho('rascunhoInsp');
+  filtraInspecoes(l);
+}
+function filtraInspecoes(lista){
+  var l = lista || CK.inspecoesPara(EU), q = normBusca($('buscaInsp').value);
+  $('buscaInspLimpa').style.display = q ? '' : 'none';
+  $('inspTopo').style.display = q ? 'none' : '';
+  if (q) l = l.filter(function(x){
+    var a = x.ativo;
+    return normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0;
+  });
+  // agrupa por modelo, na ordem em que os modelos aparecem (a lista já vem com as atrasadas primeiro)
+  var ordem = [], por = {};
+  l.forEach(function(x){ var k = x.modelo.id; if (!por[k]) { por[k] = []; ordem.push(k); } por[k].push(x); });
+  var h = q ? '<div class="sec" style="margin-top:6px">' + (l.length ? plural(l.length, 'inspeção encontrada', 'inspeções encontradas') : 'Nenhuma inspeção encontrada') + '</div>' : '';
+  h += ordem.map(function(k){
+    var m = por[k][0].modelo, f = CK.FREQ[m.freq], fn = f ? f.nome.toLowerCase() : m.freq;
+    // a frequência vai junto do nome, sem repetir quando o nome já diz ("Inspeção semanal · ...")
+    return '<div class="sec" style="margin-top:8px">' + esc(m.nome) + (m.nome.toLowerCase().indexOf(fn) >= 0 ? '' : ' · ' + esc(fn)) + '<span class="cont">' + por[k].length + '</span></div>'
+      + por[k].map(linhaInsp).join('');
+  }).join('');
+  if (!l.length) h += q ? '<div class="vazio">Confira a placa ou o número da frota e tente de novo.</div>' : '<div class="vazio">Nenhum checklist da equipe cadastrado. O admin cria inspeções, preventivos e preditivos no portal gestor.</div>';
+  $('inspLista').innerHTML = h;
+}
+function linhaInsp(x){
+  var a = x.ativo, u = x.ultima;
+  var sub = u ? 'Última: ' + CK.fmtDataCurta(u.data) + ' por ' + esc(primeiroNome(nomeUsuario(u.usuario))) : 'Nunca feita';
+  return linha(icoTipo(a), esc(nomeAt(a)), sub, farolInsp(x), '', '', ' tap' + (x.status === 'atrasada' ? ' blk' : ''), ' data-insp="' + esc(a.id) + '" data-mod="' + esc(x.modelo.id) + '"');
+}
+$('buscaInsp').addEventListener('input', function(){ filtraInspecoes(); });
+$('buscaInsp').addEventListener('keydown', function(e){ if (e.key === 'Enter') { var p = $('inspLista').querySelector('.li[data-insp]'); if (p && normBusca(this.value)) { this.blur(); p.click(); } } });
+$('buscaInspLimpa').addEventListener('click', function(){ $('buscaInsp').value = ''; filtraInspecoes(); $('buscaInsp').focus(); });
+
+/* tela da inspeção: ativo × modelo, com os itens e a última execução */
+function abrirInspecao(aid, mid){
+  if (!equipe()) return recusaInsp();
+  var a = CK.ativo(aid), m = CK.modelo(mid); if (!a || !m) return;
+  var t = CK.TIPO[a.tipo], f = CK.FREQ[m.freq], itens = CK.itensDoModelo(mid, a), s = CK.situacaoAtivo(a.id), db = CK.load();
+  var x = CK.inspecoesPara(EU).filter(function(i){ return i.ativo.id === aid && i.modelo.id === mid; })[0];
+  var execs = db.checklists.filter(function(c){ return c.ativo === aid && c.modelo === mid; }).slice(-5).reverse();
+  var h = '<button class="volta" onclick="irPara(\'inspecoes\')">' + CK.ICONES.back + 'Inspeções</button>';
+  h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b><span>' + esc(t ? t.nome : a.tipo) + ' · ' + esc(a.unidade) + (a.ano ? ' · ' + a.ano : '') + '</span><span>Leitura atual: <b style="display:inline;font-size:11px">' + leituraTxt(a) + '</b></span></div></div>';
+  if (s.bloqueado) {
+    var bl = s.abertas.filter(function(o){ return o.bloqueia; });
+    h += '<div class="faixa">' + CK.ICONES.alert + '<div><b>Ativo com OS bloqueante aberta</b><div class="lst">' + bl.map(function(o){ return esc(o.id) + ' · ' + esc(CK.ITEM[o.item] ? CK.ITEM[o.item].nome : o.item); }).join(', ') + '</div></div></div>';
+  }
+  var u = x && x.ultima;
+  h += '<div class="card contorno"><div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><b style="display:block;font-size:14px;font-weight:600;line-height:1.3">' + esc(m.nome) + '</b>'
+    + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:4px">' + esc(f ? f.nome : m.freq) + (f ? ' · a cada ' + plural(f.dias, 'dia', 'dias') : '') + ' · ' + plural(itens.length, 'item', 'itens') + '</span></div>'
+    + (x ? farolInsp(x) : '') + '</div>'
+    + '<div style="font-size:11.5px;color:var(--txt2);margin-top:10px;line-height:1.5">'
+    + (u ? 'Última execução: <b style="color:var(--txt);font-weight:600">' + CK.fmtDH(u.data) + '</b> por ' + esc(nomeUsuario(u.usuario)) + ' · ' + (u.nc ? '<span class="neg">' + plural(u.nc, 'não conformidade', 'não conformidades') + '</span>' : '<span class="pos">sem não conformidades</span>')
+         + (x.vence ? '<br>' + (x.status === 'atrasada' ? 'Venceu em ' : 'Próxima até ') + '<b style="color:var(--txt);font-weight:600">' + CK.fmtData(x.vence) + '</b>' : '')
+       : 'Esta inspeção nunca foi feita neste ativo.')
+    + '</div></div>';
+  h += '<button class="btn" style="margin-top:0" onclick="iniciarChecklist(\'' + esc(a.id) + '\',\'' + esc(m.id) + '\')">Iniciar inspeção</button>';
+  var cats = [], por = {};
+  itens.forEach(function(it){ if (!por[it.cat]) { por[it.cat] = []; cats.push(it.cat); } por[it.cat].push(it); });
+  h += '<div class="sec" style="margin-top:20px">Itens da inspeção<span class="cont">' + itens.length + '</span></div>'
+    + '<div class="card contorno" style="padding:4px 14px 8px">' + cats.map(function(c){
+      return '<div class="sec" style="margin:12px 0 0">' + esc(c) + '</div>' + por[c].map(function(it){ return '<div class="lrow fixo"><i></i><span>' + esc(it.nome) + '</span>' + chip(it.crit) + '</div>'; }).join('');
+    }).join('') + '</div>';
+  h += '<div class="sec" style="margin-top:4px">Últimas execuções</div>';
+  h += execs.map(linhaCk).join('') || '<div class="vazio">Nenhuma execução registrada ainda.</div>';
+  $('v-insp').innerHTML = h;
+  mostra('insp', 'inspecoes');
+}
+
+/* ── INÍCIO ── */
+function meusAtivos(){ return CK.load().ativos.filter(function(a){ return a.status === 'ativo' && a.operador === EU.id; }); }
+function renderInicio(){
+  var db = CK.load(), hoje = hojeIso(), mk = CK.mesKey(hoje);
+  var meus = db.checklists.filter(function(c){ return c.usuario === EU.id && CK.mesKey(c.data) === mk; });
+  var ncs = meus.reduce(function(s, c){ return s + (c.nc || 0); }, 0);
+  $('rotMes').textContent = 'Checklists feitos em ' + CK.MESES_N[new Date().getMonth()].toLowerCase();
+  $('qtdMes').textContent = meus.length;
+  $('avisoMes').innerHTML = meus.length
+    ? '<b>' + ncs + '</b> ' + (ncs === 1 ? 'não conformidade apontada' : 'não conformidades apontadas') + ' · <b>' + meus.filter(function(c){ return c.data.slice(0,10) === hoje; }).length + '</b> hoje'
+    : 'Nenhum checklist seu neste mês ainda. Comece pelo seu ativo abaixo.';
+
+  var mine = meusAtivos().sort(function(a, b){ return nomeAt(a).localeCompare(nomeAt(b)); });
+  var feitos = mine.filter(function(a){ return db.checklists.some(function(c){ return c.ativo === a.id && c.data.slice(0,10) === hoje && !ehInspecao(c.modelo); }); }).length;
+  var pct = mine.length ? Math.round(feitos / mine.length * 100) : 0;
+  $('barraHoje').style.width = pct + '%';
+  $('hojeTxt').innerHTML = '<b>' + feitos + '</b> / ' + mine.length + (mine.length === 1 ? ' ativo' : ' ativos');
+  $('hojePct').textContent = mine.length ? pct + '%' : '';
+  $('meusCont').textContent = mine.length || '';
+  $('meus').innerHTML = mine.map(linhaAtivo).join('') || '<div class="vazio">Você ainda não é o operador habitual de nenhum ativo. Procure o seu na lista abaixo.</div>';
+  renderOutros();
+  renderRascunho('rascunhoBox');
+  buscaAtivos();
+}
+/* último checklist DIÁRIO do ativo: o motorista não vê as inspeções da equipe */
+function ultimoDiario(aid){ var l = CK.load().checklists; for (var i = l.length - 1; i >= 0; i--) if (l[i].ativo === aid && !ehInspecao(l[i].modelo)) return l[i]; return null; }
+function linhaAtivo(a){
+  var s = CK.situacaoAtivo(a.id), ult = ultimoDiario(a.id);
+  var sub = ult ? 'Último checklist: ' + CK.fmtDataCurta(ult.data) + ' ' + CK.fmtHora(ult.data) + ' · por ' + esc(primeiroNome(nomeUsuario(ult.usuario))) : 'Sem checklist';
+  var semDiario = !CK.diarioAtivo(a.tipo);   /* diário do tipo desligado pelo admin */
+  if (semDiario && !ult) sub = 'Este tipo de ativo não tem checklist diário';
+  var farol = s.bloqueado ? '<span class="farol so blk" role="img" title="Não opere" aria-label="Não opere">Não opere</span>' : semDiario ? '<span class="farol so off" role="img" title="Sem checklist diário" aria-label="Sem checklist diário">Sem checklist</span>' : '<span class="farol so ok" role="img" title="Liberado" aria-label="Liberado">Liberado</span>';   /* motorista vê só o que importa (Renan, 11/10/2026: "tem que ser direto") */
+  return linha(icoTipo(a), esc(nomeAt(a)), sub, farol, '', '', ' tap' + (a.operador === EU.id ? ' eu' : '') + (s.bloqueado ? ' blk' : ''), ' data-ativo="' + esc(a.id) + '"');
+}
+function renderOutros(){
+  var outros = CK.ativosPara(EU).filter(function(a){ return a.operador !== EU.id; });
+  $('outrosCont').textContent = outros.length || '';
+  $('outros').innerHTML = outros.slice(0, 8).map(linhaAtivo).join('')
+    + (outros.length > 8 ? '<div class="vazio">Mais ' + (outros.length - 8) + ' ativos. Digite a placa ou o número da frota na busca lá em cima.</div>' : '');
+}
+/* busca do topo: o motorista digita só parte da placa ou o nº da frota, sem se preocupar
+   com hífen, espaço ou maiúscula ("ihu", "2384", "51"). Resultado substitui a tela enquanto digita. */
+function normBusca(t){ return String(t || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]/g, ''); }
+function buscaAtivos(){
+  var q = normBusca($('buscaTop').value), res = $('buscaRes'), corpo = $('inicioCorpo');
+  $('buscaLimpa').style.display = q ? '' : 'none';
+  if (!q) { res.style.display = 'none'; corpo.style.display = ''; return; }
+  var lista = CK.ativosPara(EU).map(function(a){
+    var placa = normBusca(a.placa), frota = normBusca(a.frota), mod = normBusca(a.marca + ' ' + a.modelo);
+    var nota = placa === q || frota === q ? 0 : placa.indexOf(q) === 0 || frota.indexOf(q) === 0 ? 1 : placa.indexOf(q) >= 0 || frota.indexOf(q) >= 0 ? 2 : mod.indexOf(q) >= 0 ? 3 : 9;
+    return { a:a, nota:nota };
+  }).filter(function(x){ return x.nota < 9; }).sort(function(x, y){ return x.nota - y.nota || nomeAt(x.a).localeCompare(nomeAt(y.a)); });
+  corpo.style.display = 'none'; res.style.display = '';
+  res.innerHTML = '<div class="sec" style="margin-top:6px">' + (lista.length ? lista.length + (lista.length > 1 ? ' ativos encontrados' : ' ativo encontrado') : 'Nenhum ativo encontrado') + '</div>'
+    + (lista.map(function(x){ return linhaAtivo(x.a); }).join('') || '<div class="vazio">Confira a placa ou o número da frota colado no ativo e tente de novo.</div>');
+}
+$('buscaTop').addEventListener('input', buscaAtivos);
+$('buscaTop').addEventListener('keydown', function(e){ if (e.key === 'Enter') { var p = $('buscaRes').querySelector('.li[data-ativo]'); if (p) { this.blur(); p.click(); } } });
+$('buscaLimpa').addEventListener('click', function(){ $('buscaTop').value = ''; buscaAtivos(); $('buscaTop').focus(); });
+document.addEventListener('click', function(e){
+  var ins = e.target.closest('.li[data-insp]'); if (ins) { abrirInspecao(ins.dataset.insp, ins.dataset.mod); return; }
+  var li = e.target.closest('.li[data-ativo]'); if (li) { abrirAtivo(li.dataset.ativo); return; }
+  var ck = e.target.closest('.li[data-ck]'); if (ck) { abrirCk(ck.dataset.ck); return; }
+  var os = e.target.closest('.li[data-os]'); if (os) { toggleOS(os); return; }
+});
+
+/* rascunho: checklist que ficou pela metade */
+function rascunho(){ try { var r = JSON.parse(LS.get('ck_app_rascunho') || 'null'); return r && EU && r.usuario === EU.id && CK.ativo(r.ativo) ? r : null; } catch(e){ return null; } }
+function salvaRascunho(){ if (!CK_ST) return; LS.set('ck_app_rascunho', JSON.stringify({ usuario:EU.id, ativo:CK_ST.ativo, modelo:CK_ST.modelo, inicio:CK_ST.inicio, leitura:CK_ST.leitura, passo:CK_ST.passo, idx:CK_ST.idx, resp:CK_ST.resp })); }
+function limpaRascunho(){ LS.del('ck_app_rascunho'); }
+function renderRascunho(boxId){
+  var r = rascunho(), box = $(boxId || (equipe() ? 'rascunhoInsp' : 'rascunhoBox'));
+  if (!box) return;
+  if (!r) { box.innerHTML = ''; return; }
+  var a = CK.ativo(r.ativo), mid = modeloDoCk(r), insp = ehInspecao(mid);
+  var cab = '<div class="card contorno" style="margin-top:18px;margin-bottom:0"><div class="sec" style="margin:0 0 6px">' + (insp ? 'Inspeção em andamento' : 'Checklist em andamento') + '</div>'
+    + '<b style="display:block;font-size:14px;font-weight:600">' + esc(nomeAt(a)) + '</b>';
+  if (insp && !equipe()) {   // rascunho antigo de inspeção numa conta de motorista: não deixa retomar
+    box.innerHTML = cab + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:3px">Inspeção é feita pela equipe da frota.</span>'
+      + '<button class="btn sec2" style="margin-top:12px;padding:12px" onclick="descartar()">Descartar</button></div>';
+    return;
+  }
+  var n = Object.keys(r.resp || {}).filter(function(k){ var x = r.resp[k]; return x && x.ok !== undefined && !(x.ok === false && !x.foto); }).length, tot = CK.itensDoModelo(mid, a).length;
+  box.innerHTML = cab + (insp ? '<span style="display:block;font-size:11px;color:var(--acc2);font-weight:600;margin-top:3px">' + esc(nomeModelo(mid)) + '</span>' : '')
+    + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:3px">' + n + ' de ' + tot + ' itens respondidos · começou ' + CK.fmtHora(new Date(r.inicio)) + '</span>'
+    + '<div style="display:flex;gap:8px"><button class="btn" style="margin-top:12px;padding:12px" onclick="retomar()">Retomar</button><button class="btn sec2" style="margin-top:12px;padding:12px;flex:0 0 38%" onclick="descartar()">Descartar</button></div></div>';
+}
+function retomar(){
+  var r = rascunho(); if (!r) return;
+  var mid = modeloDoCk(r);
+  if (ehInspecao(mid) && !equipe()) return recusaInsp();
+  if (!CK.itensDoModelo(mid, r.ativo).length) { alert('Este checklist não existe mais. O rascunho foi descartado.'); limpaRascunho(); CK_ST = null; irPara(ABA); return; }
+  CK_ST = { ativo:r.ativo, tipo:CK.ativo(r.ativo).tipo, modelo:mid, inicio:r.inicio, leitura:r.leitura, passo:r.passo || 1, idx:r.idx, resp:r.resp || {} };
+  renderCheck(1); mostra('check');
+}
+function descartar(){
+  var r = rascunho(), insp = r && ehInspecao(modeloDoCk(r));
+  if (!confirm(insp ? 'Descartar a inspeção em andamento?' : 'Descartar o checklist em andamento?')) return;
+  limpaRascunho(); CK_ST = null; renderRascunho('rascunhoBox'); renderRascunho('rascunhoInsp');
+}
+
+/* ── TELA DO ATIVO ── */
+function abrirAtivo(id){
+  var a = CK.ativo(id); if (!a) return;
+  var s = CK.situacaoAtivo(a.id), t = CK.TIPO[a.tipo], db = CK.load();
+  var cks = db.checklists.filter(function(c){ return c.ativo === a.id && !ehInspecao(c.modelo); }).slice(-5).reverse();   // só os diários
+  var h = '<button class="volta" onclick="irPara(\'inicio\')">' + CK.ICONES.back + 'Início</button>';
+  h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b><span>' + esc(t.nome) + ' · ' + esc(a.unidade) + (a.ano ? ' · ' + a.ano : '') + '</span><span>Leitura atual: <b style="display:inline;font-size:11px">' + leituraTxt(a) + '</b></span></div></div>';
+  if (s.bloqueado) {
+    var bl = s.abertas.filter(function(o){ return o.bloqueia; });
+    h += '<div class="faixa">' + CK.ICONES.alert + '<div><b>Não opere este ativo</b><div class="lst">Problema de segurança em aberto: ' + bl.map(function(o){ return esc(CK.ITEM[o.item].nome); }).join(', ') + '. Avise o gestor.</div></div></div>';
+  }
+  h += CK.diarioAtivo(a.tipo) ? '<button class="btn" onclick="iniciarChecklist(\'' + esc(a.id) + '\')">Iniciar checklist</button>'
+    : '<div class="vazio">Este tipo de ativo não tem checklist diário. Fale com o gestor da frota.</div>';
+  h += '<div class="sec" style="margin-top:14px">Últimos checklists</div>';
+  h += cks.map(linhaCk).join('') || '<div class="vazio">Este ativo ainda não tem checklist.</div>';
+  $('v-ativo').innerHTML = h;
+  mostra('ativo', 'inicio');
+}
+function linhaCk(c){
+  var a = CK.ativo(c.ativo), nc = c.nc || 0;
+  return linha(nc ? CK.ICONES.alert : CK.ICONES.check, esc(a ? nomeAt(a) : c.ativo),
+    (equipe() ? '<span style="display:inline;color:var(--acc2);font-weight:600;margin:0">' + esc(nomeModelo(modeloDoCk(c))) + '</span><br>' : '')   // equipe vê o modelo em cada linha
+    + CK.fmtDataCurta(c.data) + ' ' + CK.fmtHora(c.data) + ' · ' + esc(primeiroNome(nomeUsuario(c.usuario))) + (c.leitura ? ' · ' + nInt(c.leitura) + (a && a.medidor === 'h' ? ' h' : ' km') : ''),
+    c.itens_total + ' itens', nc ? 'neg' : 'pos', nc ? nc + ' NC' : 'tudo OK', ' tap', ' data-ck="' + esc(c.id) + '"');
+}
+
+/* ── CHECKLIST: um item por vez (card grande, avanço automático) ──
+   Renan, 10/10/2026: escolheu a versão "app moderno". Conforme e N/A avançam
+   sozinhos; Não conforme abre a foto (obrigatória) e a observação no próprio
+   card. A barra de cima tem um segmento por item, colorido pela resposta. */
+/* mid = modelo do checklist; sem ele é o diário do tipo ("d-<TIPO>"). Inspeção só para a equipe. */
+function iniciarChecklist(id, mid){
+  var a = CK.ativo(id); if (!a) return;
+  mid = mid || ('d-' + a.tipo);
+  if (ehInspecao(mid) && !equipe()) return recusaInsp();
+  if (!ehInspecao(mid) && !CK.diarioAtivo(a.tipo)) { alert('Este tipo de ativo não tem checklist diário. Fale com o gestor da frota.'); return; }
+  if (!CK.itensDoModelo(mid, a).length) { alert('Este checklist não tem itens para este ativo.'); return; }
+  var r = rascunho();
+  if (r && r.ativo === a.id && modeloDoCk(r) === mid) { retomar(); return; }
+  if (r && !confirm('Há ' + (ehInspecao(modeloDoCk(r)) ? 'uma inspeção' : 'um checklist') + ' em andamento (' + nomeAt(CK.ativo(r.ativo)) + '). Descartar e começar este?')) return;
+  limpaRascunho();
+  CK_ST = { ativo:a.id, tipo:a.tipo, modelo:mid, inicio:Date.now(), leitura:a.leitura, passo: a.medidor ? 1 : 2, idx:0, resp:{} };
+  salvaRascunho(); renderCheck(1); mostra('check');
+}
+function voltarDoCheck(){ fechaLista(); salvaRascunho(); if (ehInspecao(CK_ST.modelo)) abrirInspecao(CK_ST.ativo, CK_ST.modelo); else abrirAtivo(CK_ST.ativo); }
+function itensCk(){ return CK.itensDoModelo(CK_ST.modelo || ('d-' + CK_ST.tipo), CK_ST.ativo); }
+/* pendente = sem resposta, ou não conforme ainda sem foto */
+function pendente(r){ return !r || r.ok === undefined || (r.ok === false && !r.foto); }
+function proxPendente(de){
+  var its = itensCk(), i;
+  for (i = de; i < its.length; i++) if (pendente(CK_ST.resp[its[i].id])) return i;
+  for (i = 0; i < Math.min(de, its.length); i++) if (pendente(CK_ST.resp[its[i].id])) return i;
+  return its.length;   // nada pendente: vai para o resumo
+}
+function vibra(ms){ try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){} }
+var ICO_CAT = {
+  'DOCUMENTAÇÃO E SEGURANÇA': CK.ICONES.bill,
+  'MOTOR E FLUIDOS': CK.ICONES.gauge,
+  'FREIOS E DIREÇÃO': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg>',
+  'RODAGEM': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/></svg>',
+  'ILUMINAÇÃO E SINALIZAÇÃO': CK.ICONES.sun,
+  'CABINE E ESTRUTURA': CK.ICONES.car,
+  'IMPLEMENTO': CK.ICONES.machine,
+  'KIT DE EMERGÊNCIA E FERRAMENTAS': CK.ICONES.wrench || CK.ICONES.machine
+};
+function renderCheck(dir){
+  var insp = ehInspecao(CK_ST.modelo);
+  if (insp && !equipe()) return recusaInsp();
+  var a = CK.ativo(CK_ST.ativo), itens = itensCk(), tot = itens.length;
+  if (CK_ST.idx == null) CK_ST.idx = proxPendente(0);
+  var h = '<div class="ckbar" id="ckbar"><div class="lin"><button class="volta" onclick="voltarDoCheck()">' + CK.ICONES.back + '</button>'
+    + '<div class="tit"><b>' + esc(nomeAt(a)) + '</b>' + (insp ? '<span class="mod">' + esc(nomeModelo(CK_ST.modelo)) + '</span>' : '') + '<span id="ckSub"></span></div>'
+    + (CK_ST.passo === 2 ? '<button class="cont-bt" onclick="abreLista()">' + CK.ICONES.list + '<span id="ckCont"></span></button>' : '<div class="cont" id="ckCont"></div>')
+    + '</div><div class="segs" id="ckSegs"></div></div>';
+  if (CK_ST.passo === 1) {
+    var km = a.medidor === 'km';
+    h += '<div class="leitura"><div class="sec">Passo 1 de 2 · Leitura</div>'
+      + '<div class="campo"><label>' + (km ? 'Km atual do odômetro' : 'Horímetro atual (horas)') + '</label><input id="ckLeitura" type="number" inputmode="numeric" min="' + (a.leitura || 0) + '" value="' + (CK_ST.leitura != null ? CK_ST.leitura : (a.leitura || '')) + '" placeholder="' + (a.leitura || '') + '"></div>'
+      + '<div class="dica">Última leitura registrada: <b>' + leituraTxt(a) + '</b>. Confira no painel e corrija se estiver diferente. Não pode ser menor que a última.</div>'
+      + '<div class="lg-erro" id="ckLeituraErro" style="display:none"></div>'
+      + '<button class="btn" onclick="confirmaLeitura()">Começar os ' + tot + ' itens</button></div>';
+  } else if (CK_ST.idx >= tot) {
+    h += resumoHtml(itens);
+  } else {
+    h += cardHtml(itens[CK_ST.idx], CK_ST.idx, tot, dir);
+  }
+  $('v-check').innerHTML = h;
+  atualizaProg();
+}
+function confirmaLeitura(){
+  var a = CK.ativo(CK_ST.ativo), v = parseInt($('ckLeitura').value, 10), e = $('ckLeituraErro');
+  if (!isFinite(v) || v < 0) { e.textContent = 'Digite a leitura do painel.'; e.style.display = ''; return; }
+  if (a.leitura != null && v < a.leitura) { e.textContent = 'A leitura não pode ser menor que a última (' + leituraTxt(a) + ').'; e.style.display = ''; return; }
+  if (a.leitura != null && v > a.leitura + (a.medidor === 'km' ? 5000 : 200) && !confirm('A leitura subiu ' + nInt(v - a.leitura) + (a.medidor === 'km' ? ' km' : ' h') + ' desde a última. Está certo?')) return;
+  CK_ST.leitura = v; CK_ST.passo = 2; CK_ST.idx = proxPendente(0); salvaRascunho(); renderCheck(1); $('corpo').scrollTop = 0;
+}
+function cardHtml(it, i, tot, dir){
+  var r = CK_ST.resp[it.id] || {}, c = CK.CRIT[it.crit] || CK.CRIT.baixa;
+  var podeAvancar = !pendente(CK_ST.resp[it.id]);
+  var h = '<div class="ck1"><div class="cat"><span>' + esc(it.cat) + '</span><span>Item ' + (i + 1) + ' de ' + tot + '</span></div>'
+    + '<div class="card1' + (dir < 0 ? ' back' : '') + '" id="card1"><div class="ico">' + (ICO_CAT[it.cat] || CK.ICONES.check) + '</div>'
+    + '<h2>' + esc(it.nome) + '</h2>'
+    + (it.dica ? '<p class="dica">' + esc(it.dica) + '</p>' : '')   /* orientação da planilha da Atual */
+    + (it.bloqueia ? '<div class="attrs"><span class="attr blk">' + CK.ICONES.block + 'se não estiver ok, não opere</span></div>' : '')
+    + '<div class="esp"></div>';
+  if (r.ok === false) h += ncHtml(it, r);
+  else h += '<div class="duo' + (r.ok !== undefined ? ' marcado' : '') + '">'
+    + '<button class="b-ok' + (r.ok === true ? ' sel' : '') + '" onclick="responde(true)">' + CK.ICONES.check + 'Conforme</button>'
+    + '<button class="b-nc" onclick="responde(false)">' + CK.ICONES.x + 'Não conforme</button></div>'
+    ;
+  h += '</div><div class="ck-nav"><button onclick="navega(-1)"' + (i === 0 ? ' disabled' : '') + '>' + CK.ICONES.back + 'Anterior</button>'
+    + '<button class="prox" onclick="navega(1)"' + (podeAvancar ? '' : ' disabled') + '>Próximo' + CK.ICONES.back + '</button></div></div>';
+  return h;
+}
+function ncHtml(it, r){
+  var src = r.foto === 'demo' ? CK.fotoDemo(it.nome) : r.foto;
+  return '<div class="nc1"><div class="nc1-t">' + CK.ICONES.x + 'Não conforme</div>'
+    + '<input type="file" accept="image/*" capture="environment" id="fotoIn" style="display:none" onchange="fotoSel(this)">'
+    + (src ? '<div class="foto1" onclick="document.getElementById(\'fotoIn\').click()"><img src="' + src + '" alt=""><span>' + CK.ICONES.camera + 'Trocar foto</span></div>'
+           : '<button class="fbt1" id="fbt1" onclick="document.getElementById(\'fotoIn\').click()">' + CK.ICONES.camera + '<b>Tirar foto do problema</b><small>obrigatório</small></button>')
+    + '<textarea autocapitalize="characters" placeholder="' + esc(it.ex ? 'O que você viu? Ex.: ' + it.ex.toUpperCase() : 'O que você viu? (opcional)') + '" oninput="obs(this.value)">' + esc(r.obs || '') + '</textarea>'   /* exemplo de observação do item (Renan, 12/10/2026) */
+    + '<button class="btn"' + (src ? '' : ' disabled') + ' onclick="confirmaNC()">Confirmar e seguir</button>'
+    + '<button class="na-link" onclick="mudaResposta()">Mudar resposta</button></div>';
+}
+function itemAtual(){ return itensCk()[CK_ST.idx]; }
+function responde(ok){
+  var it = itemAtual(); if (!it) return;
+  var r = CK_ST.resp[it.id] || {}; r.ok = ok;
+  if (ok !== false) { delete r.foto; delete r.obs; }
+  if (ok === false && DEMO && !r.foto) r.foto = 'demo';   // ?demo=1: sem câmera, usa a foto de demonstração
+  CK_ST.resp[it.id] = r; salvaRascunho();
+  if (ok === false) { vibra(25); renderCheck(0); return; }
+  vibra(12);
+  var el = $('card1'); if (el) el.classList.add('sai');
+  setTimeout(function(){ CK_ST.idx = proxPendente(CK_ST.idx + 1); salvaRascunho(); renderCheck(1); }, 170);
+}
+function confirmaNC(){ var it = itemAtual(); if (!it || pendente(CK_ST.resp[it.id])) return; CK_ST.idx = proxPendente(CK_ST.idx + 1); salvaRascunho(); renderCheck(1); }
+function mudaResposta(){ var it = itemAtual(); if (!it) return; delete CK_ST.resp[it.id]; salvaRascunho(); renderCheck(0); }
+function obs(v){ var it = itemAtual(), r = it && CK_ST.resp[it.id]; if (!r) return; r.obs = v; salvaRascunho(); }
+function navega(d){
+  var tot = itensCk().length, n = CK_ST.idx + d;
+  if (n < 0) return;
+  if (d > 0) { var it = itemAtual(); if (it && pendente(CK_ST.resp[it.id])) return; }
+  CK_ST.idx = Math.min(n, tot); salvaRascunho(); renderCheck(d);
+}
+/* foto: comprime no canvas para no máximo 1024px no lado maior, JPEG 0.72 */
+function comprime(file, cb){
+  var url = URL.createObjectURL(file), img = new Image();
+  img.onload = function(){
+    var w = img.naturalWidth, h = img.naturalHeight, s = Math.min(1, 1024 / Math.max(w, h));
+    var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    var out = null; try { out = c.toDataURL('image/jpeg', .72); } catch(e){}
+    cb(out);
+  };
+  img.onerror = function(){ URL.revokeObjectURL(url); cb(null); };
+  img.src = url;
+}
+function fotoSel(input){
+  var f = input.files && input.files[0], it = itemAtual(); if (!f || !it) return;
+  var bt = $('fbt1'); if (bt) { bt.innerHTML = CK.ICONES.camera + '<b>Processando a foto…</b>'; bt.disabled = true; }
+  comprime(f, function(data){
+    var r = CK_ST.resp[it.id]; if (!r) return;
+    if (!data) { alert('Não deu para ler a foto. Tente de novo.'); renderCheck(0); return; }
+    r.foto = data; salvaRascunho(); renderCheck(0);
+  });
+}
+/* resumo: aparece quando não sobra item pendente (ou ao passar do último) */
+function resumoHtml(itens){
+  var n = { ok:0, nc:0, na:0 }, pend = [], ncs = [];
+  itens.forEach(function(it){
+    var r = CK_ST.resp[it.id];
+    if (pendente(r)) pend.push(it); else if (r.ok === true) n.ok++; else if (r.ok === false) { n.nc++; ncs.push(it); } else n.na++;
+  });
+  var h = '<div class="ck1"><div class="res-cab" style="padding-top:22px"><div class="ok' + (pend.length || n.nc ? ' nc' : '') + '">' + (pend.length ? CK.ICONES.list : n.nc ? CK.ICONES.alert : CK.ICONES.check) + '</div>'
+    + '<b>' + (pend.length ? 'Quase lá' : 'Tudo respondido') + '</b><span>' + (pend.length ? 'Faltam ' + pend.length + (pend.length > 1 ? ' itens' : ' item') : 'Confira e finalize ' + (ehInspecao(CK_ST.modelo) ? 'a inspeção' : 'o checklist')) + '</span></div>';
+  h += '<div class="res-nums"><div class="n"><b class="pos">' + n.ok + '</b><span>conformes</span></div><div class="n"><b class="' + (n.nc ? 'neg' : '') + '">' + n.nc + '</b><span>não conformes</span></div></div>';
+  if (pend.length) h += '<button class="btn" onclick="CK_ST.idx=proxPendente(0);salvaRascunho();renderCheck(1)">Responder ' + (pend.length > 1 ? 'os que faltam' : 'o que falta') + '</button>';
+  if (ncs.length) h += '<div class="sec" style="margin-top:20px">Não conformidades · viram OS para a frota</div>' + ncs.map(function(it){
+    var r = CK_ST.resp[it.id], src = r.foto === 'demo' ? CK.fotoDemo(it.nome) : r.foto;
+    return '<div class="li tap" onclick="vaiItem(\'' + it.id + '\')"><img class="mini" src="' + src + '" alt=""><div class="tx"><b>' + esc(it.nome) + '</b><span>' + chip(it.crit) + ' &nbsp;' + esc(r.obs || 'sem observação') + '</span></div></div>';
+  }).join('');
+  h += '<div class="ckfim"><div class="erro" id="ckErro" style="display:none"></div>'
+    + (pend.length ? '' : '<button class="btn" id="ckFim" onclick="finalizar()">' + (ehInspecao(CK_ST.modelo) ? 'Finalizar inspeção' : 'Finalizar checklist') + '</button>')
+    + '<button class="btn sec2" onclick="abreLista()">Revisar todos os itens</button></div></div>';
+  return h;
+}
+function abreLista(){
+  fechaLista();
+  var itens = itensCk(), cats = [], por = {};
+  itens.forEach(function(it, i){ if (!por[it.cat]) { por[it.cat] = []; cats.push(it.cat); } por[it.cat].push({ it:it, i:i }); });
+  var h = '<div class="sheet" id="ckLista" onclick="if(event.target===this)fechaLista()"><div class="sheet-box"><div class="sheet-cab"><b>' + (ehInspecao(CK_ST.modelo) ? 'Itens da inspeção' : 'Itens do checklist') + '</b><button onclick="fechaLista()" aria-label="Fechar">' + CK.ICONES.x + '</button></div><div class="sheet-lst">'
+    + cats.map(function(c){
+      return '<div class="sec">' + esc(c) + '</div>' + por[c].map(function(o){
+        var r = CK_ST.resp[o.it.id], st = pendente(r) ? '' : r.ok === true ? 'ok' : r.ok === false ? 'nc' : 'na';
+        return '<div class="lrow ' + st + (o.i === CK_ST.idx ? ' cur' : '') + '" onclick="vaiItem(\'' + o.it.id + '\')"><i></i><span>' + esc(o.it.nome) + '</span>' + chip(o.it.crit) + '</div>';
+      }).join('');
+    }).join('') + '</div></div></div>';
+  var d = document.createElement('div'); d.innerHTML = h; document.body.appendChild(d.firstChild);
+}
+function fechaLista(){ var e = $('ckLista'); if (e) e.remove(); }
+function vaiItem(id){ fechaLista(); var its = itensCk(); for (var i = 0; i < its.length; i++) if (its[i].id === id) CK_ST.idx = i; salvaRascunho(); renderCheck(0); }
+function atualizaProg(){
+  var itens = itensCk(), tot = itens.length, n = 0;
+  var segs = itens.map(function(it, i){
+    var r = CK_ST.resp[it.id], p = pendente(r), c = p ? '' : r.ok === true ? 'ok' : r.ok === false ? 'nc' : 'na';
+    if (!p) n++;
+    return '<i class="' + c + (i === CK_ST.idx ? ' cur' : '') + '"></i>';
+  }).join('');
+  if ($('ckSegs')) $('ckSegs').innerHTML = CK_ST.passo === 1 ? '' : segs;
+  if ($('ckCont')) $('ckCont').textContent = CK_ST.passo === 1 ? 'Leitura' : n + '/' + tot;
+  if ($('ckSub')) $('ckSub').textContent = CK_ST.passo === 1 ? 'Passo 1 de 2 · leitura' : (n === tot ? 'Tudo respondido' : (tot - n) + (tot - n > 1 ? ' itens faltando' : ' item faltando'));
+}
+/* deslizar o dedo: para a esquerda avança (se o item já tem resposta), para a direita volta */
+(function(){
+  var x0 = null, y0 = null;
+  $('v-check').addEventListener('touchstart', function(e){ if (!CK_ST || CK_ST.passo !== 2 || e.target.closest('textarea,input')) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive:true });
+  $('v-check').addEventListener('touchend', function(e){
+    if (x0 == null || !CK_ST) return;
+    var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+    if (CK_ST.idx >= itensCk().length && dx > 0) { CK_ST.idx = itensCk().length - 1; salvaRascunho(); renderCheck(-1); return; }
+    navega(dx < 0 ? 1 : -1);
+  }, { passive:true });
+})();
+async function finalizar(){
+  var itens = itensCk(), e = $('ckErro');
+  var p = proxPendente(0);
+  if (p < itens.length) { CK_ST.idx = p; salvaRascunho(); renderCheck(1); return; }
+  if (ehInspecao(CK_ST.modelo) && !equipe()) return recusaInsp();
+  var resp = itens.map(function(it){ var r = CK_ST.resp[it.id]; return { item:it.id, ok:r.ok, obs:r.obs || '', foto:r.ok === false ? r.foto : null }; });
+  var res = await CK.salvarChecklist({ ativo:CK_ST.ativo, usuario:EU.id, leitura:CK_ST.leitura, duracao_s:Math.round((Date.now() - CK_ST.inicio) / 1000), itens:resp, modelo:CK_ST.modelo || ('d-' + CK_ST.tipo) });
+  if (!res.ok) { if (e) { e.textContent = res.erro || 'Não deu para salvar.'; e.style.display = ''; } return; }
+  limpaRascunho(); CK_ST = null;
+  if (equipe()) renderResultadoEquipe(res); else renderResultado(res);
+  mostra('result');
+}
+/* resultado da equipe: técnico — quantas NC, quais OS abriram, criticidade e prazo */
+function renderResultadoEquipe(res){
+  var ck = res.checklist, a = CK.ativo(ck.ativo), nc = ck.nc || 0, cri = res.os_criadas, rei = res.os_reincidentes;
+  var bloq = cri.concat(rei).filter(function(o){ return o.bloqueia; });
+  var h = '<div class="res-cab"><div class="ok' + (bloq.length ? ' blk' : nc ? ' nc' : '') + '">' + (nc ? CK.ICONES.alert : CK.ICONES.check) + '</div>'
+    + '<b>' + (nc ? plural(nc, 'não conformidade', 'não conformidades') + ' · ' + plural(cri.length, 'OS aberta', 'OS abertas') : (ehInspecao(ck.modelo) ? 'Inspeção' : 'Checklist') + ' sem não conformidades') + '</b>'
+    + '<span>' + esc(nomeAt(a)) + '</span><span>' + esc(nomeModelo(modeloDoCk(ck))) + ' · ' + CK.fmtDH(ck.data) + '</span></div>';
+  h += '<div class="res-nums"><div class="n"><b>' + ck.itens_total + '</b><span>itens</span></div><div class="n"><b class="' + (nc ? 'neg' : 'pos') + '">' + nc + '</b><span>não conformes</span></div><div class="n"><b>' + cri.length + '</b><span>OS abertas</span></div></div>';
+  if (bloq.length) h += '<div class="faixa">' + CK.ICONES.alert + '<div><b>Ativo bloqueado</b><div class="lst">OS bloqueante: ' + bloq.map(function(o){ return esc(o.id) + ' · ' + esc(CK.ITEM[o.item].nome); }).join(', ') + '.</div></div></div>';
+  function lo(o){
+    var it = CK.ITEM[o.item], s = CK.slaDe(o);
+    return linha(o.bloqueia ? CK.ICONES.alert : CK.ICONES.wrench, esc(o.id) + ' · ' + esc(it ? it.nome : o.item),
+      chip(o.crit) + ' &nbsp;prazo ' + CK.prazoTxt(o.prazo_h) + ' · até ' + CK.fmtDH(s.limite) + (o.reincidencias ? ' · reprovado ' + o.reincidencias + 'x' : ''),
+      null, '', '', ' tap os2' + (o.bloqueia ? ' blk' : ''), ' data-os="' + esc(o.id) + '"');
+  }
+  if (cri.length) h += '<div class="sec">OS abertas por esta inspeção<span class="cont">' + cri.length + '</span></div>' + cri.map(lo).join('');
+  if (rei.length) h += '<div class="sec" style="margin-top:14px">Já tinham OS aberta (reincidência)<span class="cont">' + rei.length + '</span></div>' + rei.map(lo).join('');
+  h += '<button class="btn" onclick="irPara(\'inspecoes\')">Voltar às inspeções</button>';
+  $('v-result').innerHTML = h;
+}
+function renderResultado(res){
+  /* tela final direta: o motorista só precisa saber se pode operar e que o problema foi enviado */
+  var ck = res.checklist, a = CK.ativo(ck.ativo), nc = ck.nc || 0;
+  var todas = res.os_criadas.concat(res.os_reincidentes);
+  var bloq = todas.filter(function(o){ return o.bloqueia; });
+  var h = '<div class="res-cab"><div class="ok' + (bloq.length ? ' blk' : nc ? ' nc' : '') + '">' + (nc ? CK.ICONES.alert : CK.ICONES.check) + '</div>'
+    + '<b>' + (bloq.length ? 'Não opere este ativo' : nc ? 'Pode operar' : 'Tudo certo, pode operar') + '</b>'
+    + '<span>' + esc(nomeAt(a)) + ' · ' + CK.fmtDH(ck.data) + '</span></div>';
+  if (bloq.length) h += '<div class="faixa">' + CK.ICONES.alert + '<div><b>Avise o gestor agora</b><div class="lst">Problema de segurança: ' + bloq.map(function(o){ return esc(CK.ITEM[o.item].nome); }).join(', ') + '.</div></div></div>';
+  if (nc) {
+    h += '<div class="sec">' + (nc > 1 ? nc + ' problemas enviados' : '1 problema enviado') + ' para a frota</div>' + todas.map(function(o){
+      return linha(CK.ICONES.wrench, esc(CK.ITEM[o.item].nome), o.reincidencias ? 'a frota já estava sabendo' : 'a frota vai resolver', null);
+    }).join('');
+  }
+  h += '<button class="btn" onclick="irPara(\'inicio\')">Voltar ao início</button>';
+  $('v-result').innerHTML = h;
+}
+
+/* ── HISTÓRICO ── */
+function renderHistorico(){
+  var eq = equipe();
+  var meus = CK.load().checklists.filter(function(c){ return c.usuario === EU.id && (eq || !ehInspecao(c.modelo)); }).slice().reverse();
+  $('histTit').textContent = eq ? 'Minhas inspeções e checklists' : 'Meus checklists';
+  $('histCont').textContent = meus.length || '';
+  var hoje = hojeIso(), ontem = CK.iso(new Date(Date.now() - 864e5)), dias = [], porDia = {};
+  meus.forEach(function(c){ var d = c.data.slice(0,10); if (!porDia[d]) { porDia[d] = []; dias.push(d); } porDia[d].push(c); });
+  $('hist').innerHTML = dias.map(function(d){
+    var rot = d === hoje ? 'Hoje' : d === ontem ? 'Ontem' : cap(CK.parse(d).toLocaleDateString('pt-BR', { weekday:'long' }));
+    return '<div class="sec" style="margin-top:8px">' + rot + ' · ' + CK.fmtData(d) + '<span class="cont">' + porDia[d].length + '</span></div>' + porDia[d].map(linhaCk).join('');
+  }).join('') || '<div class="vazio">' + (eq ? 'Você ainda não fez nenhuma inspeção.' : 'Você ainda não fez nenhum checklist.') + '</div>';
+}
+function abrirCk(id){
+  var db = CK.load(), c = db.checklists.filter(function(x){ return x.id === id; })[0]; if (!c) return;
+  if (ehInspecao(c.modelo) && !equipe()) return recusaInsp();
+  var a = CK.ativo(c.ativo), nc = c.nc || 0;
+  var h = '<button class="volta" onclick="irPara(\'' + (ABA === 'historico' || ABA === 'inspecoes' ? ABA : 'inicio') + '\')">' + CK.ICONES.back + 'Voltar</button>';
+  h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b>' + (equipe() ? '<span style="color:var(--acc2);font-weight:600">' + esc(nomeModelo(modeloDoCk(c))) + '</span>' : '') + '<span>' + CK.fmtDH(c.data) + ' · por ' + esc(nomeUsuario(c.usuario)) + '</span><span>' + c.itens_total + ' itens · <b style="display:inline;font-size:11px" class="' + (nc ? 'neg' : 'pos') + '">' + nc + ' NC</b>' + (c.leitura ? ' · leitura ' + nInt(c.leitura) + (a.medidor === 'h' ? ' h' : ' km') : '') + (c.duracao_s ? ' · ' + Math.round(c.duracao_s / 60) + ' min' : '') + '</span></div></div>';
+  h += '<div class="sec">Não conformidades<span class="cont">' + (nc || '') + '</span></div>';
+  h += (c.ncs || []).map(function(n){
+    var it = CK.ITEM[n.item], f = CK.foto(n.foto), src = f === 'demo' ? CK.fotoDemo(it.nome) : f;
+    var os = db.os.filter(function(o){ return o.ativo === c.ativo && o.item === n.item && o.checklists.indexOf(c.id) >= 0; })[0];
+    var s = os ? slaTxt(os) : null;
+    return '<div class="nc-det"><div class="cab"><b>' + esc(it.nome) + '</b>' + chip(it.crit) + '</div>'
+      + (n.obs ? '<div class="obs">' + esc(n.obs) + '</div>' : '')
+      + (src ? '<img class="ft" src="' + src + '" alt="">' : '')
+      + (os ? '<div class="os"><b>' + os.id + '</b>' + statusTag(os) + '<span class="' + s.cls + '">' + s.txt + '</span>' + (os.status === 'fechada' && os.solucao ? '<span style="color:var(--txt2)">· ' + esc(os.solucao) + '</span>' : '') + '</div>' : '')
+      + '</div>';
+  }).join('') || '<div class="vazio">Tudo conforme neste checklist.</div>';
+  if (c.na && c.na.length) h += '<div class="sec" style="margin-top:14px">Não se aplica</div><div class="vazio">' + c.na.map(function(i){ return esc(CK.ITEM[i] ? CK.ITEM[i].nome : i); }).join(' · ') + '</div>';
+  $('v-ckdet').innerHTML = h;
+  mostra('ckdet');
+}
+
+/* ── OS ── */
+function osMinhas(){
+  var db = CK.load(), meus = {}; meusAtivos().forEach(function(a){ meus[a.id] = 1; });
+  return db.os.filter(function(o){ return meus[o.ativo] || o.aberta_por === EU.id; });
+}
+function linhaOS(o){
+  var a = CK.ativo(o.ativo), it = CK.ITEM[o.item], s = slaTxt(o);
+  var sub = esc(a ? nomeAt(a) : o.ativo) + ' &nbsp;' + chip(o.crit);
+  if (o.status === 'fechada') return linha(CK.ICONES.check, o.id + ' · ' + esc(it.nome), sub + '<br>' + esc(o.solucao || 'Fechada') + (o.custo ? ' · ' + CK.brl(o.custo) : ''), 'fechada ' + CK.fmtDataCurta(o.fechada_em), s.cls, s.txt, ' tap os2', ' data-os="' + o.id + '"');
+  return linha(o.bloqueia ? CK.ICONES.alert : CK.ICONES.wrench, o.id + ' · ' + esc(it.nome), sub, s.txt, s.cls, STATUS[o.status] + (o.bloqueia ? ' · bloqueia' : ''), ' tap os2' + (o.bloqueia ? ' blk' : ''), ' data-os="' + o.id + '"');
+}
+function toggleOS(li){
+  var o = CK.osPorId(li.dataset.os); if (!o) return;
+  var exp = li.nextElementSibling;
+  if (exp && exp.classList.contains('os-exp')) { exp.remove(); li.classList.remove('aberto'); return; }
+  var f = CK.foto(o.foto), src = f === 'demo' ? CK.fotoDemo(CK.ITEM[o.item].nome) : f, s = CK.slaDe(o);
+  var d = document.createElement('div'); d.className = 'os-exp on';
+  d.innerHTML = '<div style="padding-top:8px">Aberta em <b>' + CK.fmtDH(o.abertura) + '</b> por ' + esc(nomeUsuario(o.aberta_por)) + '.<br>'
+    + 'Prazo: <b>' + CK.prazoTxt(o.prazo_h) + '</b> · resolver até <b>' + CK.fmtDH(s.limite) + '</b>' + (o.limite_atual ? ' (reprogramado)' : '') + '.'
+    + (o.responsavel ? '<br>Responsável: <b>' + esc(nomeUsuario(o.responsavel)) + '</b>.' : '')
+    + (o.reincidencias ? '<br>Reprovado de novo <b>' + o.reincidencias + 'x</b> em checklists seguintes.' : '')
+    + (o.obs ? '<br>Observação: ' + esc(o.obs) : '')
+    + (o.status === 'fechada' ? '<br>Fechada em <b>' + CK.fmtDH(o.fechada_em) + '</b> por ' + esc(nomeUsuario(o.fechada_por)) + (o.solucao ? ': ' + esc(o.solucao) : '') + '.' : '')
+    + (o.bloqueia && o.status !== 'fechada' ? '<br><b class="neg">O ativo não deve operar até esta OS ser fechada.</b>' : '')
+    + (src ? '<img class="ft" src="' + src + '" alt="">' : '') + '</div>';
+  li.classList.add('aberto'); li.after(d);
+}
+function renderOS(){
+  var todas = osMinhas();
+  var abertas = todas.filter(function(o){ return o.status !== 'fechada'; }).sort(CK.prioridadeOS);
+  var fechadas = todas.filter(function(o){ return o.status === 'fechada'; }).sort(function(a, b){ return CK.parse(b.fechada_em) - CK.parse(a.fechada_em); }).slice(0, 10);
+  $('osCont').textContent = abertas.length || '';
+  $('osAbertas').innerHTML = abertas.map(linhaOS).join('') || '<div class="vazio">Nenhuma OS aberta nos seus ativos.</div>';
+  $('osFechadas').innerHTML = fechadas.map(linhaOS).join('') || '<div class="vazio">Nenhuma OS fechada ainda.</div>';
+}
+
+/* ── AJUDA ── */
+var CRIT_TXT = { critica:'Risco à segurança ou parada do equipamento. Resolve primeiro.', alta:'Compromete a operação em pouco tempo. Resolve nos próximos dias.', media:'Precisa de atenção, mas o ativo segue operando.', baixa:'Conservação e conforto. Entra na programação.' };
+function renderAjuda(){
+  if (!$('tcrit')) return;
+  $('tcrit').innerHTML = Object.keys(CK.CRIT).sort(function(a, b){ return CK.CRIT[a].ordem - CK.CRIT[b].ordem; }).map(function(k){
+    var c = CK.CRIT[k];
+    return '<tr><td><span class="dot" style="background:' + c.cor + '"></span><b>' + c.nome + '</b></td><td>' + CRIT_TXT[k] + '</td></tr>';
+  }).join('');
+}
+
+/* ── sessão guardada: entra direto ── */
+modoLogin('entrar');
+(async function(){
+  var lb = $('sPinLabel'); if (lb) lb.textContent = 'Crie uma senha de ' + CK.PIN_LEN + ' números';
+  var id = LS.get('ck_app_sess'); if (!id && !(CK.REMOTO && CK.sessaoAtiva())) return;
+  var u = CK.REMOTO ? await CK.restaurarSessao() : CK.usuario(id);
+  if (!u || u.status !== 'ativo') { LS.del('ck_app_sess'); LS.del('ck_app_ver_como'); return; }
+  VER_COMO = LS.get('ck_app_ver_como');
+  aposLogin(u);
+})();
+</script>
+</body>
+</html>
