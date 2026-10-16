@@ -24,6 +24,7 @@
     INFORME_INTERNA_EXTERNA:'Informe se o atendimento foi interno ou externo.', FORNECEDOR_INVALIDO:'Fornecedor não encontrado.', FORNECEDOR_NAO_ENCONTRADO:'Fornecedor não encontrado.',
     MOTIVO_OBRIGATORIO:'Informe o motivo.', SO_MASTER_CRIA_ADMIN:'Só o admin master cria administradores.', SO_MASTER_APROVA_ADMIN:'Só o admin master aprova administradores.',
     PEDIDO_NAO_ENCONTRADO:'Pedido de acesso não encontrado.', CNPJ_INVALIDO:'CNPJ precisa ter 14 números.', CNPJ_JA_CADASTRADO:'Já existe um fornecedor com esse CNPJ.',
+    CONDICAO_OBRIGATORIA:'Informe a condição de segurança do ativo após o serviço.', RESTRICAO_OBRIGATORIA:'Descreva a restrição.', PECAS_OBRIGATORIAS:'Informe as peças substituídas ou marque que não houve troca de peças.', INTERVALO_OBRIGATORIO:'Informe o intervalo em km e/ou em horas.',
     METAS_INVALIDAS:'O amarelo precisa ser menor que o verde e as metas maiores que zero.', UPLOAD_FALHOU:'Não deu para enviar a foto. Verifique a conexão.', FOTO_INVALIDA:'Foto inválida.'
   };
   function erro(e){
@@ -66,6 +67,7 @@
       modelos:(d.modelos || []).map(function(m){ return Object.assign({ exec:'equipe', sistema:false }, m, { criado_em:loc(m.criado_em) }); }),
       diarios_off:(d.tipos || []).filter(function(t){ return t.diario_ativo === false; }).map(function(t){ return t.id; }),
       itens_extra:[], itens_cfg:{}, maiusculas:true,
+      documentos:(d.documentos || []).map(function(x){ return Object.assign({}, x, { criado_em:loc(x.criado_em) }); }),
       config:Object.assign({}, cob, { cliente:cfg.cliente, pix:cfg.pix || {}, metas:cfg.metas || {} })
     };
     CK.setCatalogo((d.itens || []).map(function(i){ return Object.assign({}, i, { prazo:+i.prazo, ap:i.ap || [] }); }));
@@ -146,7 +148,7 @@
     } catch(e){ return erro(e); }
   };
   CK.preventivaIniciar = async function(d){ var r = await escreve('ck_preventiva_iniciar', { p_ativo:d.ativo, p_modelo:d.modelo, p_execucao:d.execucao || 'interna' }); if (r.ok) r.os = CK.osPorId(osId(r.id)); return r; };
-  CK.preventivaFinalizar = async function(id, d){ var r = await escreve('ck_preventiva_finalizar', { p_os:osNum(id), p:{ cliente_id:d.cliente_id, tarefas:d.tarefas, leitura:d.leitura, duracao_s:d.duracao_s, obs:d.obs } }); if (r.ok) { r.os = CK.osPorId(id); r.checklist = CK.load().checklists.filter(function(c){ return c.id === r.id; })[0]; } return r; };
+  CK.preventivaFinalizar = async function(id, d){ var r = await escreve('ck_preventiva_finalizar', { p_os:osNum(id), p:{ cliente_id:d.cliente_id, tarefas:d.tarefas, leitura:d.leitura, duracao_s:d.duracao_s, obs:d.obs, condicao:d.condicao, condicao_obs:d.condicao_obs } }); if (r.ok) { r.os = CK.osPorId(id); r.checklist = CK.load().checklists.filter(function(c){ return c.id === r.id; })[0]; } return r; };
   CK.osIniciar = function(id, por, execucao){ return escreve('ck_os_iniciar', { p_os:osNum(id), p_execucao:execucao }); };
   CK.osReabrir = function(id){ return escreve('ck_os_reabrir', { p_os:osNum(id) }); };
   CK.checklistExcluir = function(id, por, motivo){ return escreve('ck_checklist_excluir', { p_checklist:id, p_motivo:motivo || '' }); };
@@ -157,12 +159,23 @@
       var num = osNum(id), foto = null, doc = null;
       if (d.foto && d.foto !== 'demo') foto = await upload('fotos', 'os-' + num + '/fechamento-' + Date.now() + '.jpg', d.foto);
       if (d.doc && d.doc.data) doc = { path:await upload('anexos', 'os-' + num + '/' + Date.now() + '-' + limpaNome(d.doc.nome), d.doc.data), tipo:d.doc_tipo, nome:d.doc.nome };
-      return await escreve('ck_os_fechar', { p_os:num, p:{ solucao:d.solucao, foto:foto, execucao:d.execucao, custo:d.custo, fornecedor:d.fornecedor, doc:doc } });
+      return await escreve('ck_os_fechar', { p_os:num, p:{ solucao:d.solucao, foto:foto, execucao:d.execucao, custo:d.custo, fornecedor:d.fornecedor, doc:doc, pecas:d.pecas || [], sem_pecas:!!d.sem_pecas, condicao:d.condicao, condicao_obs:d.condicao_obs, executado_por:d.executado_por || null, executado_txt:d.executado_txt || null } });
     } catch(e){ return erro(e); }
   };
   CK.foto = function(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; if (/^(data:image|https?:)/.test(ref)) return ref; return 'data:,ckfoto/' + ref; };   /* data: vazio evita erro de esquema no console até a URL assinada chegar */
   CK.anexo = function(path){ if (!path) return null; return { nome:String(path).split('/').pop().replace(/^\d+-/, ''), remoto:true, path:path }; };
   CK.anexoUrl = function(path){ return assinar('anexos', path); };
+  /* documentos do ativo: arquivo vai direto ao bucket 'anexos' (até 50 MB); o registro, pela RPC */
+  CK.documentoCriar = async function(d){
+    try {
+      if (!d.file) return { ok:false, erro:'Anexe o arquivo.' }; if (d.file.size > 50 * 1024 * 1024) return { ok:false, erro:'Arquivo grande demais (máximo 50 MB).' };
+      var path = 'docs/' + d.ativo + '/' + Date.now() + '-' + limpaNome(d.file.name);
+      var r = await fetch(URL0 + '/storage/v1/object/anexos/' + path, { method:'POST', headers:hdr({ 'Content-Type':d.file.type || 'application/octet-stream', 'x-upsert':'false' }), body:d.file });
+      if (!r.ok) return { ok:false, erro:'Não deu para enviar o arquivo (tipo aceito: PDF ou imagem, até 50 MB).' };
+      return await escreve('ck_documento_salvar', { p:{ ativo:d.ativo, tipo:d.tipo, titulo:d.titulo, data_ref:d.data_ref || null, path:path, nome:d.file.name, mime:d.file.type, tamanho:d.file.size } });
+    } catch(e){ return erro(e); }
+  };
+  CK.documentoExcluir = function(id){ return escreve('ck_documento_excluir', { p_documento:id }); };
 
   function unid(d){ var x = Object.assign({}, d); if (x.unidade != null) x.unidade = String(x.unidade); return x; }
   CK.ativoCriar = function(d){ return escreve('ck_ativo_salvar', { p:unid(d) }); };

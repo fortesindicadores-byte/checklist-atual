@@ -90,6 +90,7 @@ var CK = (function(){
     {"id": "press", "cat": "FREIOS E DIREÇÃO", "nome": "PRESSÃO DO SISTEMA DE AR", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO"], "dica": "Manômetros sobem normalmente e seguram a pressão.", "ex": "Manômetro demora muito para subir"},
     {"id": "dren", "cat": "FREIOS E DIREÇÃO", "nome": "DRENAGEM DO RESERVATÓRIO DE AR", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "COMBOIO"], "dica": "Eliminar a água acumulada nos reservatórios de ar.", "ex": "Saiu muita água do reservatório"},
     {"id": "dir", "cat": "FREIOS E DIREÇÃO", "nome": "CAIXA DE DIREÇÃO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["PIPA", "COMBOIO", "KOMBI", "CAMINHAO", "CAVALO", "ESPARG", "RETRO", "MOTO", "CARREG"], "dica": "Sem folga excessiva ou ruído ao esterçar o volante.", "ex": "Folga grande no volante"},
+    {"id": "cardan", "cat": "TRANSMISSÃO", "nome": "TRANSMISSÃO E EIXO CARDÃ", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG"], "dica": "Ao arrancar e trocar de marcha: sem estalo, batida ou vibração anormal; sem vazamento no diferencial. Se houver, não opere.", "ex": "ESTALO NO CARDÃ AO ARRANCAR"},
     {"id": "alinh", "cat": "FREIOS E DIREÇÃO", "nome": "ALINHAMENTO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["LEVE", "COMBOIO"], "dica": "O volante não puxa para um dos lados.", "ex": "Puxa para a direita"},
     {"id": "difer", "cat": "FREIOS E DIREÇÃO", "nome": "BLOQUEIO DO DIFERENCIAL", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["MOTO"], "dica": "Aciona e desaciona normalmente.", "ex": "Bloqueio não desarma"},
     {"id": "giro", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO E TRAVA DE GIRO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV"], "dica": "Giro da superestrutura trava e freia.", "ex": "Freio de giro não segura na rampa", "sugerido": true},
@@ -182,6 +183,9 @@ var CK = (function(){
     { id:'i-corr',   cat:'MOTOR E FLUIDOS',  nome:'CORREIAS E TENSIONADORES',            dica:'Tensão, trincas e desgaste.',                            ex:'Tensionador com ruído',                 crit:'media',   prazo:72,  bloqueia:false, ap:[], insp:true },
     { id:'i-dentes', cat:'IMPLEMENTO',       nome:'DENTES, LÂMINAS E BORDAS CORTANTES',  dica:'Desgaste e peças faltando.',                             ex:'Borda cortante no limite',              crit:'media',   prazo:168, bloqueia:false, ap:[], insp:true },
     { id:'i-esteir', cat:'ESTEIRAS E MATERIAL RODANTE',          nome:'ESTEIRA E ROLETES',                   dica:'Tensão e desgaste.',                                     ex:'Rolete inferior travado',               crit:'alta',    prazo:168, bloqueia:false, ap:[], insp:true },
+    { id:'i-cardan', cat:'TRANSMISSÃO',      nome:'EIXO CARDÃ, CRUZETAS E FLANGES',      dica:'Veículo parado e calçado: folga nas cruzetas, fixação dos parafusos dos flanges, mancal central e lubrificação.', ex:'Folga na cruzeta traseira', crit:'critica', prazo:24, bloqueia:true, ap:[], insp:true },
+    { id:'i-difer',  cat:'TRANSMISSÃO',      nome:'DIFERENCIAL',                         dica:'Nível de óleo, vazamentos e ruído.',                     ex:'Vazamento no retentor do pinhão',       crit:'alta',    prazo:48,  bloqueia:false, ap:[], insp:true },
+    { id:'i-direc',  cat:'FREIOS E DIREÇÃO', nome:'TERMINAIS E BARRA DE DIREÇÃO',        dica:'Com a frente levantada: folga em terminais, barras e caixa de direção.', ex:'Folga no terminal esquerdo', crit:'critica', prazo:24, bloqueia:true, ap:[], insp:true },
     { id:'i-extval', cat:'DOCUMENTAÇÃO E SEGURANÇA', nome:'EXTINTOR · VALIDADE E RECARGA', dica:'Etiqueta de recarga e validade.',                     ex:'Recarga vence em 30 dias',              crit:'alta',    prazo:168, bloqueia:true,  ap:[], insp:true }
   ];
   ITENS_INSP.forEach(function(i){ ITENS.push(i); });
@@ -219,14 +223,16 @@ var CK = (function(){
   /* ── MODELOS DE CHECKLIST ("Tipos de checklist", Renan 11/10/2026) ──
      Diários: um por tipo de ativo, gerados do catálogo (Itens e SLA) — executados pelo motorista.
      Inspeções: criados pelo admin (semanal/quinzenal/mensal), executados SÓ pela equipe (admin e frota), nunca pelo motorista. */
-  var FREQ = { diario:{ nome:'DIÁRIO', dias:1 }, semanal:{ nome:'SEMANAL', dias:7 }, quinzenal:{ nome:'QUINZENAL', dias:15 }, mensal:{ nome:'MENSAL', dias:30 }, livre:{ nome:'SOB DEMANDA', dias:null } };
+  var FREQ = { diario:{ nome:'DIÁRIO', dias:1 }, semanal:{ nome:'SEMANAL', dias:7 }, quinzenal:{ nome:'QUINZENAL', dias:15 }, mensal:{ nome:'MENSAL', dias:30 }, livre:{ nome:'SOB DEMANDA', dias:null }, uso:{ nome:'POR USO (KM / HORAS)', dias:null, uso:true } };   /* uso = plano do fabricante (Renan, 16/10/2026) */
   /* tipos de checklist da equipe (Renan, 12/10/2026): inspeção (periódica), preventivo (mecânicos na preventiva interna) e preditivo (a frota decide quando);
      preventivo e preditivo podem ser sob demanda (sem periodicidade) */
   var CATCK = { inspecao:{ nome:'INSPEÇÃO', plural:'INSPEÇÕES', quem:'admin e frota · o motorista não vê' },
                 preventivo:{ nome:'PREVENTIVO', plural:'PREVENTIVOS', quem:'mecânicos, na preventiva interna' },
                 preditivo:{ nome:'PREDITIVO', plural:'PREDITIVOS', quem:'frota, quando julgar importante' } };
   function catDe(m){ return !m ? null : m.freq === 'diario' ? 'diario' : (CATCK[m.categoria] ? m.categoria : 'inspecao'); }
-  function freqOk(cat, f){ return cat === 'inspecao' ? ['semanal','quinzenal','mensal'].indexOf(f) >= 0 : ['livre','semanal','quinzenal','mensal'].indexOf(f) >= 0; }
+  function freqOk(cat, f){ return cat === 'inspecao' ? ['semanal','quinzenal','mensal','uso'].indexOf(f) >= 0 : ['livre','semanal','quinzenal','mensal','uso'].indexOf(f) >= 0; }
+  /* texto da frequência: 'QUINZENAL · a cada 15 dias', 'POR USO · a cada 10.000 km / 250 h', 'SOB DEMANDA' */
+  function freqTxt(m){ if (!m) return ''; var f = FREQ[m.freq] || {}; if (m.freq === 'uso') { var p = []; if (m.intervalo_km) p.push(Number(m.intervalo_km).toLocaleString('pt-BR') + ' km'); if (m.intervalo_h) p.push(Number(m.intervalo_h).toLocaleString('pt-BR') + ' h'); return 'POR USO' + (p.length ? ' · a cada ' + p.join(' / ') : ''); } return f.dias ? f.nome + ' · a cada ' + f.dias + ' dias' : (f.nome || m.freq); }
   /* diário de um tipo pode ser desligado pelo admin (Renan, 11/10/2026): o motorista deixa de ter checklist nesses ativos */
   function modelosDiarios(){ var off = load().diarios_off || []; return TIPOS.map(function(t){ return { id:'d-' + t.id, nome:'Diário · ' + t.nome, freq:'diario', exec:'motorista', tipos:[t.id], itens:null, sistema:true, ativo: off.indexOf(t.id) < 0 }; }); }
   function diarioAtivo(tipoId){ return (load().diarios_off || []).indexOf(tipoId) < 0; }
@@ -252,7 +258,8 @@ var CK = (function(){
     registrarExtras(novos);
     var itens = (d.itens || []).filter(function(id){ return ITEM[id]; }).concat(novos.map(function(n){ return n.id; }));
     if (!itens.length) return { ok:false, erro:'O checklist precisa ter ao menos um item.' };
-    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
+    if (d.freq === 'uso' && !(+d.intervalo_km > 0) && !(+d.intervalo_h > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
+    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
     db.modelos = db.modelos || []; db.modelos.push(m); save();
     garantePrevItens(); return { ok:true, modelo:m, itens_novos:novos.length };
   }
@@ -285,7 +292,9 @@ var CK = (function(){
     var cat2 = patch.categoria != null ? patch.categoria : catDe(m), fr2 = patch.freq != null ? patch.freq : m.freq;
     if (!CATCK[cat2]) return { ok:false, erro:'Tipo de checklist inválido.' };
     if (!freqOk(cat2, fr2)) return { ok:false, erro:'Frequência não vale para ' + CATCK[cat2].nome.toLowerCase() + '.' };
+    if (fr2 === 'uso' && !(+(patch.intervalo_km != null ? patch.intervalo_km : m.intervalo_km) > 0) && !(+(patch.intervalo_h != null ? patch.intervalo_h : m.intervalo_h) > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
     ['nome','categoria','freq','tipos','itens','ativo'].forEach(function(k){ if (patch[k] != null) m[k] = patch[k]; });
+    if (patch.intervalo_km !== undefined) m.intervalo_km = +patch.intervalo_km || null; if (patch.intervalo_h !== undefined) m.intervalo_h = +patch.intervalo_h || null;
     save(); garantePrevItens(); return { ok:true, modelo:m };
   }
   /* inspeções da equipe para o usuário (admin/frota/master): modelo × ativo, com a situação pela última execução */
@@ -295,6 +304,13 @@ var CK = (function(){
     modelos().filter(function(m){ return m.freq !== 'diario'; }).forEach(function(m){
       db.ativos.filter(function(a){ return a.status === 'ativo' && m.tipos.indexOf(a.tipo) >= 0; }).forEach(function(a){
         var ult = null; for (var i = db.checklists.length - 1; i >= 0; i--) { var c = db.checklists[i]; if (c.ativo === a.id && c.modelo === m.id) { ult = c; break; } }
+        if (m.freq === 'uso') {   /* por uso: próxima = leitura da última execução + intervalo do medidor do ativo */
+          var iv = a.medidor === 'km' ? +m.intervalo_km : a.medidor === 'h' ? +m.intervalo_h : 0;
+          if (!iv) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:Infinity, status:'livre', uso:true }); return; }
+          if (!ult || ult.leitura == null) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:-1, status:'nunca', uso:true, intervalo:iv, medidor:a.medidor }); return; }
+          var prox = +ult.leitura + iv, falta = prox - (+a.leitura || 0);
+          out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas: falta / iv * 720, status: falta < 0 ? 'atrasada' : falta <= iv * .1 ? 'vence' : 'em_dia', uso:true, prox:prox, falta:falta, intervalo:iv, medidor:a.medidor }); return;
+        }
         if (!FREQ[m.freq].dias) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:Infinity, status:'livre' }); return; }   /* sob demanda: nunca atrasa */
         var vence = ult ? addH(ult.data, FREQ[m.freq].dias * 24) : null;
         var h = vence ? diffH(agora, vence) : -1;
@@ -393,7 +409,7 @@ var CK = (function(){
   /* MAIÚSCULAS (Renan, 12/10/2026): cadastros e textos livres sempre em caixa alta; e-mail, CPF, senha, ids e fotos ficam como estão */
   function UP(v){ return String(v == null ? '' : v).trim().toUpperCase(); }
   function upObj(o, keys){ if (!o) return o; keys.forEach(function(k){ if (o[k] != null && typeof o[k] === 'string') o[k] = UP(o[k]); }); return o; }
-  var UP_ATIVO = ['marca','modelo','prop','unidade'], UP_USR = ['nome','unidade','especialidade'], UP_FORN = ['nome','servico','contato','cidade'];
+  var UP_ATIVO = ['marca','modelo','prop','unidade','chassi'], UP_USR = ['nome','unidade','especialidade'], UP_FORN = ['nome','servico','contato','cidade'];
   function migraMaiusculas(){
     if (DB.maiusculas) return; DB.maiusculas = true;
     (DB.unidades || []).forEach(function(u){ u.nome = UP(u.nome); });
@@ -595,8 +611,8 @@ var CK = (function(){
   function load(){
     if (DB) return DB;
     if (REMOTO) { DB = dbVazio(); return DB; }
-    try { var raw = localStorage.getItem(KEY); if (raw) { DB = JSON.parse(raw); if (DB.versao === 10) { registrarExtras(DB.itens_extra); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); if (!DB.unidades) { DB.unidades = UNIDADES.map(function(n, i){ return { id:'un' + (i+1), nome:n, ativa:true }; }); save(); } garantePrevItens(); return DB; } } } catch(e){}
-    DB = gerarSeed(); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); save(); garantePrevItens(); return DB;
+    try { var raw = localStorage.getItem(KEY); if (raw) { DB = JSON.parse(raw); if (DB.versao === 10) { registrarExtras(DB.itens_extra); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); migraSeguranca(); if (!DB.unidades) { DB.unidades = UNIDADES.map(function(n, i){ return { id:'un' + (i+1), nome:n, ativa:true }; }); save(); } garantePrevItens(); return DB; } } } catch(e){}
+    DB = gerarSeed(); migraExecucao(); migraFornecedores(); migraPrevPred(); migraInicio(); migraMaiusculas(); migraSeguranca(); save(); garantePrevItens(); return DB;
   }
   function migraExecucao(){ var mud = 0; (DB.os || []).forEach(function(o){ if (o.execucao || o.status === 'aberta') return; var h = 0; for (var i = 0; i < o.id.length; i++) h = (h * 31 + o.id.charCodeAt(i)) % 997;
       o.execucao = /extern/i.test(o.solucao || '') || (o.reprog || []).some(function(r){ return /extern/i.test(r.motivo || ''); }) || h % 5 === 0 ? 'externa' : 'interna'; mud++; }); if (mud) save(); }
@@ -699,6 +715,12 @@ var CK = (function(){
     });
     save();
   }
+  function migraSeguranca(){   /* despacho MPT (16/10/2026): inspeção quinzenal de transmissão, freios e direção dos pesados */
+    if (DB.seg_transm) return; DB.seg_transm = true; DB.modelos = DB.modelos || [];
+    DB.modelos.push({ id:'m-seg-pesados', nome:'INSPEÇÃO QUINZENAL · TRANSMISSÃO, FREIOS E DIREÇÃO', categoria:'inspecao', freq:'quinzenal', exec:'equipe', tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG'],
+      itens:['i-cardan','i-difer','i-direc','i-lonas','i-ar','i-torque','i-rolam'], sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:null, origem:'manual' });
+    save();
+  }
   function migraPrevPred(){
     if (DB.prevpred_demo) return; DB.prevpred_demo = true; DB.modelos = DB.modelos || [];
     var so = function(l){ return l.filter(function(id){ return ITEM[id]; }); }, q = isoDT(new Date());
@@ -731,6 +753,16 @@ var CK = (function(){
     save(); return { ok:true, fornecedor:f };
   }
   function anexo(id){ return id ? ((load().anexos || {})[id] || null) : null; }
+  /* documentos do ativo (Renan, 16/10/2026 — despacho MPT): manual, plano do fabricante, laudo preditivo, ART… */
+  var DOC_TIPOS = ['MANUAL DO FABRICANTE','PLANO DE MANUTENÇÃO DO FABRICANTE','LAUDO PREDITIVO (ÓLEO / TERMOGRAFIA)','ART / APRECIAÇÃO DE RISCO','DOCUMENTO DO VEÍCULO (CRLV)','OUTRO'];
+  function documentos(ativoId){ return (load().documentos || []).filter(function(d){ return !d.excluido && (!ativoId || d.ativo === ativoId); }); }
+  function documentoCriar(d){ var db = load(), a = ativo(d.ativo); if (!a) return { ok:false, erro:'Ativo não encontrado.' };
+    if (DOC_TIPOS.indexOf(d.tipo) < 0) return { ok:false, erro:'Escolha o tipo de documento.' }; if (!d.data) return { ok:false, erro:'Anexe o arquivo.' };
+    if (String(d.data).length > 2800000) return { ok:false, erro:'Na demonstração o limite é 2 MB por arquivo.' };
+    var aid = uid('a'); db.anexos = db.anexos || {}; db.anexos[aid] = { nome:d.nome || 'documento', mime:d.mime || '', data:d.data };
+    var doc = { id:uid('doc'), ativo:a.id, tipo:d.tipo, titulo:UP(d.titulo), data_ref:d.data_ref || null, anexo:aid, nome:d.nome || 'documento', mime:d.mime || '', criado_em:isoDT(new Date()), criado_por:d.por };
+    db.documentos = db.documentos || []; db.documentos.push(doc); save(); return { ok:true, documento:doc }; }
+  function documentoExcluir(id, por){ var db = load(), d = (db.documentos || []).filter(function(x){ return x.id === id; })[0]; if (!d) return { ok:false, erro:'Documento não encontrado.' }; d.excluido = isoDT(new Date()); d.excluido_por = por; save(); return { ok:true }; }
   function save(){ if (REMOTO) return; try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch(e){ console.warn('localStorage cheio?', e); } }
   function recarregar(){ DB = null; return load(); }
   function reset(){ try { localStorage.removeItem(KEY); } catch(e){} DB = null; return load(); }
@@ -818,6 +850,8 @@ var CK = (function(){
   function osFechar(id, d){
     var db = load(), o = osPorId(id); if (!o || o.status === 'fechada') return { ok:false, erro:'OS já fechada.' };
     if (!d.foto && !d.solucao) return { ok:false, erro:'Para fechar, anexe a foto da correção ou descreva o que foi feito.' };
+    var cnd = ckCondicao(d); if (cnd.erro) return { ok:false, erro:cnd.erro };
+    var pc = ckPecas(d); if (pc.erro) return { ok:false, erro:pc.erro };
     var ex = o.execucao || d.execucao; if (!EXEC[ex]) return { ok:false, erro:'Informe se o atendimento foi interno ou externo.' };
     if (ex === 'externa' && d.fornecedor && !fornecedor(d.fornecedor)) return { ok:false, erro:'Fornecedor não encontrado.' };
     if (ex === 'externa' && d.doc && String(d.doc.data || '').length > 2800000) return { ok:false, erro:'Anexo grande demais (máximo 2 MB).' };
@@ -825,9 +859,15 @@ var CK = (function(){
     var fid = null; if (d.foto && d.foto !== 'demo') { fid = uid('f'); db.fotos[fid] = d.foto; }
     o.status = 'fechada'; o.fechada_em = isoDT(new Date()); o.fechada_por = d.por; o.solucao = UP(d.solucao); o.custo = (o.execucao !== 'externa' || d.custo === '' || d.custo == null || isNaN(+d.custo)) ? null : +d.custo;   /* custo só no atendimento externo, opcional (Renan, 11/10/2026) */ o.foto_fech = fid || (d.foto ? 'demo' : null);
     o.fornecedor = ex === 'externa' ? (d.fornecedor || null) : null; o.doc = null; o.doc_tipo = null;
+    o.pecas = pc.pecas; o.condicao = cnd.condicao; o.condicao_obs = cnd.obs; o.executado_por = d.executado_por || null; o.executado_txt = d.executado_txt ? UP(d.executado_txt) : null;
     if (ex === 'externa' && d.doc && d.doc.data) { var aid = uid('a'); db.anexos = db.anexos || {}; db.anexos[aid] = { nome:d.doc.nome || 'anexo', mime:d.doc.mime || '', data:d.doc.data }; o.doc = aid; o.doc_tipo = d.doc_tipo === 'orcamento' ? 'orcamento' : 'nf'; }
     o.eventos.push({ q:o.fechada_em, t:'fechada', por:d.por, txt:o.solucao }); save(); return { ok:true, os:o };
   }
+  /* NR-12 / cláusula 2.8 do TAC: peças (fabricante/referência, original ou equivalente) e indicação conclusiva da condição de segurança */
+  var CONDICAO = { apto:'APTO · LIBERADO PARA OPERAR', restricao:'APTO COM RESTRIÇÃO' };
+  function ckCondicao(d){ if (!CONDICAO[d.condicao]) return { erro:'Informe a condição de segurança do ativo após o serviço.' }; if (d.condicao === 'restricao' && !String(d.condicao_obs || '').trim()) return { erro:'Descreva a restrição.' }; return { condicao:d.condicao, obs: d.condicao === 'restricao' ? UP(d.condicao_obs) : null }; }
+  function ckPecas(d){ var l = (d.pecas || []).filter(function(p){ return p && String(p.desc || '').trim(); }).map(function(p){ return { desc:UP(p.desc), ref:UP(p.ref), origem: p.origem === 'equivalente' ? 'equivalente' : 'original' }; });
+    if (!l.length && !d.sem_pecas) return { erro:'Informe as peças substituídas ou marque que não houve troca de peças.' }; return { pecas:l }; }
   function osReprogramar(id, d){
     var o = osPorId(id); if (!o || o.status === 'fechada') return { ok:false, erro:'OS já fechada.' };
     if (!d.motivo) return { ok:false, erro:'Informe o motivo da reprogramação.' };
@@ -865,7 +905,9 @@ var CK = (function(){
     var ck = { id:uid('ck'), ativo:o.ativo, modelo:o.modelo, usuario:d.usuario, data:q, leitura:d.leitura || null, itens_total:tarefas.length, nc:0, ncs:[], tarefas:tarefas, pend:pend.length, duracao_s:d.duracao_s || null, origem:'preventiva', na:[] };
     if (d.leitura && a) a.leitura = d.leitura;
     db.checklists.push(ck);
+    var cnd = ckCondicao(d); if (cnd.erro) return { ok:false, erro:cnd.erro };
     o.status = 'fechada'; o.fechada_em = q; o.fechada_por = d.usuario; o.checklist = ck.id; o.checklists = [ck.id];
+    o.condicao = cnd.condicao; o.condicao_obs = cnd.obs; o.executado_por = d.usuario; o.pecas = [];
     o.solucao = UP(feitas + ' DE ' + tarefas.length + ' TAREFAS FEITAS' + (pend.length ? ' · PENDENTE: ' + pend.map(function(t){ return ITEM[t.item] ? ITEM[t.item].nome : t.item; }).join(', ') : '') + (d.obs ? ' · ' + d.obs : ''));
     o.eventos.push({ q:q, t:'fechada', por:d.usuario, txt:o.solucao }); save();
     return { ok:true, checklist:ck, os:o };
@@ -917,7 +959,7 @@ var CK = (function(){
   function usuarioSet(id, patch){ var u = usuario(id); if (!u) return { ok:false }; Object.assign(u, upObj(patch, UP_USR)); save(); return { ok:true, usuario:u }; }
   function usuarioCriar(d){ var db = load(); var cpf = String(d.cpf||'').replace(/\D/g,''); if (db.usuarios.some(function(x){ return x.cpf === cpf; })) return { ok:false, erro:'CPF já cadastrado.' }; var u = { id:uid('u'), nome:UP(d.nome), cpf:cpf, pin:null, papel:d.papel || 'motorista', status:d.status === 'bloqueado' ? 'bloqueado' : 'ativo', unidade:UP(d.unidade || UNIDADES[0]), especialidade:UP(d.especialidade), telefone:String(d.telefone || '').trim(), criado_em:isoDT(new Date()), ultimo_acesso:null }; db.usuarios.push(u); save(); return { ok:true, usuario:u }; }
   function ativoSet(id, patch){ var a = ativo(id); if (!a) return { ok:false }; Object.assign(a, upObj(patch, UP_ATIVO)); save(); return { ok:true, ativo:a }; }
-  function ativoCriar(d){ var db = load(); if (db.ativos.some(function(x){ return x.id === d.id; })) return { ok:false, erro:'Já existe um ativo com este código.' }; var t = TIPO[d.tipo] || TIPOS[0]; var a = { id:d.id, tipo:t.id, placa:/^\d+$/.test(d.id) ? null : d.id, frota:/^\d+$/.test(d.id) ? d.id : null, marca:UP(d.marca), modelo:UP(d.modelo), ano:+d.ano||null, prop:d.prop?UP(d.prop):null, unidade:UP(d.unidade||UNIDADES[0]), status:'ativo', medidor:t.medidor, leitura:+d.leitura||0, operador:d.operador||null, risco:.04 }; db.ativos.push(a); save(); return { ok:true, ativo:a }; }
+  function ativoCriar(d){ var db = load(); if (db.ativos.some(function(x){ return x.id === d.id; })) return { ok:false, erro:'Já existe um ativo com este código.' }; var t = TIPO[d.tipo] || TIPOS[0]; var a = { id:d.id, tipo:t.id, placa:/^\d+$/.test(d.id) ? null : d.id, frota:/^\d+$/.test(d.id) ? d.id : null, marca:UP(d.marca), modelo:UP(d.modelo), ano:+d.ano||null, prop:d.prop?UP(d.prop):null, renavam:String(d.renavam||'').replace(/\D/g,'')||null, chassi:d.chassi?UP(d.chassi).replace(/\s/g,''):null, unidade:UP(d.unidade||UNIDADES[0]), status:'ativo', medidor:t.medidor, leitura:+d.leitura||0, operador:d.operador||null, risco:.04 }; db.ativos.push(a); save(); return { ok:true, ativo:a }; }
   function itemSet(id, patch){ var it = ITEM[id]; if (!it) return { ok:false }; if (patch.nome) patch.nome = String(patch.nome).trim().toUpperCase(); var db = load(); db.itens_cfg = db.itens_cfg || {}; db.itens_cfg[id] = Object.assign(db.itens_cfg[id] || {}, patch); Object.assign(it, patch); save(); return { ok:true, item:it }; }
   function aplicarCfgItens(){ if (REMOTO) return; var db = load(); if (db.itens_cfg) Object.keys(db.itens_cfg).forEach(function(k){ if (ITEM[k]) Object.assign(ITEM[k], db.itens_cfg[k]); }); }
 
@@ -1008,7 +1050,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,

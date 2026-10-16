@@ -17,7 +17,7 @@ do $$ begin
   create type ck_resposta as enum ('ok','nc','nf');                        -- nf = tarefa de preventiva não feita (12/10/2026)                             -- sem N/A: o motorista só vê itens do ativo
   create type ck_execucao as enum ('interna','externa');
   create type ck_cat_modelo as enum ('inspecao','preventivo','preditivo');
-  create type ck_freq as enum ('diario','semanal','quinzenal','mensal','livre');   -- livre = sob demanda
+  create type ck_freq as enum ('diario','semanal','quinzenal','mensal','livre','uso');   -- livre = sob demanda · uso = por km/horímetro (16/10/2026)
 exception when duplicate_object then null; end $$;
 
 -- ── cadastros ──
@@ -136,6 +136,27 @@ create table if not exists ck_ativos (
   status       text not null default 'ativo' check (status in ('ativo','inativo')),
   qr_token     uuid not null default gen_random_uuid() -- vai no QR colado no ativo
 );
+alter table ck_ativos add column if not exists renavam text, add column if not exists chassi text;   -- relação da frota (despacho MPT, 16/10/2026)
+create table if not exists ck_documentos (            -- manual, plano do fabricante, laudo preditivo, ART… (Storage anexos/docs/<ativo>/)
+  id           uuid primary key default gen_random_uuid(),
+  ativo_id     text not null references ck_ativos(id),
+  tipo         text not null,
+  titulo       text,
+  data_ref     date,
+  path         text not null,
+  nome         text,
+  mime         text,
+  tamanho      bigint,
+  criado_em    timestamptz not null default now(),
+  criado_por   uuid references ck_usuarios(id),
+  excluido_em  timestamptz,
+  excluido_por uuid references ck_usuarios(id)
+);
+alter table ck_documentos enable row level security;
+-- 16/10/2026 (despacho MPT): preventiva por uso e fechamento NR-12
+alter table ck_modelos add column if not exists intervalo_km numeric, add column if not exists intervalo_h numeric;
+alter table ck_os add column if not exists pecas jsonb not null default '[]', add column if not exists condicao text check (condicao in ('apto','restricao')),
+  add column if not exists condicao_obs text, add column if not exists executado_por uuid references ck_usuarios(id), add column if not exists executado_txt text;
 
 -- ── movimento ──
 create table if not exists ck_checklists (

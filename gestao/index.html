@@ -561,6 +561,10 @@ table.dre.md-it select.inp.sm{width:112px;} table.dre.md-it input.inp.sm{width:6
 .fi-crit button.on{border-color:var(--laranja);color:var(--txt);background:color-mix(in srgb,var(--laranja) 10%,transparent);}
 .fi-crit button:disabled{cursor:default;}
 .af-dados{flex:1;min-height:0;padding:14px 14px 6px;overflow:auto;}
+.af-docs{margin:4px 0 10px;padding:12px;border:1px solid var(--card-brd);border-radius:10px;background:var(--card);}
+.af-doc{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--card-brd);}
+.af-doc>div{flex:1;min-width:0;} .af-doc b{display:block;font-size:11.5px;} .af-doc small{display:block;font-size:10.5px;color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.af-docf{padding:6px 0 10px;}
 .af-qr{display:flex;align-items:center;gap:14px;margin:2px 0 10px;padding:12px;border:1px solid var(--card-brd);border-radius:10px;background:var(--card);}
 .af-qr .qr svg{width:88px;height:88px;display:block;background:#fff;border-radius:6px;padding:4px;}
 .af-qr b{font-size:12.5px;} .af-qr small{display:block;font-size:10.5px;color:var(--txt3);margin:3px 0 8px;line-height:1.45;}
@@ -1891,7 +1895,10 @@ function abrirOS(id){
   h+=`<div class="d-sec">Atendimento</div><div class="dkv"><span>Tipo</span><b>${o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]+' <span class="ctx">· '+(o.execucao==='interna'?'equipe da Atual':'oficina ou fornecedor de fora')+'</span>':'<span class="ctx">ainda não iniciado</span>'}</b>`+
     (o.responsavel&&o.status!=='aberta'?`<span>Responsável</span><b>${esc(nomeU(o.responsavel))}</b>`:'')+`</div>`;
   if(o.status==='fechada'){ const ff=fotoSrc(o.foto_fech,'Correcao: '+(it?it.nome:o.item),'#3BB33B');
-    h+=`<div class="d-sec">Fechamento</div><div class="dkv"><span>Fechada em</span><b>${CK.fmtDH(o.fechada_em)} por ${esc(nomeU(o.fechada_por))}</b><span>Solução</span><b>${esc(o.solucao||'—')}</b>${o.execucao==='externa'?`<span>Fornecedor</span><b>${o.fornecedor&&CK.fornecedor(o.fornecedor)?esc(CK.fornecedor(o.fornecedor).nome):'<span class="ctx">não informado</span>'}</b><span>Valor</span><b>${o.custo!=null?CK.brl(o.custo):'<span class="ctx">não informado</span>'}</b><span>Documento</span><b>${o.doc?`<a class="lnk" onclick="abrirAnexo('${o.doc}')">${o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'} · ${esc((CK.anexo(o.doc)||{}).nome||'abrir')}</a>`:'<span class="ctx">sem anexo</span>'}</b>`:''}</div>`+(ff?`<img class="foto" style="margin-top:8px;max-height:200px" src="${ff}" alt="Foto da correção">`:''); }
+    h+=`<div class="d-sec">Fechamento</div><div class="dkv"><span>Fechada em</span><b>${CK.fmtDH(o.fechada_em)} por ${esc(nomeU(o.fechada_por))}</b><span>Solução</span><b>${esc(o.solucao||'—')}</b>`+
+      `<span>Executado por</span><b>${o.executado_txt?esc(o.executado_txt)+' <span class="ctx">(fornecedor)</span>':o.executado_por?esc(nomeU(o.executado_por)):'<span class="ctx">não informado</span>'}</b>`+
+      `<span>Condição de segurança</span><b>${o.condicao?`<span class="${o.condicao==='apto'?'cg':'ca'}">${esc(CK.CONDICAO[o.condicao]||o.condicao)}</span>${o.condicao_obs?' · '+esc(o.condicao_obs):''}`:'<span class="ctx">não informada</span>'}</b>`+
+      `<span>Peças</span><b>${(o.pecas||[]).length?o.pecas.map(p=>`${esc(p.desc)} <span class="ctx">· ${esc(p.ref||'sem referência')} · ${p.origem==='equivalente'?'EQUIVALENTE':'ORIGINAL'}</span>`).join('<br>'):'<span class="ctx">sem troca de peças</span>'}</b>`+`${o.execucao==='externa'?`<span>Fornecedor</span><b>${o.fornecedor&&CK.fornecedor(o.fornecedor)?esc(CK.fornecedor(o.fornecedor).nome):'<span class="ctx">não informado</span>'}</b><span>Valor</span><b>${o.custo!=null?CK.brl(o.custo):'<span class="ctx">não informado</span>'}</b><span>Documento</span><b>${o.doc?`<a class="lnk" onclick="abrirAnexo('${o.doc}')">${o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'} · ${esc((CK.anexo(o.doc)||{}).nome||'abrir')}</a>`:'<span class="ctx">sem anexo</span>'}</b>`:''}</div>`+(ff?`<img class="foto" style="margin-top:8px;max-height:200px" src="${ff}" alt="Foto da correção">`:''); }
   h+=`<div class="d-sec">Linha do tempo</div><div class="tl">`+(o.eventos||[]).slice().sort((x,y)=>x.q<y.q?-1:1).map(e=>`<div><div class="q">${CK.fmtDH(e.q)} · ${esc(nomeU(e.por))}</div><div class="t">${EV_LBL[e.t]||e.t}</div>${e.txt?`<div class="x">${esc(e.txt)}</div>`:''}</div>`).join('')+`</div><div id="os-form"></div>`;
   $('d-body').innerHTML=h;
   let acts='';
@@ -1921,14 +1928,25 @@ function formFechar(){
     <div class="fld"><label>Solução aplicada (obrigatório)</label><textarea class="inp" id="fxSol" placeholder="O que foi feito para resolver"></textarea></div>
     <div class="fld"><label>Foto da correção</label><input class="inp" type="file" accept="image/*" onchange="lerFoto(this.files[0],d=>{fotoSel=d;const p=$('fxPrev');p.src=d;p.style.display='block';})"></div>
     <img id="fxPrev" class="foto" style="display:none;max-height:180px;margin-bottom:10px">
+    <div class="d-sec" style="margin-top:6px">Peças substituídas <span class="ctx" style="text-transform:none;letter-spacing:0">· NR-12: fabricante/referência e se é original ou equivalente</span></div>
+    <div id="fxPecas"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><button type="button" class="btn sm" onclick="fxPecaAdd()">+ Peça</button><label class="ctx" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="fxSemPeca" onchange="$('fxPecas').style.opacity=this.checked?.4:1"> Não houve troca de peças</label></div>
+    <div class="frow"><div class="fld"><label>Executado por (obrigatório)</label><select class="inp" id="fxExecPor" onchange="$('fxExecTxtW').style.display=this.value==='__ext'?'':'none'">${selExecutor(oF)}</select></div>
+      <div class="fld" id="fxExecTxtW" style="display:none"><label>Nome do profissional</label><input class="inp" id="fxExecTxt" placeholder="Profissional do fornecedor"></div></div>
+    <div class="fld"><label>Condição de segurança do ativo após o serviço (obrigatório)</label><div class="seg" id="fxCond">${Object.keys(CK.CONDICAO).map(k=>`<button type="button" data-v="${k}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this));$('fxCondObsW').style.display='${k}'==='restricao'?'':'none'">${CK.CONDICAO[k]}</button>`).join('')}</div></div>
+    <div class="fld" id="fxCondObsW" style="display:none"><label>Qual a restrição?</label><input class="inp" id="fxCondObs"></div>
     <div id="fxExt" style="${ext?'':'display:none'}"><div class="d-sec" style="margin-top:6px">Serviço externo <span class="ctx" style="text-transform:none;letter-spacing:0">· tudo opcional</span></div>
       <div class="frow"><div class="fld"><label>Fornecedor</label><select class="inp" id="fxForn"><option value="">— não informado —</option>${CK.fornecedores().slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('')}</select></div>
       <div class="fld"><label>Valor (R$)</label><input class="inp" id="fxCusto" type="number" min="0" step="0.01" placeholder="0,00"></div></div>
       <div class="frow"><div class="fld"><label>Documento</label><div class="seg" id="fxDocT"><button type="button" class="on" data-v="nf" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">Nota fiscal</button><button type="button" data-v="orcamento" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">Orçamento</button></div></div>
       <div class="fld"><label>Anexo <span class="ctx">· PDF ou imagem, até 2 MB</span></label><input class="inp" type="file" accept="application/pdf,image/*" onchange="lerDoc(this.files[0])"></div></div></div>
     <div class="erro" id="fxErro"></div><div style="display:flex;gap:8px"><button class="btn pri" onclick="doFechar()">Confirmar fechamento</button><button class="btn" onclick="$('os-form').innerHTML=''">Cancelar</button></div>`;
-  $('os-form').scrollIntoView({behavior:'smooth',block:'end'});
+  fxPecaAdd(); $('os-form').scrollIntoView({behavior:'smooth',block:'end'});
 }
+/* peças da OS e executor (Renan, 16/10/2026 — NR-12 / cláusula 2.8 do TAC) */
+function selExecutor(o){ const ext=o&&o.execucao==='externa', us=DB.usuarios.filter(u=>u.status==='ativo'&&['frota','admin','master'].includes(u.papel)).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  return us.map(u=>`<option value="${u.id}" ${!ext&&u.id===((o&&o.responsavel)||EU.id)?'selected':''}>${esc(u.nome)} · ${esc(CK.PAPEL[u.papel])}</option>`).join('')+`<option value="__ext" ${ext?'selected':''}>PROFISSIONAL DO FORNECEDOR</option>`; }
+function fxPecaAdd(){ const d=document.createElement('div'); d.className='frow fx-peca'; d.innerHTML=`<div class="fld" style="flex:2"><label>Peça</label><input class="inp fp-desc" placeholder="Ex.: cruzeta do cardã"></div><div class="fld" style="flex:2"><label>Fabricante / referência</label><input class="inp fp-ref" placeholder="Ex.: Scania 1371745"></div><div class="fld" style="flex:1"><label>Origem</label><select class="inp fp-org"><option value="original">ORIGINAL</option><option value="equivalente">EQUIVALENTE</option></select></div>`; $('fxPecas').appendChild(d); }
 function lerDoc(file){
   docSel=null; if(!file) return; if(file.size>2*1024*1024){ $('fxErro').textContent='Anexo grande demais (máximo 2 MB).'; return; }
   const r=new FileReader(); r.onload=e=>{ docSel={nome:file.name, mime:file.type, data:e.target.result}; $('fxErro').textContent=''; }; r.readAsDataURL(file);
@@ -1936,8 +1954,15 @@ function lerDoc(file){
 async function doFechar(){
   const sol=($('fxSol').value||'').trim(); if(!sol){ $('fxErro').textContent='Descreva a solução aplicada.'; return; }
   const oF=CK.osPorId(osAberta), ex=(oF&&oF.execucao)||execSel(); if(!ex){ $('fxErro').textContent='Informe se o atendimento foi interno ou externo.'; return; }
-  const t=document.querySelector('#fxDocT button.on');
-  aposAcao(await CK.osFechar(osAberta,{por:EU.id,solucao:sol,foto:fotoSel,execucao:ex,custo:$('fxCusto').value,fornecedor:$('fxForn').value||null,doc:docSel,doc_tipo:t?t.dataset.v:'nf'}), osAberta);
+  const t=document.querySelector('#fxDocT button.on'), semP=$('fxSemPeca').checked;
+  const pecas=semP?[]:[...document.querySelectorAll('#fxPecas .fx-peca')].map(r=>({desc:r.querySelector('.fp-desc').value.trim(), ref:r.querySelector('.fp-ref').value.trim(), origem:r.querySelector('.fp-org').value})).filter(p=>p.desc);
+  if(!semP&&!pecas.length){ $('fxErro').textContent='Informe as peças substituídas ou marque que não houve troca de peças.'; return; }
+  if(pecas.some(p=>!p.ref)){ $('fxErro').textContent='Informe o fabricante / referência de cada peça.'; return; }
+  const cb=document.querySelector('#fxCond button.on'); if(!cb){ $('fxErro').textContent='Informe a condição de segurança do ativo após o serviço.'; return; }
+  const cObs=($('fxCondObs').value||'').trim(); if(cb.dataset.v==='restricao'&&!cObs){ $('fxErro').textContent='Descreva a restrição.'; return; }
+  const ep=$('fxExecPor').value, eTxt=($('fxExecTxt').value||'').trim(); if(ep==='__ext'&&!eTxt){ $('fxErro').textContent='Informe o nome do profissional do fornecedor.'; return; }
+  aposAcao(await CK.osFechar(osAberta,{por:EU.id,solucao:sol,foto:fotoSel,execucao:ex,custo:$('fxCusto').value,fornecedor:$('fxForn').value||null,doc:docSel,doc_tipo:t?t.dataset.v:'nf',
+    pecas, sem_pecas:semP, condicao:cb.dataset.v, condicao_obs:cObs, executado_por:ep==='__ext'?null:ep, executado_txt:ep==='__ext'?eTxt:null}), osAberta);
 }
 async function abrirAnexo(id){
   const a=CK.anexo(id); if(!a) return;
@@ -2079,14 +2104,23 @@ const REL=[
       c.ncs.forEach(x=>{ const it=CK.ITEM[x.item]; if(f.crit.length&&it&&!f.crit.includes(it.crit)) return; const os=DB.os.find(o=>o.item===x.item&&(o.checklist===c.id||(o.checklists||[]).includes(c.id)));
         out.push([CK.fmtDH(c.data),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',it?it.nome:x.item,it?it.cat:'',it?CK.CRIT[it.crit].nome:'',it?simN(it.bloqueia):'',x.obs||'',nomeU(c.usuario),os?osNum(os.id):'',os?STATUS_LBL[osStatus(os)]||osStatus(os):'']); }); }); return out; } },
   { id:'os', ic:'os', tit:'Ordens de serviço', desc:'Uma linha por OS aberta no período: prazos, status, atendimento interno ou externo, fechamento, fornecedor e valor.',
-    cols:[['OS','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item','t'],['Criticidade','t'],['Bloqueia','t'],['Aberta em','t'],['Aberta por','t'],['Prazo original','t'],['Prazo reprogramado','t'],['Status','t'],['Atendimento','t'],['Responsável','t'],['Fechada em','t'],['Resolução (h)','d'],['No prazo','t'],['Solução','t'],['Fornecedor','t'],['Valor (R$)','r'],['Documento','t'],['Reincidências','n']],
+    cols:[['OS','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item','t'],['Criticidade','t'],['Bloqueia','t'],['Aberta em','t'],['Aberta por','t'],['Prazo original','t'],['Prazo reprogramado','t'],['Status','t'],['Atendimento','t'],['Responsável','t'],['Fechada em','t'],['Resolução (h)','d'],['No prazo','t'],['Solução','t'],['Executado por','t'],['Peças (referência · origem)','t'],['Condição de segurança','t'],['Fornecedor','t'],['Valor (R$)','r'],['Documento','t'],['Reincidências','n']],
     linhas:f=>fOS(f,null,false,true).slice().sort((a,b)=>a.abertura<b.abertura?1:-1).map(o=>{ const a=ATV[o.ativo]||{}, it=CK.ITEM[o.item], s=CK.slaDe(o), fo=o.fornecedor?CK.fornecedor(o.fornecedor):null, fe=o.status==='fechada';
       return [osNum(o.id),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',it?it.nome:o.item,CK.CRIT[o.crit].nome,simN(o.bloqueia),CK.fmtDH(o.abertura),nomeU(o.aberta_por),CK.fmtDH(o.limite),o.limite_atual?CK.fmtDH(o.limite_atual):'',
-        STATUS_LBL[osStatus(o)]||osStatus(o),o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]:'',o.responsavel?nomeU(o.responsavel):'',fe?CK.fmtDH(o.fechada_em):'',fe?s.tempo_resolucao_h:null,fe?simN(s.no_prazo):'',fe?o.solucao||'':'',fo?fo.nome:'',fe&&o.custo!=null?o.custo:null,o.doc?(o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'):'',o.reincidencias||0]; }) },
+        STATUS_LBL[osStatus(o)]||osStatus(o),o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]:'',o.responsavel?nomeU(o.responsavel):'',fe?CK.fmtDH(o.fechada_em):'',fe?s.tempo_resolucao_h:null,fe?simN(s.no_prazo):'',fe?o.solucao||'':'',fe?(o.executado_txt||(o.executado_por?nomeU(o.executado_por):'')):'',fe?(o.pecas||[]).map(p=>p.desc+' ('+(p.ref||'s/ ref.')+' · '+(p.origem==='equivalente'?'EQUIVALENTE':'ORIGINAL')+')').join('; '):'',fe&&o.condicao?(CK.CONDICAO[o.condicao]||o.condicao)+(o.condicao_obs?' · '+o.condicao_obs:''):'',fo?fo.nome:'',fe&&o.custo!=null?o.custo:null,o.doc?(o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'):'',o.reincidencias||0]; }) },
+  { id:'bloqueios', ic:'os', tit:'Bloqueios e liberações', desc:'Cada vez que um ativo foi retirado de operação por item de segurança: data e hora da parada, quem apontou, data e hora da liberação, quem liberou, tempo parado, condição de segurança e solução. Inclui os que seguem bloqueados.',
+    cols:[['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item de segurança','t'],['OS','t'],['Parada (data/hora)','t'],['Apontado por','t'],['Liberação (data/hora)','t'],['Liberado por','t'],['Executado por','t'],['Tempo parado (h)','d'],['Condição de segurança','t'],['Solução','t']],
+    linhas:f=>DB.os.filter(o=>o.bloqueia&&!CK.ehPrev(o)&&osOk(f,o)&&(mesOk(f,o.abertura)||o.status!=='fechada')).sort((a,b)=>a.abertura<b.abertura?1:-1).map(o=>{ const a=ATV[o.ativo]||{}, it=CK.ITEM[o.item], fe=o.status==='fechada';
+      return [ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',it?it.nome:o.item,osNum(o.id),CK.fmtDH(o.abertura),nomeU(o.aberta_por),fe?CK.fmtDH(o.fechada_em):'AINDA BLOQUEADO',fe?nomeU(o.fechada_por):'',fe?(o.executado_txt||(o.executado_por?nomeU(o.executado_por):'')):'',
+        Math.round(CK.diffH(o.abertura,fe?o.fechada_em:CK.isoDT(new Date()))*10)/10,fe&&o.condicao?(CK.CONDICAO[o.condicao]||o.condicao)+(o.condicao_obs?' · '+o.condicao_obs:''):'',fe?o.solucao||'':'']; }) },
   { id:'sla', ic:'sla', tit:'SLA por item', desc:'Para cada item, as OS fechadas no período: quantas no prazo, o SLA e o tempo médio e o maior tempo de resolução.',
     cols:[['Item','t'],['Categoria','t'],['Criticidade','t'],['Prazo','t'],['OS fechadas','n'],['No prazo','n'],['Fora do prazo','n'],['SLA','p'],['MTTR (h)','d'],['Maior tempo (h)','d']],
     linhas:f=>{ const g={}; fFech(f).forEach(o=>{ const s=CK.slaDe(o), x=g[o.item]||(g[o.item]={n:0,ok:0,t:0,mx:0}); x.n++; if(s.no_prazo) x.ok++; x.t+=s.tempo_resolucao_h; x.mx=Math.max(x.mx,s.tempo_resolucao_h); });
       return Object.keys(g).map(id=>{ const it=CK.ITEM[id]||{nome:id,cat:'',crit:'baixa',prazo:0}, x=g[id]; return [it.nome,it.cat,CK.CRIT[it.crit].nome,CK.prazoTxt(it.prazo),x.n,x.ok,x.n-x.ok,x.ok/x.n*100,x.t/x.n,x.mx]; }).sort((a,b)=>a[7]-b[7]); } },
+  { id:'frota', ic:'at', tit:'Relação da frota', desc:'Cadastro completo da frota: placa, nº de frota, Renavam, chassi, proprietário, marca, modelo, ano, tipo, unidade, situação e documentos anexados (manual e plano do fabricante).',
+    cols:[['Placa','t'],['Nº de frota','t'],['Renavam','t'],['Chassi','t'],['Proprietário','t'],['Marca','t'],['Modelo','t'],['Ano','n'],['Tipo de ativo','t'],['Unidade','t'],['Situação','t'],['Manual do fabricante','t'],['Plano do fabricante','t'],['Documentos','n']],
+    linhas:f=>DB.ativos.filter(a=>ativoOk(f,a)).sort((x,y)=>ativoLbl(x).localeCompare(ativoLbl(y),'pt-BR')).map(a=>{ const ds=CK.documentos(a.id);
+      return [a.placa||'',a.frota||'',a.renavam||'',a.chassi||'',a.prop||'',a.marca||'',a.modelo||'',a.ano||null,CK.TIPO[a.tipo].nome,a.unidade,a.status==='ativo'?'Em operação':'Inativo',simN(ds.some(d=>/^MANUAL/.test(d.tipo))),simN(ds.some(d=>/^PLANO/.test(d.tipo))),ds.length]; }) },
   { id:'ativos', ic:'at', tit:'Resumo por ativo', desc:'Uma linha por ativo: checklists, conformidade, OS do período, OS em aberto agora, se está bloqueado e o MTBF.',
     cols:[['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Status','t'],['Checklists','n'],['Itens verificados','n'],['Não conformidades','n'],['Conformidade','p'],['OS no período','n'],['OS em aberto agora','n'],['Bloqueado agora','t'],['MTBF (dias)','d']],
     linhas:f=>{ const cks={}, oss={}; fCks(f).forEach(c=>{ const x=cks[c.ativo]||(cks[c.ativo]={n:0,it:0,nc:0}); x.n++; x.it+=c.itens_total||0; x.nc+=c.nc; });
@@ -2196,18 +2230,19 @@ const statusDe=(v,ok,no)=>{ const x=nrm(v); if(!x) return null; return x.startsW
 const PZ_LBL={dias:'Dias',horas:'Horas',min:'Minutos'};
 const CAD={
   ativos:{ titulo:'Ativos', aba:'Ativos', unid:'ativo', chaveTxt:'Código', arq:'ativos',
-    cols:[{h:'Código',k:'id',obrig:1,w:14},{h:'Tipo',k:'tipo',obrig:1,w:20},{h:'Marca',k:'marca',w:16},{h:'Modelo',k:'modelo',w:24},{h:'Ano',k:'ano',w:8},{h:'Unidade',k:'unidade',obrig:1,w:24},{h:'Status',k:'status',w:10}],
-    exemplo:()=>[['ABC1D23','CAMINHÃO BASCULANTE','VOLKSWAGEN','24.280 CRM 6X2','2022',CK.nomesUnidades()[0]||'','Ativo'],['49','ESCAVADEIRA','CATERPILLAR','320GC','2021',CK.nomesUnidades()[0]||'','Ativo']],
+    cols:[{h:'Código',k:'id',obrig:1,w:14},{h:'Tipo',k:'tipo',obrig:1,w:20},{h:'Marca',k:'marca',w:16},{h:'Modelo',k:'modelo',w:24},{h:'Ano',k:'ano',w:8},{h:'Unidade',k:'unidade',obrig:1,w:24},{h:'Status',k:'status',w:10},{h:'Renavam',k:'renavam',w:14},{h:'Chassi',k:'chassi',w:20},{h:'Proprietário',k:'prop',w:24}],
+    exemplo:()=>[['ABC1D23','CAMINHÃO BASCULANTE','VOLKSWAGEN','24.280 CRM 6X2','2022',CK.nomesUnidades()[0]||'','Ativo','01234567890','9BWAA05W1BP000000','CONSTRUTORA E PAVIMENTADORA ATUAL'],['49','ESCAVADEIRA','CATERPILLAR','320GC','2021',CK.nomesUnidades()[0]||'','Ativo','','','']],
     aceitos:()=>({'Tipo':CK.TIPOS.map(t=>t.nome),'Unidade':CK.nomesUnidades(),'Status':['Ativo','Inativo']}),
-    atuais:()=>DB.ativos.map(a=>[a.id,CK.TIPO[a.tipo].nome,a.marca||'',a.modelo||'',a.ano||'',a.unidade,a.status==='ativo'?'Ativo':'Inativo']),
+    atuais:()=>DB.ativos.map(a=>[a.id,CK.TIPO[a.tipo].nome,a.marca||'',a.modelo||'',a.ano||'',a.unidade,a.status==='ativo'?'Ativo':'Inativo',a.renavam||'',a.chassi||'',a.prop||'']),
     validar:v=>{ const id=String(v.id).toUpperCase().replace(/[^A-Z0-9]/g,''); if(!id) return {erro:'Código vazio'};
       const t=CK.TIPOS.find(x=>nrm(x.nome)===nrm(v.tipo)||nrm(x.id)===nrm(v.tipo)); if(!t) return {erro:`Tipo "${v.tipo}" não existe`};
       const un=CK.nomesUnidades().find(u=>nrm(u)===nrm(v.unidade)); if(!un) return {erro:`Unidade "${v.unidade}" não cadastrada`};
       if(v.ano&&!(+v.ano>=1950&&+v.ano<=2035)) return {erro:'Ano inválido'};
       const st=statusDe(v.status,'Ativo','Inativo'); if(st===undefined) return {erro:'Status deve ser Ativo ou Inativo'};
-      return {dados:{id, tipo:t.id, medidor:t.medidor, marca:v.marca, modelo:v.modelo, ano:+v.ano||null, unidade:un, status:st}, rotulo:id}; },
+      const ren=String(v.renavam||'').replace(/\D/g,''), cha=String(v.chassi||'').toUpperCase().replace(/\s/g,''); if(ren&&!/^\d{9,11}$/.test(ren)) return {erro:'Renavam deve ter 9 a 11 números'}; if(cha&&cha.length!==17) return {erro:'Chassi deve ter 17 caracteres'};
+      return {dados:{id, tipo:t.id, medidor:t.medidor, marca:v.marca, modelo:v.modelo, ano:+v.ano||null, unidade:un, status:st, renavam:ren, chassi:cha, prop:String(v.prop||'').trim()}, rotulo:id}; },
     existe:d=>ATV[d.id]?d.id:null,
-    aplicar:async (d,id)=>{ if(id){ const p={tipo:d.tipo, medidor:d.medidor, unidade:d.unidade}; ['marca','modelo','ano','status'].forEach(k=>{ if(d[k]) p[k]=d[k]; }); return CK.ativoSet(id,p); }
+    aplicar:async (d,id)=>{ if(id){ const p={tipo:d.tipo, medidor:d.medidor, unidade:d.unidade}; ['marca','modelo','ano','status','renavam','chassi','prop'].forEach(k=>{ if(d[k]) p[k]=d[k]; }); return CK.ativoSet(id,p); }
       const r=await CK.ativoCriar(d); if(r.ok&&d.status==='inativo') await CK.ativoSet(d.id,{status:'inativo'}); return r; } },
   itens:{ titulo:'Itens e SLA', aba:'Itens', unid:'item', chaveTxt:'Item (nome)', arq:'itens',
     cols:[{h:'Item',k:'nome',obrig:1,w:50},{h:'Categoria',k:'cat',obrig:1,w:28},{h:'Criticidade',k:'crit',obrig:1,w:12},{h:'Prazo',k:'prazo',obrig:1,w:8},{h:'Unidade do prazo',k:'un',obrig:1,w:16},{h:'Bloqueia',k:'bl',obrig:1,w:10},{h:'Uso',k:'uso',obrig:1,w:12},{h:'Tipos de ativo',k:'tipos',w:60},{h:'Orientação',k:'dica',w:60},{h:'Exemplo de observação',k:'ex',w:36}],
@@ -2317,15 +2352,43 @@ function abrirAtivo(id){
     `<div class="fld"><label>Tipo</label><select class="inp" id="afTipo" ${dis} onchange="afTipo(this.value)">${selTipos(AF.tipo)}</select></div></div>`+
     `<div class="frow"><div class="fld"><label>Marca</label><input class="inp" id="afMarca" value="${a?esc(a.marca||''):''}" ${dis}></div><div class="fld"><label>Modelo</label><input class="inp" id="afModelo" value="${a?esc(a.modelo||''):''}" ${dis}></div></div>`+
     `<div class="frow"><div class="fld"><label>Ano</label><input class="inp" id="afAno" type="number" min="1950" max="2035" value="${a&&a.ano?a.ano:''}" ${dis}></div><div class="fld"><label>Unidade</label><select class="inp" id="afUnid" ${dis}>${selUnid(a?a.unidade:EU.unidade)}</select></div></div>`+
+    `<div class="frow"><div class="fld"><label>Renavam</label><input class="inp lc" id="afRen" inputmode="numeric" value="${a?esc(a.renavam||''):''}" ${dis}></div><div class="fld"><label>Chassi</label><input class="inp" id="afCha" value="${a?esc(a.chassi||''):''}" ${dis}></div></div>`+
+    `<div class="fld"><label>Proprietário <span class="ctx">· em nome de quem está o veículo</span></label><input class="inp" id="afProp" value="${a?esc(a.prop||''):''}" ${dis}></div>`+
     `<div class="fld"><label>Status <span class="ctx">· inativo sai do app do motorista e das inspeções; o histórico fica</span></label><div class="seg" id="afSt">${['ativo','inativo'].map(k=>`<button type="button" class="${AF.status===k?'on':''}" ${dis} onclick="AF.status='${k}';afSeg()">${k==='ativo'?'Ativo':'Inativo'}</button>`).join('')}</div></div>`+
     (a?`<div class="af-qr"><div class="qr">${qrSvg(urlApp(a.id))}</div><div><b>QR do ativo</b><small>O motorista aponta a câmera e cai direto no checklist deste ativo.</small><button type="button" class="btn sm" onclick="imprimirQR('${esc(a.id)}')">Imprimir QR</button></div></div>`:'')+
+    (a?`<div class="af-docs" id="afDocs"></div>`:'')+
     `<div class="erro" id="afErro"></div></div></div>`;
   const itens=`<div class="wz-col af-it"><div class="wz-ch"><div><b id="afItTit">Itens do checklist</b><small>${ed?'Desmarque o que este ativo não tem':'Somente leitura para o seu perfil'}</small></div>${ed?`<button type="button" class="btn sm" style="margin-left:auto" onclick="AF.fora.clear();afItens()">Marcar todos</button>`:''}</div><div class="wz-list" id="afLista"></div></div>`;
   const foot=ed?`<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn pri" onclick="afSalvar()">${a?'Salvar':'Criar ativo'}</button>`:`<button class="btn" onclick="fecharModal()">Fechar</button>`;
   abrirModal(a?`${ativoLbl(a)} · ${a.modelo||CK.TIPO[a.tipo].nome}`:'Novo ativo', `<div class="wz-2col">${dados}${itens}</div>`, foot, 'wiz');
-  $('m-body').classList.add('split'); afItens();
+  $('m-body').classList.add('split'); afItens(); if(a) afDocs();
   if(!a) setTimeout(()=>{ const x=$('afId'); if(x) x.focus(); },30);
 }
+/* documentos do ativo (Renan, 16/10/2026 — despacho MPT itens d, g, j): manual, plano do fabricante, laudos */
+function afDocs(form){
+  const box=$('afDocs'); if(!box||!AF||!AF.id) return; const ed=EU&&['master','admin','frota'].includes(EU.papel), l=CK.documentos(AF.id).slice().sort((x,y)=>(y.data_ref||y.criado_em)<(x.data_ref||x.criado_em)?-1:1);
+  box.innerHTML=`<div class="wz-ch" style="padding:0 0 6px"><div><b>Documentos</b><small>manual, plano do fabricante, laudos preditivos, ART</small></div>${ed&&!form?`<button type="button" class="btn sm" style="margin-left:auto" onclick="afDocs(true)">+ Anexar</button>`:''}</div>`+
+    (form?`<div class="af-docf"><div class="frow"><div class="fld"><label>Tipo</label><select class="inp" id="dcTipo">${CK.DOC_TIPOS.map(t=>`<option>${esc(t)}</option>`).join('')}</select></div><div class="fld"><label>Data de referência</label><input class="inp" type="date" id="dcData"></div></div>`+
+      `<div class="fld"><label>Descrição <span class="ctx">· opcional</span></label><input class="inp" id="dcTit" placeholder="Ex.: Manual do operador Scania T113H"></div>`+
+      `<div class="fld"><label>Arquivo <span class="ctx">· PDF ou imagem${CK.REMOTO?', até 50 MB':', até 2 MB na demonstração'}</span></label><input class="inp" type="file" id="dcArq" accept="application/pdf,image/*"></div>`+
+      `<div class="erro" id="dcErro"></div><div style="display:flex;gap:8px"><button type="button" class="btn pri sm" id="dcBt" onclick="dcSalvar()">Anexar</button><button type="button" class="btn sm" onclick="afDocs()">Cancelar</button></div></div>`:'')+
+    (l.length?l.map(d=>`<div class="af-doc"><div><b>${esc(d.tipo)}</b><small>${esc(d.titulo||d.nome||'')}${d.data_ref?' · '+CK.fmtData(d.data_ref):''} · anexado ${CK.fmtData(String(d.criado_em).slice(0,10))} por ${esc(nomeAbrev(d.criado_por)||'—')}</small></div><button type="button" class="btn sm" onclick="dcAbrir('${d.id}')">Abrir</button>${EU&&['master','admin'].includes(EU.papel)?`<button type="button" class="btn sm" title="Excluir" style="color:var(--vermelho)" onclick="dcExcluir('${d.id}')">✕</button>`:''}</div>`).join('')
+      :(form?'':`<div class="muted" style="font-size:11.5px;padding:4px 0 8px">Nenhum documento anexado.</div>`));
+}
+async function dcSalvar(){
+  const f=$('dcArq').files[0], er=t=>{ $('dcErro').textContent=t; }; if(!f) return er('Escolha o arquivo.');
+  const d={ativo:AF.id, tipo:$('dcTipo').value, titulo:($('dcTit').value||'').trim(), data_ref:$('dcData').value||null, por:EU.id, file:f, nome:f.name, mime:f.type};
+  $('dcBt').disabled=true; $('dcBt').textContent='Enviando…';
+  if(!CK.REMOTO){ if(f.size>2*1024*1024){ $('dcBt').disabled=false; $('dcBt').textContent='Anexar'; return er('Na demonstração o limite é 2 MB.'); } d.data=await new Promise(res=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(f); }); }
+  const r=await CK.documentoCriar(d); if(!r.ok){ $('dcBt').disabled=false; $('dcBt').textContent='Anexar'; return er(r.erro||'Não foi possível anexar.'); }
+  refreshIdx(); afDocs();
+}
+async function dcAbrir(id){
+  const d=CK.documentos().find(x=>x.id===id); if(!d) return;
+  if(CK.REMOTO){ const u=await CK.anexoUrl(d.path); if(u) window.open(u,'_blank'); else alert('Não foi possível abrir o documento.'); return; }
+  abrirAnexo(d.anexo);
+}
+async function dcExcluir(id){ if(!confirm('Excluir este documento? Ele sai da ficha; o registro fica na auditoria.')) return; const r=await CK.documentoExcluir(id,EU.id); if(r&&r.ok===false){ alert(r.erro||'Não foi possível excluir.'); return; } refreshIdx(); afDocs(); }
 function afSeg(){ $('afSt').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',(i===0)===(AF.status==='ativo'))); }
 function afTipo(t){ AF.tipo=t; const ids=new Set(CK.modeloDoTipo(t).map(i=>i.id)); AF.fora=new Set([...AF.fora].filter(x=>ids.has(x))); afItens(); }
 function afItens(){
@@ -2340,7 +2403,9 @@ function afItens(){
 function afTog(id){ if(AF.fora.has(id)) AF.fora.delete(id); else AF.fora.add(id); afItens(); }
 async function afSalvar(){
   if(!podeEditar()||!AF) return; const err=t=>{ $('afErro').textContent=t; };
-  const t=CK.TIPO[$('afTipo').value], d={tipo:t.id, medidor:t.medidor, marca:$('afMarca').value.trim(), modelo:$('afModelo').value.trim(), ano:+$('afAno').value||null, unidade:$('afUnid').value};
+  const t=CK.TIPO[$('afTipo').value], d={tipo:t.id, medidor:t.medidor, marca:$('afMarca').value.trim(), modelo:$('afModelo').value.trim(), ano:+$('afAno').value||null, unidade:$('afUnid').value, renavam:($('afRen').value||'').replace(/\D/g,''), chassi:($('afCha').value||'').trim().toUpperCase().replace(/\s/g,''), prop:($('afProp').value||'').trim()};
+  if(d.renavam&&!/^\d{9,11}$/.test(d.renavam)) return err('Renavam deve ter 9 a 11 números.');
+  if(d.chassi&&d.chassi.length!==17) return err('Chassi deve ter 17 caracteres.');
   const mod=CK.modeloDoTipo(t.id).filter(i=>!i.insp); if(!mod.some(i=>!AF.fora.has(i.id))) return err('O checklist do ativo precisa ter ao menos um item.');
   let id=AF.id;
   if(AF.novo){ id=($('afId').value||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(!id) return err('Informe o código do ativo.');
@@ -2553,7 +2618,7 @@ function abrirModeloDet(id,manterScroll){
   const bl=its.filter(i=>i.bloqueia).length, tps=m.tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ');
   const k=(l,v,sub,cls)=>`<div class="md-k"><small>${l}</small><b class="${cls||''}">${v}</b><i title="${esc(sub)}">${esc(sub)}</i></div>`;
   let h=`<div class="md-top">`+
-    k('Tipo', dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome, dia?'todo dia, antes de operar':CK.FREQ[m.freq].dias?`${CK.FREQ[m.freq].nome.toLowerCase()} · a cada ${CK.FREQ[m.freq].dias} dias`:'sob demanda · sem periodicidade')+
+    k('Tipo', dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome, dia?'todo dia, antes de operar':m.freq==='uso'?CK.freqTxt(m).toLowerCase():CK.FREQ[m.freq].dias?`${CK.FREQ[m.freq].nome.toLowerCase()} · a cada ${CK.FREQ[m.freq].dias} dias`:'sob demanda · sem periodicidade')+
     k('Quem executa', dia?'Motorista':'Equipe', dia?'no app do motorista':CK.CATCK[CK.catDe(m)].quem)+
     k('Ativos cobertos', n(cov.length), tps)+
     k('Itens', n(its.length), bl?`${n(bl)} ${bl===1?'bloqueia':'bloqueiam'} o ativo`:'nenhum bloqueia o ativo')+
@@ -2587,7 +2652,7 @@ const CHEV_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const LUPA_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>';
 let W=null;
 function wzNovo(modo,m){
-  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', tipos:new Set(m?m.tipos:[]), itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
+  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
     passos:modo==='importar'?['Planilha','Dados','Itens','Revisar']:['Dados','Itens','Revisar'], passo:0};
 }
 function abrirModeloForm(id){
@@ -2636,12 +2701,13 @@ function wzIr(d){
 function wzDados(){
   const cnt={}; DB.ativos.forEach(a=>{ if(a.status==='ativo') cnt[a.tipo]=(cnt[a.tipo]||0)+1; });
   const CAT_TXT={inspecao:'Periódica, para manter os ativos em dia',preventivo:'Os mecânicos fazem na preventiva interna',preditivo:'A frota faz quando julgar importante'};
-  const fs=W.categoria==='inspecao'?['semanal','quinzenal','mensal']:['livre','semanal','quinzenal','mensal'];
+  const fs=W.categoria==='inspecao'?['semanal','quinzenal','mensal','uso']:['livre','semanal','quinzenal','mensal','uso'];
   return `<div class="fld"><label>Nome do checklist</label><input class="inp wz-nome" id="wzNome" value="${esc(W.nome)}" placeholder="Ex.: Inspeção mensal · Reboques" oninput="W.nome=this.value;$('wzErrNome').textContent=''"><div class="erro" id="wzErrNome"></div></div>`+
     `<div class="fld"><label>Tipo do checklist <span class="ctx">· todos são feitos pela equipe no app; o motorista não vê</span></label><div class="seg">`+
       Object.keys(CK.CATCK).map(k=>`<button type="button" class="${W.categoria===k?'on':''}" onclick="wzCatSel('${k}')">${CK.CATCK[k].nome}</button>`).join('')+`</div><div class="ctx" style="font-size:10.5px;margin-top:5px">${CAT_TXT[W.categoria]}</div></div>`+
     `<div class="fld"><label>Frequência <span class="ctx">· ${W.categoria==='inspecao'?'de quanto em quanto tempo a equipe inspeciona cada ativo':'sob demanda = sem prazo; feito quando precisar'}</span></label><div class="seg">`+
-      fs.map(k=>`<button type="button" class="${W.freq===k?'on':''}" onclick="W.freq='${k}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${CK.FREQ[k].nome}</button>`).join('')+`</div></div>`+
+      fs.map(k=>`<button type="button" class="${W.freq===k?'on':''}" onclick="W.freq='${k}';W.nome=($('wzNome')||{}).value||W.nome;wzRender()">${CK.FREQ[k].nome}</button>`).join('')+`</div></div>`+
+    (W.freq==='uso'?`<div class="frow"><div class="fld"><label>A cada (km) <span class="ctx">· caminhões e veículos</span></label><input class="inp" type="number" min="0" step="500" id="wzIntKm" value="${W.intervalo_km||''}" placeholder="Ex.: 10000" oninput="W.intervalo_km=+this.value||null"></div><div class="fld"><label>A cada (horas) <span class="ctx">· máquinas com horímetro</span></label><input class="inp" type="number" min="0" step="50" id="wzIntH" value="${W.intervalo_h||''}" placeholder="Ex.: 250" oninput="W.intervalo_h=+this.value||null"></div></div><div class="ctx" style="font-size:10.5px;margin:-4px 0 10px">Use o intervalo do plano do fabricante. A próxima vence na leitura da última execução + o intervalo; o app mostra quanto falta pela leitura do checklist diário.</div>`:'')+
     `<div class="fld"><label>Tipos de ativo <span class="ctx">· vale para todos os ativos em operação dos tipos escolhidos</span></label><div class="wz-tipos">`+
       CK.TIPOS.map(t=>`<button type="button" class="wz-tc ${W.tipos.has(t.id)?'on':''}" onclick="wzTipo('${t.id}',this)"><span class="ic">${CK.ICONES[t.icone]||''}</span><span class="tx"><b title="${esc(t.nome)}">${esc(t.nome)}</b><small>${n(cnt[t.id]||0)} ${cnt[t.id]===1?'ativo':'ativos'}</small></span><span class="ck">${CHK_SVG}</span></button>`).join('')+
     `</div><div class="erro" id="wzErrTipo"></div></div>`+wzNota();
@@ -2720,7 +2786,7 @@ function wzRevisar(){
   const card=(kl,kv,km)=>`<div class="kpi wz-k"><div class="kl">${kl}</div><div class="kv">${kv}</div><div class="km">${km}</div></div>`;
   return `<div class="wz-rev">`+
     card('Nome',`<span class="wz-kn" title="${esc(W.nome)}">${esc(W.nome)}</span>`, W.modo==='importar'?'importado de planilha':W.modo==='diario'?'diário do motorista':W.modo==='editar'?'alteração de checklist existente':'cadastro manual')+
-    card(W.modo==='diario'?'Frequência':CK.CATCK[W.categoria].nome,CK.FREQ[W.freq].nome,W.modo==='diario'?'todo dia, antes de operar':CK.FREQ[W.freq].dias?`cada ativo a cada ${CK.FREQ[W.freq].dias} dias`:'sem periodicidade')+
+    card(W.modo==='diario'?'Frequência':CK.CATCK[W.categoria].nome,CK.FREQ[W.freq].nome,W.modo==='diario'?'todo dia, antes de operar':W.freq==='uso'?CK.freqTxt({freq:'uso',intervalo_km:W.intervalo_km,intervalo_h:W.intervalo_h}).replace('POR USO · ',''):CK.FREQ[W.freq].dias?`cada ativo a cada ${CK.FREQ[W.freq].dias} dias`:'sem periodicidade')+
     card('Ativos cobertos',n(cov),esc([...W.tipos].map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ')))+
     card('Itens',n(its.length),porC.map(([k,q])=>`<span style="white-space:nowrap">${farolCrit(k)}${q} ${esc(CK.CRIT[k].nome.toLowerCase())}</span>`).join(' &nbsp; ')||'—')+
     card('Bloqueiam o ativo',n(bl),bl?'reprovado = ativo parado até fechar a OS':'nenhum item bloqueia')+
@@ -2734,7 +2800,8 @@ async function wzSalvar(){
   const nome=String(W.nome||'').trim(), tipos=[...W.tipos], itens=[...W.itens].filter(id=>CK.ITEM[id]), novos=W.novos.slice();
   if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.'); refreshIdx(); atualizar(); abrirModeloDet(W.id); return; }
   if(W.modo!=='editar'){
-    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
+    if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
+    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
     if(!r.ok) return err(r.erro||'Não foi possível criar.');
     refreshIdx(); atualizar(); abrirModeloDet(r.modelo.id); return;
   }
@@ -2746,7 +2813,8 @@ async function wzSalvar(){
   if(novos.length&&!CK.REMOTO){ const db=CK.load(); db.itens_extra=db.itens_extra||[];
     novos.forEach(x=>{ const it={id:CK.uid('x'), cat:x.cat||'INSPEÇÃO', nome:x.nome, crit:x.crit, prazo:x.prazo, bloqueia:x.bloqueia, ap:[], insp:true}; db.itens_extra.push(it); ids.push(it.id); });
     CK.save(); CK.recarregar(); }
-  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
+  if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
+  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
   if(!r.ok) return err(r.erro||'Não foi possível salvar.');
   refreshIdx(); atualizar(); abrirModeloDet(W.id);
 }

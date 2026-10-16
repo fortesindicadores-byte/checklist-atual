@@ -137,15 +137,16 @@ begin
     'itens', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'cat', i.categoria, 'nome', i.nome, 'dica', i.dica, 'ex', i.ex, 'crit', i.crit, 'prazo', i.prazo_h,
                 'bloqueia', i.bloqueia, 'insp', i.insp, 'sugerido', i.sugerido, 'ativo', i.ativo,
                 'ap', (select coalesce(array_agg(tipo_id), '{}') from ck_itens_tipos where item_id = i.id)) order by i.ordem), '[]') from ck_itens i),
-    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'tipos', m.tipos, 'ativo', m.ativo,
+    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'tipos', m.tipos, 'ativo', m.ativo,
                 'origem', m.origem, 'criado_em', m.criado_em, 'criado_por', m.criado_por,
                 'itens', (select coalesce(array_agg(item_id order by ordem), '{}') from ck_modelos_itens where modelo_id = m.id)) order by m.nome), '[]') from ck_modelos m),
     'usuarios', case when u.papel in ('master','admin','frota')
                   then (select coalesce(jsonb_agg(ck_usuario_json(x) - 'cpf' || jsonb_build_object('cpf', case when u.papel in ('master','admin') then x.cpf end) order by x.nome), '[]') from ck_usuarios x)
                   else (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'nome', x.nome, 'papel', x.papel) order by x.nome), '[]') from ck_usuarios x where x.status = 'ativo') end,
     'fornecedores', (select coalesce(jsonb_agg(to_jsonb(f) order by f.nome), '[]') from ck_fornecedores f),
+    'documentos', (select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'ativo', d.ativo_id, 'tipo', d.tipo, 'titulo', d.titulo, 'data_ref', d.data_ref, 'path', d.path, 'nome', d.nome, 'mime', d.mime, 'criado_em', d.criado_em, 'criado_por', d.criado_por) order by d.criado_em desc), '[]') from ck_documentos d where d.excluido_em is null),
     'ativos', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'tipo', a.tipo_id, 'placa', a.placa, 'frota', a.frota, 'marca', a.marca, 'modelo', a.modelo, 'ano', a.ano,
-                'prop', a.proprietario, 'unidade', (select nome from ck_unidades where id = a.unidade_id), 'unidade_id', a.unidade_id, 'operador', a.operador_id,
+                'prop', a.proprietario, 'renavam', a.renavam, 'chassi', a.chassi, 'unidade', (select nome from ck_unidades where id = a.unidade_id), 'unidade_id', a.unidade_id, 'operador', a.operador_id,
                 'itens_fora', a.itens_fora, 'leitura', a.leitura, 'status', a.status, 'medidor', t.medidor,
                 'qr', case when u.papel in ('master','admin') then a.qr_token end) order by a.id), '[]') from ck_ativos a join ck_tipos t on t.id = a.tipo_id),
     'checklists', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'ativo', c.ativo_id, 'usuario', c.usuario_id, 'modelo', coalesce(c.modelo_id, 'd-' || a.tipo_id), 'data', c.data,
@@ -158,7 +159,7 @@ begin
     'os', (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'ativo', o.ativo_id, 'item', o.item_id, 'crit', o.crit, 'prazo', o.prazo_h, 'bloqueia', o.bloqueia,
                 'abertura', o.abertura, 'limite', o.limite, 'limite_atual', o.limite_atual, 'status', o.status, 'checklist', o.checklist_id, 'obs', o.obs, 'foto', o.foto_path,
                 'aberta_por', o.aberta_por, 'responsavel', o.responsavel, 'execucao', o.execucao, 'reincidencias', o.reincidencias, 'retorno_de', o.retorno_de,
-                'fechada_em', o.fechada_em, 'fechada_por', o.fechada_por, 'solucao', o.solucao, 'foto_fech', o.foto_fech_path,
+                'fechada_em', o.fechada_em, 'fechada_por', o.fechada_por, 'solucao', o.solucao, 'pecas', o.pecas, 'condicao', o.condicao, 'condicao_obs', o.condicao_obs, 'executado_por', o.executado_por, 'executado_txt', o.executado_txt, 'foto_fech', o.foto_fech_path,
                 'fornecedor', o.fornecedor_id, 'custo', o.custo, 'doc', o.doc_path, 'doc_tipo', o.doc_tipo, 'doc_nome', o.doc_nome,
                 'eventos', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 't', e.tipo, 'por', e.por, 'txt', e.texto, 'dados', e.dados) order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id),
                 'reprog', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 'por', e.por, 'motivo', e.dados->>'motivo', 'novo_limite', e.dados->>'novo_limite') order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id and e.tipo = 'reprogramada'))
@@ -169,6 +170,30 @@ begin
   ) into r;
   insert into ck_log (usuario_id, evento, origem) values (u.id, 'abrir', null);
   return r;
+end $$;
+
+-- ── DOCUMENTOS DO ATIVO (16/10/2026 — despacho MPT itens d, g, j) ──
+create or replace function ck_documento_salvar(p_token uuid, p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); nid uuid;
+begin
+  perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
+  if not exists (select 1 from ck_ativos where id = p->>'ativo') then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
+  if coalesce(p->>'path', '') !~ ('^docs/' || (p->>'ativo') || '/') then raise exception 'ARQUIVO_INVALIDO'; end if;
+  insert into ck_documentos (ativo_id, tipo, titulo, data_ref, path, nome, mime, tamanho, criado_por)
+  values (p->>'ativo', ck_up(p->>'tipo'), ck_up(p->>'titulo'), nullif(p->>'data_ref', '')::date, p->>'path', p->>'nome', p->>'mime', nullif(p->>'tamanho', '')::bigint, u.id)
+  returning id into nid;
+  perform ck_audit(u.id, 'ck_documentos', nid::text, 'insert', null, p);
+  return jsonb_build_object('ok', true, 'id', nid);
+end $$;
+
+create or replace function ck_documento_excluir(p_token uuid, p_documento uuid) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); d ck_documentos;
+begin
+  perform ck_exige(u, array['master','admin']::ck_papel[]);
+  select * into d from ck_documentos where id = p_documento and excluido_em is null; if d.id is null then raise exception 'DOCUMENTO_NAO_ENCONTRADO'; end if;
+  update ck_documentos set excluido_em = now(), excluido_por = u.id where id = p_documento;
+  perform ck_audit(u.id, 'ck_documentos', p_documento::text, 'delete', to_jsonb(d), null);
+  return jsonb_build_object('ok', true);
 end $$;
 
 -- ── checklist do motorista / equipe ──
@@ -255,10 +280,16 @@ declare u ck_usuarios := ck_sessao(p_token); o ck_os; ex ck_execucao; sol text :
 begin
   perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
   select * into o from ck_os where id = p_os; if o.id is null or o.status = 'fechada' then raise exception 'OS_JA_FECHADA'; end if;
-  if sol is null and coalesce(p->>'foto', '') = '' then raise exception 'EVIDENCIA_OBRIGATORIA'; end if;   -- foto da correção ou o que foi feito
+  if sol is null and coalesce(p->>'foto', '') = '' then raise exception 'EVIDENCIA_OBRIGATORIA'; end if;
+  if coalesce(p->>'condicao', '') not in ('apto','restricao') then raise exception 'CONDICAO_OBRIGATORIA'; end if;   -- NR-12 / cláusula 2.8 (16/10/2026)
+  if p->>'condicao' = 'restricao' and ck_up(p->>'condicao_obs') is null then raise exception 'RESTRICAO_OBRIGATORIA'; end if;
+  if jsonb_array_length(coalesce(p->'pecas', '[]')) = 0 and not coalesce((p->>'sem_pecas')::boolean, false) then raise exception 'PECAS_OBRIGATORIAS'; end if;   -- foto da correção ou o que foi feito
   ex := coalesce(o.execucao, (p->>'execucao')::ck_execucao); if ex is null then raise exception 'INFORME_INTERNA_EXTERNA'; end if;
   if ex = 'externa' and p->>'fornecedor' is not null and not exists (select 1 from ck_fornecedores where id = (p->>'fornecedor')::uuid) then raise exception 'FORNECEDOR_INVALIDO'; end if;
-  update ck_os set status = 'fechada', fechada_por = u.id, execucao = ex, solucao = sol, foto_fech_path = nullif(p->>'foto', ''),
+  update ck_os set status = 'fechada', fechada_por = u.id, execucao = ex,
+    pecas = (select coalesce(jsonb_agg(jsonb_build_object('desc', ck_up(x->>'desc'), 'ref', ck_up(x->>'ref'), 'origem', case when x->>'origem' = 'equivalente' then 'equivalente' else 'original' end)), '[]') from jsonb_array_elements(coalesce(p->'pecas','[]')) x where ck_up(x->>'desc') is not null),
+    condicao = p->>'condicao', condicao_obs = case when p->>'condicao' = 'restricao' then ck_up(p->>'condicao_obs') end,
+    executado_por = nullif(p->>'executado_por','')::uuid, executado_txt = ck_up(p->>'executado_txt'), solucao = sol, foto_fech_path = nullif(p->>'foto', ''),
     fornecedor_id = case when ex = 'externa' then (p->>'fornecedor')::uuid end,
     custo = case when ex = 'externa' and (p->>'custo') ~ '^\d+(\.\d+)?$' then (p->>'custo')::numeric end,
     doc_path = case when ex = 'externa' then p#>>'{doc,path}' end, doc_tipo = case when ex = 'externa' and p#>>'{doc,tipo}' in ('nf','orcamento') then p#>>'{doc,tipo}' end,
@@ -325,7 +356,9 @@ begin
   end loop;
   if (p->>'leitura')::numeric is not null then update ck_ativos set leitura = (p->>'leitura')::numeric where id = o.ativo_id; end if;
   sol := ck_up(feitas || ' DE ' || tot || ' TAREFAS FEITAS' || case when cardinality(pend) > 0 then ' · PENDENTE: ' || array_to_string(pend, ', ') else '' end || case when ck_up(p->>'obs') is not null then ' · ' || ck_up(p->>'obs') else '' end);
-  update ck_os set status = 'fechada', fechada_por = u.id, solucao = sol, checklist_id = cid where id = p_os;
+  if coalesce(p->>'condicao', '') not in ('apto','restricao') then raise exception 'CONDICAO_OBRIGATORIA'; end if;
+  update ck_os set status = 'fechada', fechada_por = u.id, solucao = sol, checklist_id = cid, condicao = p->>'condicao',
+    condicao_obs = case when p->>'condicao' = 'restricao' then ck_up(p->>'condicao_obs') end, executado_por = u.id where id = p_os;
   insert into ck_os_eventos (os_id, tipo, por, texto) values (p_os, 'fechada', u.id, sol);
   insert into ck_log (usuario_id, evento, origem) values (u.id, 'checklist', 'app');
   return jsonb_build_object('ok', true, 'id', cid, 'os', p_os);
@@ -398,15 +431,17 @@ begin
   select * into antes from ck_ativos where id = cod;
   if antes.id is null then
     if not exists (select 1 from ck_tipos where id = p->>'tipo') then raise exception 'TIPO_INVALIDO'; end if;
-    insert into ck_ativos (id, tipo_id, placa, frota, marca, modelo, ano, proprietario, unidade_id, operador_id, itens_fora, leitura, status)
+    insert into ck_ativos (id, tipo_id, placa, frota, marca, modelo, ano, proprietario, renavam, chassi, unidade_id, operador_id, itens_fora, leitura, status)
     values (cod, p->>'tipo', case when cod ~ '^\d+$' then null else cod end, case when cod ~ '^\d+$' then cod end, ck_up(p->>'marca'), ck_up(p->>'modelo'),
-            nullif(p->>'ano', '')::int, ck_up(p->>'prop'), un, nullif(p->>'operador', '')::uuid,
+            nullif(p->>'ano', '')::int, ck_up(p->>'prop'), nullif(regexp_replace(coalesce(p->>'renavam',''), '\D', '', 'g'), ''), nullif(upper(regexp_replace(coalesce(p->>'chassi',''), '\s', '', 'g')), ''), un, nullif(p->>'operador', '')::uuid,
             coalesce((select array_agg(x) from jsonb_array_elements_text(p->'itens_fora') x), '{}'), nullif(p->>'leitura', '')::numeric,
             coalesce(p->>'status', 'ativo'));
     perform ck_audit(u.id, 'ck_ativos', cod, 'insert', null, p);
   else
     update ck_ativos set tipo_id = coalesce(p->>'tipo', tipo_id), marca = coalesce(ck_up(p->>'marca'), marca), modelo = coalesce(ck_up(p->>'modelo'), modelo),
-      ano = coalesce(nullif(p->>'ano', '')::int, ano), proprietario = coalesce(ck_up(p->>'prop'), proprietario), unidade_id = coalesce(un, unidade_id),
+      ano = coalesce(nullif(p->>'ano', '')::int, ano), proprietario = coalesce(ck_up(p->>'prop'), proprietario),
+      renavam = case when p ? 'renavam' then nullif(regexp_replace(coalesce(p->>'renavam',''), '\D', '', 'g'), '') else renavam end,
+      chassi = case when p ? 'chassi' then nullif(upper(regexp_replace(coalesce(p->>'chassi',''), '\s', '', 'g')), '') else chassi end, unidade_id = coalesce(un, unidade_id),
       operador_id = case when p ? 'operador' then nullif(p->>'operador', '')::uuid else operador_id end,
       itens_fora = case when p ? 'itens_fora' then coalesce((select array_agg(x) from jsonb_array_elements_text(p->'itens_fora') x), '{}') else itens_fora end,
       status = coalesce(p->>'status', status)
@@ -504,7 +539,8 @@ declare u ck_usuarios := ck_sessao(p_token); mid text := p->>'id'; antes ck_mode
 begin
   perform ck_exige(u, array['master','admin']::ck_papel[]);
   cat := coalesce((p->>'categoria')::ck_cat_modelo, 'inspecao'); fq := (p->>'freq')::ck_freq;
-  if cat = 'inspecao' and fq not in ('semanal','quinzenal','mensal') then raise exception 'FREQUENCIA_INVALIDA'; end if;
+  if cat = 'inspecao' and fq not in ('semanal','quinzenal','mensal','uso') then raise exception 'FREQUENCIA_INVALIDA'; end if;
+  if fq = 'uso' and coalesce((p->>'intervalo_km')::numeric, 0) <= 0 and coalesce((p->>'intervalo_h')::numeric, 0) <= 0 then raise exception 'INTERVALO_OBRIGATORIO'; end if;
   if cat <> 'inspecao' and fq = 'diario' then raise exception 'FREQUENCIA_INVALIDA'; end if;
   for n in select x from jsonb_array_elements(coalesce(p->'novos', '[]')) x loop                       -- itens novos só de inspeção
     nid := 'x-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
@@ -518,13 +554,14 @@ begin
     mid := 'm-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
     if ck_up(p->>'nome') is null then raise exception 'NOME_OBRIGATORIO'; end if;
     if jsonb_array_length(coalesce(p->'tipos', '[]')) = 0 then raise exception 'TIPOS_OBRIGATORIOS'; end if;
-    insert into ck_modelos (id, nome, categoria, freq, tipos, origem, criado_por)
-    values (mid, ck_up(p->>'nome'), cat, fq, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), coalesce(p->>'origem', 'manual'), u.id);
+    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, origem, criado_por)
+    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), coalesce(p->>'origem', 'manual'), u.id);
     perform ck_audit(u.id, 'ck_modelos', mid, 'insert', null, p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   else
     select * into antes from ck_modelos where id = mid; if antes.id is null then raise exception 'MODELO_NAO_ENCONTRADO'; end if;
     update ck_modelos set nome = coalesce(ck_up(p->>'nome'), nome), categoria = cat, freq = fq,
+      intervalo_km = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_km','')::numeric, intervalo_km) end, intervalo_h = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_h','')::numeric, intervalo_h) end,
       tipos = case when p ? 'tipos' then (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x) else tipos end,
       ativo = coalesce((p->>'ativo')::boolean, ativo) where id = mid;
     perform ck_audit(u.id, 'ck_modelos', mid, 'update', to_jsonb(antes), p);
@@ -601,7 +638,7 @@ revoke all on all tables in schema public from anon, authenticated;
 revoke all on all functions in schema public from public, anon, authenticated;
 grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,text), ck_solicitar_acesso(jsonb), ck_situacao_cpf(text), ck_sair(uuid),
   ck_trocar_senha(uuid,text,text), ck_resetar_senha(uuid,uuid), ck_dataset(uuid,date), ck_salvar_checklist(uuid,jsonb), ck_farol(uuid,text),
-  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
+  ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_documento_salvar(uuid,jsonb), ck_documento_excluir(uuid,uuid), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
   ck_metas_set(uuid,jsonb), ck_fatura(uuid,date)

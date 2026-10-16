@@ -818,7 +818,7 @@ function recusaInsp(){
 }
 function farolInsp(x){
   if (x.status === 'atrasada') return '<span class="farol atr">Atrasada</span>';
-  if (x.status === 'vence') return '<span class="farol os">Vence ' + CK.fmtDataCurta(x.vence) + '</span>';
+  if (x.status === 'vence') return '<span class="farol os">' + (x.uso ? 'Faltam ' + nInt(x.falta) + (x.medidor === 'h' ? ' h' : ' km') : 'Vence ' + CK.fmtDataCurta(x.vence)) + '</span>';
   if (x.status === 'em_dia') return '<span class="farol ok">Em dia</span>';
   if (x.status === 'livre') return '<span class="farol off">Sob demanda</span>';
   return '<span class="farol nun">Nunca feita</span>';
@@ -889,11 +889,12 @@ function abrirInspecao(aid, mid){
   }
   var u = x && x.ultima;
   h += '<div class="card contorno"><div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><b style="display:block;font-size:14px;font-weight:600;line-height:1.3">' + esc(m.nome) + '</b>'
-    + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:4px">' + esc(f ? f.nome : m.freq) + (f && f.dias ? ' · a cada ' + plural(f.dias, 'dia', 'dias') : '') + ' · ' + plural(itens.length, 'item', 'itens') + '</span></div>'
+    + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:4px">' + esc(CK.freqTxt(m)) + ' · ' + plural(itens.length, 'item', 'itens') + '</span></div>'
     + (x ? farolInsp(x) : '') + '</div>'
     + '<div style="font-size:11.5px;color:var(--txt2);margin-top:10px;line-height:1.5">'
     + (u ? 'Última execução: <b style="color:var(--txt);font-weight:600">' + CK.fmtDH(u.data) + '</b> por ' + esc(nomeUsuario(u.usuario)) + ' · ' + (u.origem === 'preventiva' ? ((u.itens_total - (u.pend || 0)) + ' de ' + u.itens_total + ' tarefas feitas') : u.nc ? '<span class="neg">' + plural(u.nc, 'não conformidade', 'não conformidades') + '</span>' : '<span class="pos">sem não conformidades</span>')
          + (x.vence ? '<br>' + (x.status === 'atrasada' ? 'Venceu em ' : 'Próxima até ') + '<b style="color:var(--txt);font-weight:600">' + CK.fmtData(x.vence) + '</b>' : '')
+         + (x.prox != null ? '<br>' + (x.status === 'atrasada' ? 'Venceu aos ' : 'Próxima aos ') + '<b style="color:var(--txt);font-weight:600">' + nInt(x.prox) + (x.medidor === 'h' ? ' h' : ' km') + '</b>' + (x.falta >= 0 ? ' · faltam ' + nInt(x.falta) + (x.medidor === 'h' ? ' h' : ' km') : ' · passou ' + nInt(-x.falta) + (x.medidor === 'h' ? ' h' : ' km')) : '')
        : 'Esta inspeção nunca foi feita neste ativo.')
     + '</div></div>';
   var ehPv = CK.catDe(m) === 'preventivo';
@@ -983,7 +984,7 @@ document.addEventListener('click', function(e){
 
 /* rascunho: checklist que ficou pela metade */
 function rascunho(){ try { var r = JSON.parse(LS.get('ck_app_rascunho') || 'null'); return r && EU && r.usuario === EU.id && CK.ativo(r.ativo) ? r : null; } catch(e){ return null; } }
-function salvaRascunho(){ if (!CK_ST) return; LS.set('ck_app_rascunho', JSON.stringify({ usuario:EU.id, ativo:CK_ST.ativo, modelo:CK_ST.modelo, inicio:CK_ST.inicio, leitura:CK_ST.leitura, passo:CK_ST.passo, idx:CK_ST.idx, resp:CK_ST.resp, prev:CK_ST.prev, os:CK_ST.os, feito:CK_ST.feito, cid:CK_ST.cid })); }
+function salvaRascunho(){ if (!CK_ST) return; LS.set('ck_app_rascunho', JSON.stringify({ usuario:EU.id, ativo:CK_ST.ativo, modelo:CK_ST.modelo, inicio:CK_ST.inicio, leitura:CK_ST.leitura, passo:CK_ST.passo, idx:CK_ST.idx, resp:CK_ST.resp, prev:CK_ST.prev, os:CK_ST.os, feito:CK_ST.feito, cid:CK_ST.cid, condicao:CK_ST.condicao, condicao_obs:CK_ST.condicao_obs })); }
 function limpaRascunho(){ LS.del('ck_app_rascunho'); }
 function renderRascunho(boxId){
   var r = rascunho(), box = $(boxId || (equipe() ? 'rascunhoInsp' : 'rascunhoBox'));
@@ -1007,7 +1008,7 @@ function retomar(){
   var mid = modeloDoCk(r);
   if (ehInspecao(mid) && !equipe()) return recusaInsp();
   if (!CK.itensDoModelo(mid, r.ativo).length) { alert('Este checklist não existe mais. O rascunho foi descartado.'); limpaRascunho(); CK_ST = null; irPara(ABA); return; }
-  CK_ST = { ativo:r.ativo, tipo:CK.ativo(r.ativo).tipo, modelo:mid, inicio:r.inicio, leitura:r.leitura, passo:r.passo || 1, idx:r.idx, resp:r.resp || {}, prev:!!r.prev, os:r.os || null, feito:r.feito || {}, cid:r.cid || null };
+  CK_ST = { ativo:r.ativo, tipo:CK.ativo(r.ativo).tipo, modelo:mid, inicio:r.inicio, leitura:r.leitura, passo:r.passo || 1, idx:r.idx, resp:r.resp || {}, prev:!!r.prev, os:r.os || null, feito:r.feito || {}, cid:r.cid || null, condicao:r.condicao || '', condicao_obs:r.condicao_obs || '' };
   if (CK_ST.prev && !(CK.osPorId(CK_ST.os) && CK.osPorId(CK_ST.os).status === 'em_andamento')) { limpaRascunho(); CK_ST = null; irPara(ABA); return; }
   renderCheck(1); mostra('check');
 }
@@ -1091,6 +1092,7 @@ var ICO_CAT = {
   'KIT DE EMERGÊNCIA E FERRAMENTAS': CK.ICONES.wrench || CK.ICONES.machine,
   'ELÉTRICA': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
   'SISTEMA HIDRÁULICO': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/></svg>',
+  'TRANSMISSÃO': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
   'ESTEIRAS E MATERIAL RODANTE': CK.ICONES.roller || CK.ICONES.machine
 };
 function renderCheck(dir){
@@ -1209,6 +1211,10 @@ function prevHtml(itens){
   }).join('') + '</div>';
   h += '<div class="campo" style="margin-top:14px"><label>Observação (opcional)</label><textarea id="prevObs" rows="2" style="width:100%;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px;color:var(--txt);font-family:inherit;font-size:13.5px;resize:none" oninput="CK_ST.obs=this.value">' + esc(CK_ST.obs || '') + '</textarea></div>';
   h += '<div class="lg-erro" id="ckErro" style="display:none"></div>';
+  var cd = CK_ST.condicao || '';
+  h += '<div class="campo" style="margin-top:14px"><label>Condição de segurança após a preventiva (obrigatório)</label>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">' + [['apto','Apto · liberado'],['restricao','Apto com restrição']].map(function(o){ return '<button type="button" class="btn" style="flex:1;margin:0;' + (cd === o[0] ? '' : 'background:var(--card);border:1px solid var(--brd);color:var(--txt);box-shadow:none') + '" onclick="CK_ST.condicao=\'' + o[0] + '\';salvaRascunho();renderCheck(0)">' + o[1] + '</button>'; }).join('') + '</div>'
+    + (cd === 'restricao' ? '<textarea rows="2" style="width:100%;margin-top:8px;background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px;color:var(--txt);font-family:inherit;font-size:13.5px;resize:none" placeholder="Qual a restrição?" oninput="CK_ST.condicao_obs=this.value">' + esc(CK_ST.condicao_obs || '') + '</textarea>' : '') + '</div>';
   h += '<button class="btn" onclick="finalizar()">' + (n === itens.length ? 'Finalizar preventiva' : 'Finalizar com ' + (itens.length - n) + (itens.length - n === 1 ? ' pendência' : ' pendências')) + '</button></div>';
   return h;
 }
@@ -1291,10 +1297,12 @@ async function finalizar2(){
   var itens = itensCk(), e = $('ckErro');
   if (CK_ST.prev) {
     var f = CK_ST.feito || {}, pend = itens.filter(function(it){ return !f[it.id]; });
+    if (!CK_ST.condicao) { if (e) { e.textContent = 'Informe a condição de segurança do ativo.'; e.style.display = ''; } return; }
+    if (CK_ST.condicao === 'restricao' && !String(CK_ST.condicao_obs || '').trim()) { if (e) { e.textContent = 'Descreva a restrição.'; e.style.display = ''; } return; }
     if (pend.length && !confirm(pend.length + (pend.length === 1 ? ' tarefa não foi marcada' : ' tarefas não foram marcadas') + ' como feita. Finalizar assim mesmo? Elas ficam registradas como pendentes na OS.')) return;
     if (!CK_ST.cid) { CK_ST.cid = CK.uid('ck'); salvaRascunho(); }
     var bts = document.querySelectorAll('#v-check button'); bts.forEach(function(b){ b.disabled = true; });
-    var rp = await CK.preventivaFinalizar(CK_ST.os, { cliente_id:CK_ST.cid, usuario:EU.id, leitura:CK_ST.leitura, duracao_s:Math.round((Date.now() - CK_ST.inicio) / 1000), obs:CK_ST.obs || '', tarefas:itens.map(function(it){ return { item:it.id, feito:!!f[it.id] }; }) });
+    var rp = await CK.preventivaFinalizar(CK_ST.os, { cliente_id:CK_ST.cid, usuario:EU.id, leitura:CK_ST.leitura, duracao_s:Math.round((Date.now() - CK_ST.inicio) / 1000), obs:CK_ST.obs || '', condicao:CK_ST.condicao, condicao_obs:CK_ST.condicao_obs || '', tarefas:itens.map(function(it){ return { item:it.id, feito:!!f[it.id] }; }) });
     if (!rp.ok) { bts.forEach(function(b){ b.disabled = false; }); if (e) { e.textContent = rp.erro || 'Não deu para finalizar.'; e.style.display = ''; } return; }
     limpaRascunho(); CK_ST = null; renderResultadoPrev(rp); mostra('result'); return;
   }
