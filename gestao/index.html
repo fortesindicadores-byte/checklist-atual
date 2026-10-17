@@ -1139,7 +1139,7 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
           <div class="thead-row">
             <div class="ttit" style="display:none">Itens e SLA</div>
             <div class="tsub" id="sub-it" style="flex:1 1 100%">—</div>
-            <div class="busca" style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" id="qIt" placeholder="Item, orientação, tipo…" oninput="renderItens()"></div>
+            <div class="busca" style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" id="qIt" placeholder="Item, orientação, tipo…" oninput="renderItens()"></div><button class="rt" id="itTog" onclick="itTogTudo()" title="Abrir ou fechar todas as categorias">EXPANDIR TUDO</button>
 <button class="rt" onclick="baixarTplCad('itens')" data-roles="master,admin" title="Planilha Excel para preencher e importar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>BAIXAR TEMPLATE</button><button class="rt" onclick="abrirImpCad('itens')" data-roles="master,admin">IMPORTAR PLANILHA</button>
             <button class="btn pri sm" id="btNovoItem" style="flex:0 0 auto" onclick="abrirItem(null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo item</button>
           </div>
@@ -2463,7 +2463,9 @@ function imprimirQR(id){
 
 /* ── ITENS E SLA (categoria = grupo com drill, seção 8) ── */
 const catAberta={};
-function togCat(i){ catAberta[i]=catAberta[i]===false; document.querySelectorAll(`#body-it tr[data-cat="${i}"]`).forEach(tr=>tr.classList.toggle('show',catAberta[i]!==false)); const p=document.querySelector(`#body-it tr.pac-row[data-pc="${i}"]`); if(p) p.classList.toggle('open',catAberta[i]!==false); }
+function togCat(i){ catAberta[i]=!catAberta[i]; document.querySelectorAll(`#body-it tr[data-cat="${i}"]`).forEach(tr=>tr.classList.toggle('show',!!catAberta[i])); const p=document.querySelector(`#body-it tr.pac-row[data-pc="${i}"]`); if(p) p.classList.toggle('open',!!catAberta[i]); itTogTxt(); }   /* categorias nascem recolhidas (Renan, 17/10/2026) */
+function itTogTudo(){ const pcs=[...document.querySelectorAll('#body-it tr.pac-row')], abrir=pcs.some(r=>!r.classList.contains('open')); pcs.forEach(r=>{ catAberta[r.dataset.pc]=abrir; }); renderItens(); }
+function itTogTxt(){ const b=$('itTog'); if(!b) return; const pcs=[...document.querySelectorAll('#body-it tr.pac-row')]; b.textContent=pcs.length&&pcs.every(r=>r.classList.contains('open'))?'RECOLHER TUDO':'EXPANDIR TUDO'; }
 function renderItens(){
   const f=lastF; if(!f) return; const edit=podeEditar();
   const insp=CK.modelos(true).filter(m=>!ehDiario(m)), usoInsp=id=>insp.filter(m=>(m.itens||[]).includes(id));
@@ -2478,7 +2480,7 @@ function renderItens(){
   const cats=[...new Set(base.map(it=>it.cat))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   let h='';
   cats.forEach((cat,ci)=>{
-    const its=lista.filter(it=>it.cat===cat); if(!its.length) return; const aberta=qI?true:catAberta[ci]!==false;
+    const its=lista.filter(it=>it.cat===cat); if(!its.length) return; const aberta=qI?true:!!catAberta[ci];
     h+=`<tr class="pac-row ${aberta?'open':''}" data-pc="${ci}" onclick="togCat(${ci})"><td class="conta">${esc(cat)}<span class="ctx"> · ${its.length} ${its.length===1?'item':'itens'}</span></td><td></td><td></td><td></td><td></td></tr>`;
     its.forEach(it=>{
       const usos=it.insp?usoInsp(it.id).map(m=>m.nome+(m.ativo===false?' (inativo)':'')):null;
@@ -2491,6 +2493,7 @@ function renderItens(){
     });
   });
   $('body-it').innerHTML=h||`<tr><td colspan="5" class="muted" style="text-align:center;padding:22px">Nenhum item no filtro.</td></tr>`;
+  itTogTxt();
 }
 /* ficha do item (Renan, 11/10/2026: "clicar no item e editar", sem edição na linha) */
 let FI=null;
