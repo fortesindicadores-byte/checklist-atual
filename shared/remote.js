@@ -159,7 +159,7 @@
       var num = osNum(id), foto = null, doc = null;
       if (d.foto && d.foto !== 'demo') foto = await upload('fotos', 'os-' + num + '/fechamento-' + Date.now() + '.jpg', d.foto);
       if (d.doc && d.doc.data) doc = { path:await upload('anexos', 'os-' + num + '/' + Date.now() + '-' + limpaNome(d.doc.nome), d.doc.data), tipo:d.doc_tipo, nome:d.doc.nome };
-      return await escreve('ck_os_fechar', { p_os:num, p:{ solucao:d.solucao, foto:foto, execucao:d.execucao, custo:d.custo, fornecedor:d.fornecedor, doc:doc, pecas:d.pecas || [], sem_pecas:!!d.sem_pecas, condicao:d.condicao, condicao_obs:d.condicao_obs, executado_por:d.executado_por || null, executado_txt:d.executado_txt || null } });
+      return await escreve('ck_os_fechar', { p_os:num, p:{ solucao:d.solucao, foto:foto, execucao:d.execucao, custo:d.custo, fornecedor:d.fornecedor, doc:doc, pecas:d.pecas || [], os_externa:d.os_externa || null, condicao:d.condicao, condicao_obs:d.condicao_obs, executado_por:d.executado_por || null, executado_txt:d.executado_txt || null } });
     } catch(e){ return erro(e); }
   };
   CK.foto = function(ref){ if (!ref) return null; if (ref === 'demo') return 'demo'; if (/^(data:image|https?:)/.test(ref)) return ref; return 'data:,ckfoto/' + ref; };   /* data: vazio evita erro de esquema no console até a URL assinada chegar */

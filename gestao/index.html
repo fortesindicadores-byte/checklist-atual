@@ -1138,11 +1138,12 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
         <div class="card tsec">
           <div class="thead-row">
             <div class="ttit" style="display:none">Itens e SLA</div>
-            <div class="tsub" id="sub-it">—</div>
-<button class="rt" style="margin-left:auto" onclick="baixarTplCad('itens')" data-roles="master,admin" title="Planilha Excel para preencher e importar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>BAIXAR TEMPLATE</button><button class="rt" onclick="abrirImpCad('itens')" data-roles="master,admin">IMPORTAR PLANILHA</button>
+            <div class="tsub" id="sub-it" style="flex:1 1 100%">—</div>
+            <div class="busca" style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" id="qIt" placeholder="Item, orientação, tipo…" oninput="renderItens()"></div>
+<button class="rt" onclick="baixarTplCad('itens')" data-roles="master,admin" title="Planilha Excel para preencher e importar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>BAIXAR TEMPLATE</button><button class="rt" onclick="abrirImpCad('itens')" data-roles="master,admin">IMPORTAR PLANILHA</button>
             <button class="btn pri sm" id="btNovoItem" style="flex:0 0 auto" onclick="abrirItem(null)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo item</button>
           </div>
-          <div class="twrap"><table class="dre cmp" data-no-sort><thead><tr>
+          <div class="twrap"><table class="dre cmp" data-agrupada><thead><tr>
             <th>Item</th><th>Criticidade</th><th>Prazo</th><th>Bloqueia</th><th>Aplica a</th>
           </tr></thead><tbody id="body-it"></tbody></table></div>
         </div>
@@ -1187,9 +1188,10 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
         <div class="card tsec">
           <div class="thead-row">
             <div class="ttit" style="display:none">Usuários</div>
-            <div class="tsub" id="sub-us">—</div>
+            <div class="tsub" id="sub-us" style="flex:1 1 100%">—</div>
             <div class="dims" id="us-tabs"></div>
-            <button class="rt" style="margin-left:auto" onclick="baixarTplCad('usuarios')" data-roles="master,admin" title="Planilha Excel para preencher e importar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>BAIXAR TEMPLATE</button><button class="rt" onclick="abrirImpCad('usuarios')" data-roles="master,admin">IMPORTAR PLANILHA</button>
+            <div class="busca" style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" id="qUs" placeholder="Nome, CPF, unidade…" oninput="renderUsers()"></div>
+            <button class="rt" onclick="baixarTplCad('usuarios')" data-roles="master,admin" title="Planilha Excel para preencher e importar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>BAIXAR TEMPLATE</button><button class="rt" onclick="abrirImpCad('usuarios')" data-roles="master,admin">IMPORTAR PLANILHA</button>
             <button class="btn pri sm" onclick="abrirNovoUsuario()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo usuário</button>
           </div>
           <div class="twrap"><table class="dre cmp"><thead><tr>
@@ -1898,7 +1900,8 @@ function abrirOS(id){
     h+=`<div class="d-sec">Fechamento</div><div class="dkv"><span>Fechada em</span><b>${CK.fmtDH(o.fechada_em)} por ${esc(nomeU(o.fechada_por))}</b><span>Solução</span><b>${esc(o.solucao||'—')}</b>`+
       `<span>Executado por</span><b>${o.executado_txt?esc(o.executado_txt)+' <span class="ctx">(fornecedor)</span>':o.executado_por?esc(nomeU(o.executado_por)):'<span class="ctx">não informado</span>'}</b>`+
       `<span>Condição de segurança</span><b>${o.condicao?`<span class="${o.condicao==='apto'?'cg':'ca'}">${esc(CK.CONDICAO[o.condicao]||o.condicao)}</span>${o.condicao_obs?' · '+esc(o.condicao_obs):''}`:'<span class="ctx">não informada</span>'}</b>`+
-      `<span>Peças</span><b>${(o.pecas||[]).length?o.pecas.map(p=>`${esc(p.desc)} <span class="ctx">· ${esc(p.ref||'sem referência')} · ${p.origem==='equivalente'?'EQUIVALENTE':'ORIGINAL'}</span>`).join('<br>'):'<span class="ctx">sem troca de peças</span>'}</b>`+`${o.execucao==='externa'?`<span>Fornecedor</span><b>${o.fornecedor&&CK.fornecedor(o.fornecedor)?esc(CK.fornecedor(o.fornecedor).nome):'<span class="ctx">não informado</span>'}</b><span>Valor</span><b>${o.custo!=null?CK.brl(o.custo):'<span class="ctx">não informado</span>'}</b><span>Documento</span><b>${o.doc?`<a class="lnk" onclick="abrirAnexo('${o.doc}')">${o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'} · ${esc((CK.anexo(o.doc)||{}).nome||'abrir')}</a>`:'<span class="ctx">sem anexo</span>'}</b>`:''}</div>`+(ff?`<img class="foto" style="margin-top:8px;max-height:200px" src="${ff}" alt="Foto da correção">`:''); }
+      (o.os_externa?`<span>OS da manutenção</span><b>nº ${esc(o.os_externa)}</b>`:'')+
+      `<span>Peças</span><b>${(o.pecas||[]).length?o.pecas.map(p=>`${esc(p.desc)} <span class="ctx">· ${esc(p.ref||'sem referência')} · ${p.origem==='equivalente'?'EQUIVALENTE':'ORIGINAL'}</span>`).join('<br>'):'<span class="ctx">'+(o.os_externa?'na OS da manutenção':'não informadas')+'</span>'}</b>`+`${o.execucao==='externa'?`<span>Fornecedor</span><b>${o.fornecedor&&CK.fornecedor(o.fornecedor)?esc(CK.fornecedor(o.fornecedor).nome):'<span class="ctx">não informado</span>'}</b><span>Valor</span><b>${o.custo!=null?CK.brl(o.custo):'<span class="ctx">não informado</span>'}</b><span>Documento</span><b>${o.doc?`<a class="lnk" onclick="abrirAnexo('${o.doc}')">${o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'} · ${esc((CK.anexo(o.doc)||{}).nome||'abrir')}</a>`:'<span class="ctx">sem anexo</span>'}</b>`:''}</div>`+(ff?`<img class="foto" style="margin-top:8px;max-height:200px" src="${ff}" alt="Foto da correção">`:''); }
   h+=`<div class="d-sec">Linha do tempo</div><div class="tl">`+(o.eventos||[]).slice().sort((x,y)=>x.q<y.q?-1:1).map(e=>`<div><div class="q">${CK.fmtDH(e.q)} · ${esc(nomeU(e.por))}</div><div class="t">${EV_LBL[e.t]||e.t}</div>${e.txt?`<div class="x">${esc(e.txt)}</div>`:''}</div>`).join('')+`</div><div id="os-form"></div>`;
   $('d-body').innerHTML=h;
   let acts='';
@@ -1928,9 +1931,10 @@ function formFechar(){
     <div class="fld"><label>Solução aplicada (obrigatório)</label><textarea class="inp" id="fxSol" placeholder="O que foi feito para resolver"></textarea></div>
     <div class="fld"><label>Foto da correção</label><input class="inp" type="file" accept="image/*" onchange="lerFoto(this.files[0],d=>{fotoSel=d;const p=$('fxPrev');p.src=d;p.style.display='block';})"></div>
     <img id="fxPrev" class="foto" style="display:none;max-height:180px;margin-bottom:10px">
-    <div class="d-sec" style="margin-top:6px">Peças substituídas <span class="ctx" style="text-transform:none;letter-spacing:0">· NR-12: fabricante/referência e se é original ou equivalente</span></div>
+    <div class="fld"><label>Nº da OS no sistema de manutenção <span class="ctx">· opcional, liga este registro à OS da oficina</span></label><input class="inp" id="fxOsExt" placeholder="Ex.: 1234"></div>
+    <div class="d-sec" style="margin-top:6px">Peças substituídas <span class="ctx" style="text-transform:none;letter-spacing:0">· opcional, se não estiverem na OS do sistema de manutenção</span></div>
     <div id="fxPecas"></div>
-    <div style="display:flex;align-items:center;gap:12px;margin:2px 0 10px"><button type="button" class="btn sm" onclick="fxPecaAdd()">+ Peça</button><label class="ctx" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="fxSemPeca" onchange="$('fxPecas').style.opacity=this.checked?.4:1"> Não houve troca de peças</label></div>
+    <div style="margin:2px 0 10px"><button type="button" class="btn sm" onclick="fxPecaAdd()">+ Peça</button></div>
     <div class="frow"><div class="fld"><label>Executado por (obrigatório)</label><select class="inp" id="fxExecPor" onchange="$('fxExecTxtW').style.display=this.value==='__ext'?'':'none'">${selExecutor(oF)}</select></div>
       <div class="fld" id="fxExecTxtW" style="display:none"><label>Nome do profissional</label><input class="inp" id="fxExecTxt" placeholder="Profissional do fornecedor"></div></div>
     <div class="fld"><label>Condição de segurança do ativo após o serviço (obrigatório)</label><div class="seg" id="fxCond">${Object.keys(CK.CONDICAO).map(k=>`<button type="button" data-v="${k}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this));$('fxCondObsW').style.display='${k}'==='restricao'?'':'none'">${CK.CONDICAO[k]}</button>`).join('')}</div></div>
@@ -1941,7 +1945,7 @@ function formFechar(){
       <div class="frow"><div class="fld"><label>Documento</label><div class="seg" id="fxDocT"><button type="button" class="on" data-v="nf" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">Nota fiscal</button><button type="button" data-v="orcamento" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">Orçamento</button></div></div>
       <div class="fld"><label>Anexo <span class="ctx">· PDF ou imagem, até 2 MB</span></label><input class="inp" type="file" accept="application/pdf,image/*" onchange="lerDoc(this.files[0])"></div></div></div>
     <div class="erro" id="fxErro"></div><div style="display:flex;gap:8px"><button class="btn pri" onclick="doFechar()">Confirmar fechamento</button><button class="btn" onclick="$('os-form').innerHTML=''">Cancelar</button></div>`;
-  fxPecaAdd(); $('os-form').scrollIntoView({behavior:'smooth',block:'end'});
+  $('os-form').scrollIntoView({behavior:'smooth',block:'end'});
 }
 /* peças da OS e executor (Renan, 16/10/2026 — NR-12 / cláusula 2.8 do TAC) */
 function selExecutor(o){ const ext=o&&o.execucao==='externa', us=DB.usuarios.filter(u=>u.status==='ativo'&&['frota','admin','master'].includes(u.papel)).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
@@ -1954,15 +1958,13 @@ function lerDoc(file){
 async function doFechar(){
   const sol=($('fxSol').value||'').trim(); if(!sol){ $('fxErro').textContent='Descreva a solução aplicada.'; return; }
   const oF=CK.osPorId(osAberta), ex=(oF&&oF.execucao)||execSel(); if(!ex){ $('fxErro').textContent='Informe se o atendimento foi interno ou externo.'; return; }
-  const t=document.querySelector('#fxDocT button.on'), semP=$('fxSemPeca').checked;
-  const pecas=semP?[]:[...document.querySelectorAll('#fxPecas .fx-peca')].map(r=>({desc:r.querySelector('.fp-desc').value.trim(), ref:r.querySelector('.fp-ref').value.trim(), origem:r.querySelector('.fp-org').value})).filter(p=>p.desc);
-  if(!semP&&!pecas.length){ $('fxErro').textContent='Informe as peças substituídas ou marque que não houve troca de peças.'; return; }
-  if(pecas.some(p=>!p.ref)){ $('fxErro').textContent='Informe o fabricante / referência de cada peça.'; return; }
+  const t=document.querySelector('#fxDocT button.on');
+  const pecas=[...document.querySelectorAll('#fxPecas .fx-peca')].map(r=>({desc:r.querySelector('.fp-desc').value.trim(), ref:r.querySelector('.fp-ref').value.trim(), origem:r.querySelector('.fp-org').value})).filter(p=>p.desc);
   const cb=document.querySelector('#fxCond button.on'); if(!cb){ $('fxErro').textContent='Informe a condição de segurança do ativo após o serviço.'; return; }
   const cObs=($('fxCondObs').value||'').trim(); if(cb.dataset.v==='restricao'&&!cObs){ $('fxErro').textContent='Descreva a restrição.'; return; }
   const ep=$('fxExecPor').value, eTxt=($('fxExecTxt').value||'').trim(); if(ep==='__ext'&&!eTxt){ $('fxErro').textContent='Informe o nome do profissional do fornecedor.'; return; }
   aposAcao(await CK.osFechar(osAberta,{por:EU.id,solucao:sol,foto:fotoSel,execucao:ex,custo:$('fxCusto').value,fornecedor:$('fxForn').value||null,doc:docSel,doc_tipo:t?t.dataset.v:'nf',
-    pecas, sem_pecas:semP, condicao:cb.dataset.v, condicao_obs:cObs, executado_por:ep==='__ext'?null:ep, executado_txt:ep==='__ext'?eTxt:null}), osAberta);
+    pecas, os_externa:($('fxOsExt').value||'').trim(), condicao:cb.dataset.v, condicao_obs:cObs, executado_por:ep==='__ext'?null:ep, executado_txt:ep==='__ext'?eTxt:null}), osAberta);
 }
 async function abrirAnexo(id){
   const a=CK.anexo(id); if(!a) return;
@@ -2104,14 +2106,14 @@ const REL=[
       c.ncs.forEach(x=>{ const it=CK.ITEM[x.item]; if(f.crit.length&&it&&!f.crit.includes(it.crit)) return; const os=DB.os.find(o=>o.item===x.item&&(o.checklist===c.id||(o.checklists||[]).includes(c.id)));
         out.push([CK.fmtDH(c.data),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',it?it.nome:x.item,it?it.cat:'',it?CK.CRIT[it.crit].nome:'',it?simN(it.bloqueia):'',x.obs||'',nomeU(c.usuario),os?osNum(os.id):'',os?STATUS_LBL[osStatus(os)]||osStatus(os):'']); }); }); return out; } },
   { id:'os', ic:'os', tit:'Ordens de serviço', desc:'Uma linha por OS aberta no período: prazos, status, atendimento interno ou externo, fechamento, fornecedor e valor.',
-    cols:[['OS','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item','t'],['Criticidade','t'],['Bloqueia','t'],['Aberta em','t'],['Aberta por','t'],['Prazo original','t'],['Prazo reprogramado','t'],['Status','t'],['Atendimento','t'],['Responsável','t'],['Fechada em','t'],['Resolução (h)','d'],['No prazo','t'],['Solução','t'],['Executado por','t'],['Peças (referência · origem)','t'],['Condição de segurança','t'],['Fornecedor','t'],['Valor (R$)','r'],['Documento','t'],['Reincidências','n']],
+    cols:[['OS','t'],['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item','t'],['Criticidade','t'],['Bloqueia','t'],['Aberta em','t'],['Aberta por','t'],['Prazo original','t'],['Prazo reprogramado','t'],['Status','t'],['Atendimento','t'],['Responsável','t'],['Fechada em','t'],['Resolução (h)','d'],['No prazo','t'],['Solução','t'],['Executado por','t'],['OS da manutenção','t'],['Peças (referência · origem)','t'],['Condição de segurança','t'],['Fornecedor','t'],['Valor (R$)','r'],['Documento','t'],['Reincidências','n']],
     linhas:f=>fOS(f,null,false,true).slice().sort((a,b)=>a.abertura<b.abertura?1:-1).map(o=>{ const a=ATV[o.ativo]||{}, it=CK.ITEM[o.item], s=CK.slaDe(o), fo=o.fornecedor?CK.fornecedor(o.fornecedor):null, fe=o.status==='fechada';
       return [osNum(o.id),ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',it?it.nome:o.item,CK.CRIT[o.crit].nome,simN(o.bloqueia),CK.fmtDH(o.abertura),nomeU(o.aberta_por),CK.fmtDH(o.limite),o.limite_atual?CK.fmtDH(o.limite_atual):'',
-        STATUS_LBL[osStatus(o)]||osStatus(o),o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]:'',o.responsavel?nomeU(o.responsavel):'',fe?CK.fmtDH(o.fechada_em):'',fe?s.tempo_resolucao_h:null,fe?simN(s.no_prazo):'',fe?o.solucao||'':'',fe?(o.executado_txt||(o.executado_por?nomeU(o.executado_por):'')):'',fe?(o.pecas||[]).map(p=>p.desc+' ('+(p.ref||'s/ ref.')+' · '+(p.origem==='equivalente'?'EQUIVALENTE':'ORIGINAL')+')').join('; '):'',fe&&o.condicao?(CK.CONDICAO[o.condicao]||o.condicao)+(o.condicao_obs?' · '+o.condicao_obs:''):'',fo?fo.nome:'',fe&&o.custo!=null?o.custo:null,o.doc?(o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'):'',o.reincidencias||0]; }) },
+        STATUS_LBL[osStatus(o)]||osStatus(o),o.execucao&&o.status!=='aberta'?CK.EXEC[o.execucao]:'',o.responsavel?nomeU(o.responsavel):'',fe?CK.fmtDH(o.fechada_em):'',fe?s.tempo_resolucao_h:null,fe?simN(s.no_prazo):'',fe?o.solucao||'':'',fe?(o.executado_txt||(o.executado_por?nomeU(o.executado_por):'')):'',fe?o.os_externa||'':'',fe?(o.pecas||[]).map(p=>p.desc+' ('+(p.ref||'s/ ref.')+' · '+(p.origem==='equivalente'?'EQUIVALENTE':'ORIGINAL')+')').join('; '):'',fe&&o.condicao?(CK.CONDICAO[o.condicao]||o.condicao)+(o.condicao_obs?' · '+o.condicao_obs:''):'',fo?fo.nome:'',fe&&o.custo!=null?o.custo:null,o.doc?(o.doc_tipo==='orcamento'?'Orçamento':'Nota fiscal'):'',o.reincidencias||0]; }) },
   { id:'bloqueios', ic:'os', tit:'Bloqueios e liberações', desc:'Cada vez que um ativo foi retirado de operação por item de segurança: data e hora da parada, quem apontou, data e hora da liberação, quem liberou, tempo parado, condição de segurança e solução. Inclui os que seguem bloqueados.',
-    cols:[['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item de segurança','t'],['OS','t'],['Parada (data/hora)','t'],['Apontado por','t'],['Liberação (data/hora)','t'],['Liberado por','t'],['Executado por','t'],['Tempo parado (h)','d'],['Condição de segurança','t'],['Solução','t']],
+    cols:[['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Item de segurança','t'],['OS','t'],['Parada (data/hora)','t'],['Apontado por','t'],['Liberação (data/hora)','t'],['Liberado por','t'],['Executado por','t'],['OS da manutenção','t'],['Tempo parado (h)','d'],['Condição de segurança','t'],['Solução','t']],
     linhas:f=>DB.os.filter(o=>o.bloqueia&&!CK.ehPrev(o)&&osOk(f,o)&&(mesOk(f,o.abertura)||o.status!=='fechada')).sort((a,b)=>a.abertura<b.abertura?1:-1).map(o=>{ const a=ATV[o.ativo]||{}, it=CK.ITEM[o.item], fe=o.status==='fechada';
-      return [ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',it?it.nome:o.item,osNum(o.id),CK.fmtDH(o.abertura),nomeU(o.aberta_por),fe?CK.fmtDH(o.fechada_em):'AINDA BLOQUEADO',fe?nomeU(o.fechada_por):'',fe?(o.executado_txt||(o.executado_por?nomeU(o.executado_por):'')):'',
+      return [ativoLbl(a),a.modelo||'',CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:'',a.unidade||'',it?it.nome:o.item,osNum(o.id),CK.fmtDH(o.abertura),nomeU(o.aberta_por),fe?CK.fmtDH(o.fechada_em):'AINDA BLOQUEADO',fe?nomeU(o.fechada_por):'',fe?(o.executado_txt||(o.executado_por?nomeU(o.executado_por):'')):'',fe?o.os_externa||'':'',
         Math.round(CK.diffH(o.abertura,fe?o.fechada_em:CK.isoDT(new Date()))*10)/10,fe&&o.condicao?(CK.CONDICAO[o.condicao]||o.condicao)+(o.condicao_obs?' · '+o.condicao_obs:''):'',fe?o.solucao||'':'']; }) },
   { id:'sla', ic:'sla', tit:'SLA por item', desc:'Para cada item, as OS fechadas no período: quantas no prazo, o SLA e o tempo médio e o maior tempo de resolução.',
     cols:[['Item','t'],['Categoria','t'],['Criticidade','t'],['Prazo','t'],['OS fechadas','n'],['No prazo','n'],['Fora do prazo','n'],['SLA','p'],['MTTR (h)','d'],['Maior tempo (h)','d']],
@@ -2329,7 +2331,7 @@ function impCadPrev(rows){
   if(!CI.linhas.length) throw new Error('A planilha não tem linhas preenchidas.');
   const nv=CI.linhas.filter(l=>!l.erro&&!l.id).length, up=CI.linhas.filter(l=>!l.erro&&l.id).length, er=CI.linhas.filter(l=>l.erro).length;
   $('ciPrev').innerHTML=`<div class="d-sec" style="margin:14px 0 6px">Prévia · ${n(nv)} ${nv===1?'novo':'novos'} · ${n(up)} ${up===1?'atualiza':'atualizam'} · ${n(er)} com erro</div>`+
-    `<div class="twrap" style="max-height:none"><table class="dre cmp" data-no-sort><thead><tr><th>Linha</th><th>${esc(C.cols[0].h)}</th><th>Situação</th></tr></thead><tbody>`+
+    `<div class="twrap" style="max-height:none"><table class="dre cmp"><thead><tr><th>Linha</th><th>${esc(C.cols[0].h)}</th><th>Situação</th></tr></thead><tbody>`+
     CI.linhas.map(l=>`<tr><td>${l.n}</td><td>${esc(l.rotulo||'—')}</td><td>${l.erro?`<span class="ci-er">${esc(l.erro)}</span>`:l.id?'<span class="ci-up">Atualiza</span>':'<span class="ci-ok">Novo</span>'}</td></tr>`).join('')+`</tbody></table></div>`;
   set('ciCnt', `${n(nv+up)} ${nv+up===1?'linha será importada':'linhas serão importadas'}${er?' · linhas com erro ficam de fora':''}`);
   $('ciOk').disabled=!(nv+up);
@@ -2467,15 +2469,16 @@ function renderItens(){
   const insp=CK.modelos(true).filter(m=>!ehDiario(m)), usoInsp=id=>insp.filter(m=>(m.itens||[]).includes(id));
   /* cadastro: só Tipo e Criticidade filtram (item do diário = aplica ao tipo; item de inspeção = usado por inspeção do tipo) */
   const tipoOk=it=>!f.tipo.length||(it.insp?usoInsp(it.id).some(m=>m.tipos.some(t=>f.tipo.includes(t))):f.tipo.some(t=>CK.itemAplica(it,t)));
-  const base=CK.ITENS.filter(it=>CK.ITEM[it.id]===it), lista=base.filter(it=>tipoOk(it)&&(!f.crit.length||f.crit.includes(it.crit))&&(!f.cat||!f.cat.length||f.cat.includes(it.cat)));
+  const qI=nrm(($('qIt')||{}).value||''), buscaOk=it=>!qI||nrm([it.nome,it.cat,it.dica,it.ex,(it.ap&&it.ap.map?it.ap.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(' '):'')].join(' ')).includes(qI);
+  const base=CK.ITENS.filter(it=>CK.ITEM[it.id]===it), lista=base.filter(it=>tipoOk(it)&&buscaOk(it)&&(!f.crit.length||f.crit.includes(it.crit))&&(!f.cat||!f.cat.length||f.cat.includes(it.cat))).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));   /* ordem alfabética (Renan, 17/10/2026) */
   const nInsp=lista.filter(it=>it.insp).length; $('btNovoItem').style.display=edit?'':'none';
   $('sub-it').innerHTML=`${n(lista.length-nInsp)} itens do diário · ${n(nInsp)} só de inspeção · clique no item para ${edit?'ver e editar · mudanças valem para OS novas; as já abertas mantêm o prazo do dia em que abriram.':'ver a ficha · somente leitura para o seu perfil.'}`+
     `<br>Criticidade ordena o Painel OS · prazo é a meta do SLA, contado da abertura da OS · bloqueia = o ativo não opera com o item reprovado.`;
   set('titSub', `Cadastro de itens · filtram só Tipo e Criticidade`);
-  const cats=[...new Set(base.map(it=>it.cat))];
+  const cats=[...new Set(base.map(it=>it.cat))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   let h='';
   cats.forEach((cat,ci)=>{
-    const its=lista.filter(it=>it.cat===cat); if(!its.length) return; const aberta=catAberta[ci]!==false;
+    const its=lista.filter(it=>it.cat===cat); if(!its.length) return; const aberta=qI?true:catAberta[ci]!==false;
     h+=`<tr class="pac-row ${aberta?'open':''}" data-pc="${ci}" onclick="togCat(${ci})"><td class="conta">${esc(cat)}<span class="ctx"> · ${its.length} ${its.length===1?'item':'itens'}</span></td><td></td><td></td><td></td><td></td></tr>`;
     its.forEach(it=>{
       const usos=it.insp?usoInsp(it.id).map(m=>m.nome+(m.ativo===false?' (inativo)':'')):null;
@@ -2626,7 +2629,7 @@ function abrirModeloDet(id,manterScroll){
   const fora=dia?cov.filter(a=>(a.itens_fora||[]).length).length:0;
   h+=`<div class="md-nota">${ed?'Clique no item para ver e editar criticidade, prazo e bloqueio. A mudança vale em todos os checklists que usam o item e só para OS novas.':'Clique no item para ver a ficha · somente leitura para o seu perfil.'}`+
     (fora?` ${n(fora)} ${fora===1?'ativo deste tipo tem':'ativos deste tipo têm'} itens retirados na tela Ativos.`:'')+`</div>`;
-  h+=`<div class="md-tab"><table class="dre md-it" data-no-sort><thead><tr><th>Item</th><th style="width:140px">Criticidade</th><th style="width:200px">Prazo</th><th style="width:90px">Bloqueia</th></tr></thead><tbody>${mdLinhas(m,its,ed)}</tbody></table></div>`;
+  h+=`<div class="md-tab"><table class="dre md-it" data-agrupada><thead><tr><th>Item</th><th style="width:140px">Criticidade</th><th style="width:200px">Prazo</th><th style="width:90px">Bloqueia</th></tr></thead><tbody>${mdLinhas(m,its,ed)}</tbody></table></div>`;
   const foot=(ed?`<button class="btn ${ativo?'warn':'ok'}" style="margin-right:auto" onclick="modAtivo('${m.id}',${ativo?'false':'true'},true)">${dia?(ativo?'Desligar':'Ligar'):(ativo?'Desativar':'Ativar')}</button>`+
       `<button class="btn" onclick="abrirModeloForm('${m.id}')">${dia?'Adicionar ou remover itens':'Editar'}</button>`:'')+`<button class="btn" onclick="fecharModal()">Fechar</button>`;
   const sc=manterScroll?$('m-body').scrollTop:0;
@@ -2952,7 +2955,8 @@ function renderUsers(){
   $('us-tabs').innerHTML=Object.keys(L).map(k=>`<button class="dimb ${uTab===k?'on':''}" onclick="uTab='${k}';renderUsers()">${L[k]}<span class="n">${grp[k].length}</span></button>`).join('');
   set('sub-us', `${n(grp.ativos.length)} ativos · ${n(grp.pendentes.length)} aguardando aprovação · ${n(grp.bloqueados.length)} bloqueados · checklists contados no período do filtro`);
   const cks=fCks(f,null,true); const porU={}; cks.forEach(c=>{ porU[c.usuario]=(porU[c.usuario]||0)+1; });
-  const lista=grp[uTab].slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const qU=nrm(($('qUs')||{}).value||''), qD=qU.replace(/\D/g,'');
+  const lista=grp[uTab].filter(u=>!qU||nrm([u.nome,u.unidade,CK.PAPEL[u.papel],u.especialidade].join(' ')).includes(qU)||(qD&&String(u.cpf||'').includes(qD))).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   $('body-us').innerHTML=lista.length?lista.map(u=>{ const ok=podeMexer(u), ehEu=u.id===EU.id;
     const papeis=['motorista','frota','admin'].concat(EU.papel==='master'&&u.papel==='master'?['master']:[]);
     const pend=u.status==='pendente', papelVis=pend&&u.papel_solicitado&&papeis.includes(u.papel_solicitado)?u.papel_solicitado:u.papel;
@@ -3004,7 +3008,7 @@ async function renderFatura(mk){
     </div>
     <div class="fat-tit"><h2><small>Fatura nº</small>${esc(ft.numero)}</h2>${chip(ft.status==='paga'?'Paga':'Em aberto', ft.status==='paga'?'#3BB33B':'#F4A100')}</div>
     <div class="fat-grid"><div>Cliente<b>${esc(cfg.cliente)}</b></div><div>Período de referência<b>${esc(ft.mes_nome)}</b></div><div>Emissão<b>${CK.fmtData(CK.iso(emissao))}</b></div><div>Vencimento<b>${CK.fmtData(ft.vencimento)}</b></div></div>
-    <table class="fat-tbl" data-no-sort><thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Unitário</th><th class="num">Valor</th></tr></thead><tbody>
+    <table class="fat-tbl"><thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Unitário</th><th class="num">Valor</th></tr></thead><tbody>
       ${itens.map(i=>`<tr><td>${esc(i[0])}</td><td class="num">${n(i[1])}</td><td class="num">${CK.brl(i[2])}</td><td class="num">${CK.brl(i[3])}</td></tr>`).join('')}
       <tr class="total"><td colspan="3">Total a pagar</td><td class="num">${CK.brl(ft.total)}</td></tr></tbody></table>
     <div class="fat-pix">

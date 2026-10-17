@@ -157,6 +157,7 @@ alter table ck_documentos enable row level security;
 alter table ck_modelos add column if not exists intervalo_km numeric, add column if not exists intervalo_h numeric;
 alter table ck_os add column if not exists pecas jsonb not null default '[]', add column if not exists condicao text check (condicao in ('apto','restricao')),
   add column if not exists condicao_obs text, add column if not exists executado_por uuid references ck_usuarios(id), add column if not exists executado_txt text;
+alter table ck_os add column if not exists os_externa text;   -- nº da OS no sistema de manutenção da Atual (17/10/2026)
 
 -- ── movimento ──
 create table if not exists ck_checklists (

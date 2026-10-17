@@ -159,7 +159,7 @@ begin
     'os', (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'ativo', o.ativo_id, 'item', o.item_id, 'crit', o.crit, 'prazo', o.prazo_h, 'bloqueia', o.bloqueia,
                 'abertura', o.abertura, 'limite', o.limite, 'limite_atual', o.limite_atual, 'status', o.status, 'checklist', o.checklist_id, 'obs', o.obs, 'foto', o.foto_path,
                 'aberta_por', o.aberta_por, 'responsavel', o.responsavel, 'execucao', o.execucao, 'reincidencias', o.reincidencias, 'retorno_de', o.retorno_de,
-                'fechada_em', o.fechada_em, 'fechada_por', o.fechada_por, 'solucao', o.solucao, 'pecas', o.pecas, 'condicao', o.condicao, 'condicao_obs', o.condicao_obs, 'executado_por', o.executado_por, 'executado_txt', o.executado_txt, 'foto_fech', o.foto_fech_path,
+                'fechada_em', o.fechada_em, 'fechada_por', o.fechada_por, 'solucao', o.solucao, 'pecas', o.pecas, 'condicao', o.condicao, 'condicao_obs', o.condicao_obs, 'executado_por', o.executado_por, 'executado_txt', o.executado_txt, 'os_externa', o.os_externa, 'foto_fech', o.foto_fech_path,
                 'fornecedor', o.fornecedor_id, 'custo', o.custo, 'doc', o.doc_path, 'doc_tipo', o.doc_tipo, 'doc_nome', o.doc_nome,
                 'eventos', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 't', e.tipo, 'por', e.por, 'txt', e.texto, 'dados', e.dados) order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id),
                 'reprog', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 'por', e.por, 'motivo', e.dados->>'motivo', 'novo_limite', e.dados->>'novo_limite') order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id and e.tipo = 'reprogramada'))
@@ -283,13 +283,13 @@ begin
   if sol is null and coalesce(p->>'foto', '') = '' then raise exception 'EVIDENCIA_OBRIGATORIA'; end if;
   if coalesce(p->>'condicao', '') not in ('apto','restricao') then raise exception 'CONDICAO_OBRIGATORIA'; end if;   -- NR-12 / cláusula 2.8 (16/10/2026)
   if p->>'condicao' = 'restricao' and ck_up(p->>'condicao_obs') is null then raise exception 'RESTRICAO_OBRIGATORIA'; end if;
-  if jsonb_array_length(coalesce(p->'pecas', '[]')) = 0 and not coalesce((p->>'sem_pecas')::boolean, false) then raise exception 'PECAS_OBRIGATORIAS'; end if;   -- foto da correção ou o que foi feito
+   -- foto da correção ou o que foi feito
   ex := coalesce(o.execucao, (p->>'execucao')::ck_execucao); if ex is null then raise exception 'INFORME_INTERNA_EXTERNA'; end if;
   if ex = 'externa' and p->>'fornecedor' is not null and not exists (select 1 from ck_fornecedores where id = (p->>'fornecedor')::uuid) then raise exception 'FORNECEDOR_INVALIDO'; end if;
   update ck_os set status = 'fechada', fechada_por = u.id, execucao = ex,
     pecas = (select coalesce(jsonb_agg(jsonb_build_object('desc', ck_up(x->>'desc'), 'ref', ck_up(x->>'ref'), 'origem', case when x->>'origem' = 'equivalente' then 'equivalente' else 'original' end)), '[]') from jsonb_array_elements(coalesce(p->'pecas','[]')) x where ck_up(x->>'desc') is not null),
     condicao = p->>'condicao', condicao_obs = case when p->>'condicao' = 'restricao' then ck_up(p->>'condicao_obs') end,
-    executado_por = nullif(p->>'executado_por','')::uuid, executado_txt = ck_up(p->>'executado_txt'), solucao = sol, foto_fech_path = nullif(p->>'foto', ''),
+    executado_por = nullif(p->>'executado_por','')::uuid, executado_txt = ck_up(p->>'executado_txt'), os_externa = ck_up(p->>'os_externa'), solucao = sol, foto_fech_path = nullif(p->>'foto', ''),
     fornecedor_id = case when ex = 'externa' then (p->>'fornecedor')::uuid end,
     custo = case when ex = 'externa' and (p->>'custo') ~ '^\d+(\.\d+)?$' then (p->>'custo')::numeric end,
     doc_path = case when ex = 'externa' then p#>>'{doc,path}' end, doc_tipo = case when ex = 'externa' and p#>>'{doc,tipo}' in ('nf','orcamento') then p#>>'{doc,tipo}' end,

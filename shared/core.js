@@ -859,7 +859,7 @@ var CK = (function(){
     var fid = null; if (d.foto && d.foto !== 'demo') { fid = uid('f'); db.fotos[fid] = d.foto; }
     o.status = 'fechada'; o.fechada_em = isoDT(new Date()); o.fechada_por = d.por; o.solucao = UP(d.solucao); o.custo = (o.execucao !== 'externa' || d.custo === '' || d.custo == null || isNaN(+d.custo)) ? null : +d.custo;   /* custo só no atendimento externo, opcional (Renan, 11/10/2026) */ o.foto_fech = fid || (d.foto ? 'demo' : null);
     o.fornecedor = ex === 'externa' ? (d.fornecedor || null) : null; o.doc = null; o.doc_tipo = null;
-    o.pecas = pc.pecas; o.condicao = cnd.condicao; o.condicao_obs = cnd.obs; o.executado_por = d.executado_por || null; o.executado_txt = d.executado_txt ? UP(d.executado_txt) : null;
+    o.pecas = pc.pecas; o.condicao = cnd.condicao; o.condicao_obs = cnd.obs; o.executado_por = d.executado_por || null; o.executado_txt = d.executado_txt ? UP(d.executado_txt) : null; o.os_externa = d.os_externa ? UP(d.os_externa) : null;
     if (ex === 'externa' && d.doc && d.doc.data) { var aid = uid('a'); db.anexos = db.anexos || {}; db.anexos[aid] = { nome:d.doc.nome || 'anexo', mime:d.doc.mime || '', data:d.doc.data }; o.doc = aid; o.doc_tipo = d.doc_tipo === 'orcamento' ? 'orcamento' : 'nf'; }
     o.eventos.push({ q:o.fechada_em, t:'fechada', por:d.por, txt:o.solucao }); save(); return { ok:true, os:o };
   }
@@ -867,7 +867,7 @@ var CK = (function(){
   var CONDICAO = { apto:'APTO · LIBERADO PARA OPERAR', restricao:'APTO COM RESTRIÇÃO' };
   function ckCondicao(d){ if (!CONDICAO[d.condicao]) return { erro:'Informe a condição de segurança do ativo após o serviço.' }; if (d.condicao === 'restricao' && !String(d.condicao_obs || '').trim()) return { erro:'Descreva a restrição.' }; return { condicao:d.condicao, obs: d.condicao === 'restricao' ? UP(d.condicao_obs) : null }; }
   function ckPecas(d){ var l = (d.pecas || []).filter(function(p){ return p && String(p.desc || '').trim(); }).map(function(p){ return { desc:UP(p.desc), ref:UP(p.ref), origem: p.origem === 'equivalente' ? 'equivalente' : 'original' }; });
-    if (!l.length && !d.sem_pecas) return { erro:'Informe as peças substituídas ou marque que não houve troca de peças.' }; return { pecas:l }; }
+    return { pecas:l }; }   /* peças opcionais: o sistema de manutenção da Atual já registra (Renan, 17/10/2026) */
   function osReprogramar(id, d){
     var o = osPorId(id); if (!o || o.status === 'fechada') return { ok:false, erro:'OS já fechada.' };
     if (!d.motivo) return { ok:false, erro:'Informe o motivo da reprogramação.' };

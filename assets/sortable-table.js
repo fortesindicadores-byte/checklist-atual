@@ -88,6 +88,14 @@
     return null;
   }
 
+  /* tabela agrupada (data-agrupada): ao ordenar, as linhas de grupo somem e a lista fica corrida; o 3º clique
+     volta ao agrupado original (Checklist Atual, 17/10/2026: 'todas as tabelas devem ordenar') */
+  function ehGrupo(tr){ return /\b(pac-row|md-cat|st-grupo)\b/.test(tr.className); }
+  function snapshot(table){ const tb = table.tBodies[table.tBodies.length-1]; if(!tb) return; table.__stOrig = Array.from(tb.rows).map(r=>({r, cls:r.className, disp:r.style.display})); }
+  function restaura(table){ const tb = table.tBodies[table.tBodies.length-1]; if(!tb || !table.__stOrig) return;
+    table.__stSorting = true; const frag = document.createDocumentFragment();
+    table.__stOrig.forEach(o=>{ o.r.className = o.cls; o.r.style.display = o.disp; frag.appendChild(o.r); }); tb.appendChild(frag);
+    table.__stOrig = null; queueMicrotask(()=>{ table.__stSorting = false; }); }
   function isExcludedRow(tr){
     if(/\btotal\b|\bsubtotal\b/i.test(tr.className)) return true;
     const cells = tr.children;
@@ -101,7 +109,10 @@
     const headerRow = getHeaderRow(table);
     const allRows = Array.from(tbody.rows);
     const skip = new Set();
-    allRows.forEach(r=>{ if(r===headerRow || isExcludedRow(r)) skip.add(r); });
+    const agr = table.hasAttribute('data-agrupada');
+    if(agr && !table.__stOrig) snapshot(table);
+    const grupos = agr ? allRows.filter(ehGrupo) : [];
+    allRows.forEach(r=>{ if(r===headerRow || isExcludedRow(r) || grupos.includes(r)) skip.add(r); });
     const totalRows = allRows.filter(r=>skip.has(r) && r!==headerRow && /\btotal\b|\bsubtotal\b/i.test(r.className));
     const placeholderRows = allRows.filter(r=>skip.has(r) && r!==headerRow && !/\btotal\b|\bsubtotal\b/i.test(r.className));
     const dataRows = allRows.filter(r=>!skip.has(r));
@@ -118,7 +129,8 @@
 
     table.__stSorting = true;
     const frag = document.createDocumentFragment();
-    withKey.forEach(x=>frag.appendChild(x.r));
+    withKey.forEach(x=>{ if(agr){ x.r.classList.add('show'); x.r.style.display=''; } frag.appendChild(x.r); });
+    grupos.forEach(r=>{ r.style.display='none'; frag.appendChild(r); });
     placeholderRows.forEach(r=>frag.appendChild(r));
     totalRows.forEach(r=>frag.appendChild(r));
     tbody.appendChild(frag);
@@ -134,6 +146,9 @@
   function onHeaderClick(table, th){
     const headerRow = th.parentElement;
     const wasAsc = th.classList.contains('st-active') && th.classList.contains('st-asc');
+    if(table.hasAttribute('data-agrupada') && th.classList.contains('st-active') && th.classList.contains('st-desc')){
+      clearActive(headerRow, null); table.__stActive = null; restaura(table); return;   /* 3º clique: volta ao agrupado */
+    }
     const dir = wasAsc ? -1 : 1;
     clearActive(headerRow, th);
     th.classList.add('st-active');
@@ -230,6 +245,7 @@
       table.__stObserved = true;
       const obs = new MutationObserver(()=>{
         if(table.__stSorting) return;
+        table.__stOrig = null;   /* conteúdo novo: a ordem original passa a ser a do re-render */
         alinhaCabecalhos(table);
         const hr = getHeaderRow(table);
         if(hr) Array.from(hr.children).forEach(th=>{ if(th.tagName==='TH') wireHeader(table, th); });
