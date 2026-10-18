@@ -1325,7 +1325,9 @@ function renderResultadoPrev(rp){
     + '<b>Preventiva concluída' + (pend.length ? ' com ' + plural(pend.length, 'pendência', 'pendências') : '') + '</b>'
     + '<span>' + esc(nomeAt(a)) + '</span><span>' + esc(nomeModelo(modeloDoCk(ck))) + ' · ' + CK.fmtDH(ck.data) + (o ? ' · ' + esc(o.id) + ' fechada' : '') + '</span></div>';
   h += '<div class="res-nums"><div class="n"><b class="pos">' + ((ck.tarefas || []).length - pend.length) + '</b><span>feitas</span></div><div class="n"><b class="' + (pend.length ? 'neg' : '') + '">' + pend.length + '</b><span>pendentes</span></div></div>';
-  if (pend.length) h += '<div class="sec">Ficaram pendentes</div>' + pend.map(function(t){ var it = CK.ITEM[t.item]; return linha(CK.ICONES.wrench, esc(it ? it.nome : t.item), 'registrado na ' + esc(o ? o.id : 'OS'), null, '', '', '', ''); }).join('');
+  var pOS = rp.os_pendentes || [];
+  if (pend.length) h += '<div class="sec">Ficaram pendentes · viram OS para a frota</div>' + pend.map(function(t){ var it = CK.ITEM[t.item], x = pOS.filter(function(z){ return z.item === t.item; })[0];
+    return linha(CK.ICONES.wrench, esc(it ? it.nome : t.item), x ? esc(x.id) + ' aberta · prazo ' + CK.prazoTxt(x.prazo_h) : 'já havia OS aberta para este item', null, '', '', '', ''); }).join('');
   h += '<button class="btn" onclick="irPara(\'inspecoes\')">Voltar aos checklists</button>';
   $('v-result').innerHTML = h;
 }

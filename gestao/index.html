@@ -1559,7 +1559,7 @@ function mtbfPor(dim,f){
   const m={}, g=k=>m[k]||(m[k]={falhas:0,ativos:new Set(),nd:0,sd:0,ds:[],nkm:0,skm:0,nh:0,sh:0});
   const key=(o,a)=>dim==='total'?'T':dim==='unidade'?a.unidade:dim==='tipo'?a.tipo:dim==='ativo'?a.id:dim==='item'?o.item:dim==='cat'?((CK.ITEM[o.item]||{}).cat||'—'):o.crit;
   const seq={};
-  fOS(f,null,true).forEach(o=>{ const a=ATV[o.ativo]; if(!a) return; const k=key(o,a), s=g(k); s.falhas++; s.ativos.add(a.id);
+  fOS(f,null,true).filter(o=>!o.pend_de).forEach(o=>{ const a=ATV[o.ativo]; if(!a) return; const k=key(o,a), s=g(k); s.falhas++; s.ativos.add(a.id);   /* pendência de preventiva não é falha */
     const sk=k+'|'+a.id; (seq[sk]=seq[sk]||{k,a,l:[]}).l.push(o); });
   Object.values(seq).forEach(({k,a,l})=>{ l.sort((x,y)=>x.abertura<y.abertura?-1:1); const s=m[k];
     // várias OS abertas pelo mesmo checklist são o mesmo evento de quebra: o intervalo conta entre eventos distintos
@@ -1887,6 +1887,7 @@ function abrirOS(id){
     `<span>Checklist</span><b>${ck?`<a class="lnk" onclick="abrirCk('${ck.id}')">${CK.fmtDH(ck.data)}</a> por ${esc(nomeU(ck.usuario))}`:'—'}</b>`+
     (ck?`<span>Tipo</span><b>${ckInsp(ck)?(()=>{ const c=CK.CATCK[CK.catDe(MOD[ckMod(ck)])||'inspecao']||CK.CATCK.inspecao, nm=modNome(ck); return (nrm(nm).startsWith(nrm(c.nome).slice(0,5))?'':c.nome+' · ')+esc(nm); })():'Checklist diário'}</b>`:'')+
     `<span>Aberta por</span><b>${esc(nomeU(o.aberta_por))} em ${CK.fmtDH(o.abertura)}</b>`+
+    (o.pend_de?`<span>Origem</span><b>Tarefa pendente da preventiva <a class="lnk" onclick="abrirOS('${o.pend_de}')">${o.pend_de}</a></b>`:'')+
     (o.retorno_de?`<span>Retorno de</span><b><a class="lnk" onclick="abrirOS('${o.retorno_de}')">${o.retorno_de}</a> <span class="ctx">(fechada há menos de 30 dias)</span></b>`:'')+
     (o.reincidencias?`<span>Reincidências</span><b class="ca">${o.reincidencias} vez(es) reprovado de novo enquanto aberta</b>`:'')+`</div>`+
     `<div class="d-sec">Atributos do item</div><div class="chips">${chip('Criticidade: '+CK.CRIT[o.crit].nome, CK.CRIT[o.crit].cor)}${chip('Prazo: '+CK.prazoTxt(o.prazo_h))}${chip(o.bloqueia?'Bloqueia o ativo':'Não bloqueia', o.bloqueia?'#FF5252':null)}</div>`+

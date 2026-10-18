@@ -909,8 +909,17 @@ var CK = (function(){
     o.status = 'fechada'; o.fechada_em = q; o.fechada_por = d.usuario; o.checklist = ck.id; o.checklists = [ck.id];
     o.condicao = cnd.condicao; o.condicao_obs = cnd.obs; o.executado_por = d.usuario; o.pecas = [];
     o.solucao = UP(feitas + ' DE ' + tarefas.length + ' TAREFAS FEITAS' + (pend.length ? ' · PENDENTE: ' + pend.map(function(t){ return ITEM[t.item] ? ITEM[t.item].nome : t.item; }).join(', ') : '') + (d.obs ? ' · ' + d.obs : ''));
-    o.eventos.push({ q:q, t:'fechada', por:d.usuario, txt:o.solucao }); save();
-    return { ok:true, checklist:ck, os:o };
+    o.eventos.push({ q:q, t:'fechada', por:d.usuario, txt:o.solucao });
+    /* tarefa não feita vira OS própria, com prazo e criticidade do item (Renan, 17/10/2026) */
+    var novas = [];
+    pend.forEach(function(t){ var it = ITEM[t.item]; if (!it) return;
+      if (db.os.some(function(x){ return x.ativo === o.ativo && x.item === it.id && (x.status === 'aberta' || x.status === 'em_andamento'); })) return;
+      var n = { id:'OS-' + String(proxNumOS(db)).padStart(4,'0'), ativo:o.ativo, item:it.id, crit:it.crit, prazo_h:it.prazo, bloqueia:!!it.bloqueia, abertura:q, limite:addH(q, it.prazo), limite_atual:null,
+        status:'aberta', checklists:[ck.id], checklist:ck.id, obs:UP('Tarefa pendente da preventiva ' + o.id), foto:null, aberta_por:d.usuario, responsavel:null, execucao:null,
+        reincidencias:0, retorno_de:null, pend_de:o.id, reprog:[], eventos:[{ q:q, t:'aberta', por:d.usuario, txt:UP('Tarefa pendente da preventiva ' + o.id) }] };
+      db.os.push(n); novas.push(n); });
+    save();
+    return { ok:true, checklist:ck, os:o, os_pendentes:novas };
   }
   function checklistExcluir(id, por, motivo){ var db = load(), c = db.checklists.filter(function(x){ return x.id === id; })[0]; if (!c) return { ok:false, erro:'Checklist não encontrado.' }; var u = usuario(por); if (!u || u.papel !== 'master') return { ok:false, erro:'Só o admin master exclui checklists.' };
     db.checklists = db.checklists.filter(function(x){ return x.id !== id; }); db.os = db.os.filter(function(o){ return o.checklist !== id && (o.checklists || []).indexOf(id) < 0; }); save(); return { ok:true }; }

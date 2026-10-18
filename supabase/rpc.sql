@@ -159,7 +159,7 @@ begin
     'os', (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'ativo', o.ativo_id, 'item', o.item_id, 'crit', o.crit, 'prazo', o.prazo_h, 'bloqueia', o.bloqueia,
                 'abertura', o.abertura, 'limite', o.limite, 'limite_atual', o.limite_atual, 'status', o.status, 'checklist', o.checklist_id, 'obs', o.obs, 'foto', o.foto_path,
                 'aberta_por', o.aberta_por, 'responsavel', o.responsavel, 'execucao', o.execucao, 'reincidencias', o.reincidencias, 'retorno_de', o.retorno_de,
-                'fechada_em', o.fechada_em, 'fechada_por', o.fechada_por, 'solucao', o.solucao, 'pecas', o.pecas, 'condicao', o.condicao, 'condicao_obs', o.condicao_obs, 'executado_por', o.executado_por, 'executado_txt', o.executado_txt, 'os_externa', o.os_externa, 'foto_fech', o.foto_fech_path,
+                'fechada_em', o.fechada_em, 'fechada_por', o.fechada_por, 'solucao', o.solucao, 'pecas', o.pecas, 'condicao', o.condicao, 'condicao_obs', o.condicao_obs, 'executado_por', o.executado_por, 'executado_txt', o.executado_txt, 'os_externa', o.os_externa, 'pend_de', o.pend_de, 'foto_fech', o.foto_fech_path,
                 'fornecedor', o.fornecedor_id, 'custo', o.custo, 'doc', o.doc_path, 'doc_tipo', o.doc_tipo, 'doc_nome', o.doc_nome,
                 'eventos', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 't', e.tipo, 'por', e.por, 'txt', e.texto, 'dados', e.dados) order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id),
                 'reprog', (select coalesce(jsonb_agg(jsonb_build_object('q', e.quando, 'por', e.por, 'motivo', e.dados->>'motivo', 'novo_limite', e.dados->>'novo_limite') order by e.quando), '[]') from ck_os_eventos e where e.os_id = o.id and e.tipo = 'reprogramada'))
@@ -340,7 +340,7 @@ end $$;
 -- p = {cliente_id?, tarefas:[{item, feito}], leitura?, duracao_s?, obs?}
 create or replace function ck_preventiva_finalizar(p_token uuid, p_os int, p jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare u ck_usuarios := ck_sessao(p_token); o ck_os; cid uuid; t jsonb; tot int := 0; feitas int := 0; pend text[] := '{}'; sol text;
+declare u ck_usuarios := ck_sessao(p_token); o ck_os; cid uuid; t jsonb; tot int := 0; feitas int := 0; pend text[] := '{}'; sol text; it ck_itens; nid int; novas int[] := '{}';
 begin
   perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
   select * into o from ck_os where id = p_os; if o.id is null or o.item_id not like 'prev-%' then raise exception 'OS_NAO_ENCONTRADA'; end if;
@@ -360,8 +360,17 @@ begin
   update ck_os set status = 'fechada', fechada_por = u.id, solucao = sol, checklist_id = cid, condicao = p->>'condicao',
     condicao_obs = case when p->>'condicao' = 'restricao' then ck_up(p->>'condicao_obs') end, executado_por = u.id where id = p_os;
   insert into ck_os_eventos (os_id, tipo, por, texto) values (p_os, 'fechada', u.id, sol);
+  -- tarefa não feita vira OS própria (17/10/2026)
+  for t in select x from jsonb_array_elements(coalesce(p->'tarefas', '[]')) x where not coalesce((x->>'feito')::boolean, false) loop
+    select * into it from ck_itens where id = t->>'item'; continue when it.id is null;
+    continue when exists (select 1 from ck_os where ativo_id = o.ativo_id and item_id = it.id and status in ('aberta','em_andamento'));
+    insert into ck_os (ativo_id, item_id, crit, prazo_h, bloqueia, limite, checklist_id, obs, aberta_por, pend_de)
+    values (o.ativo_id, it.id, it.crit, it.prazo_h, it.bloqueia, now() + (it.prazo_h || ' hours')::interval, cid, 'TAREFA PENDENTE DA PREVENTIVA OS-' || lpad(p_os::text, 4, '0'), u.id, p_os) returning id into nid;
+    insert into ck_os_eventos (os_id, tipo, por, texto) values (nid, 'aberta', u.id, 'TAREFA PENDENTE DA PREVENTIVA OS-' || lpad(p_os::text, 4, '0'));
+    novas := novas || nid;
+  end loop;
   insert into ck_log (usuario_id, evento, origem) values (u.id, 'checklist', 'app');
-  return jsonb_build_object('ok', true, 'id', cid, 'os', p_os);
+  return jsonb_build_object('ok', true, 'id', cid, 'os', p_os, 'pendentes', novas);
 end $$;
 
 -- excluir checklist (SÓ master): marca cancelado (some do dataset e dos indicadores), cancela as OS que ele abriu; tudo na auditoria (Renan, 12/10/2026)
