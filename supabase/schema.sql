@@ -17,7 +17,7 @@ do $$ begin
   create type ck_resposta as enum ('ok','nc','nf');                        -- nf = tarefa de preventiva não feita (12/10/2026)                             -- sem N/A: o motorista só vê itens do ativo
   create type ck_execucao as enum ('interna','externa');
   create type ck_cat_modelo as enum ('inspecao','preventivo','preditivo');
-  create type ck_freq as enum ('diario','semanal','quinzenal','mensal','livre','uso');   -- livre = sob demanda · uso = por km/horímetro (16/10/2026)
+  create type ck_freq as enum ('diario','semanal','quinzenal','mensal','semestral','livre','uso');   -- livre = sob demanda · uso = por km/horímetro (16/10/2026) · semestral (19/10/2026)
 exception when duplicate_object then null; end $$;
 
 -- ── cadastros ──
@@ -67,7 +67,7 @@ create table if not exists ck_modelos (               -- checklists da EQUIPE: i
   origem     text not null default 'manual' check (origem in ('manual','planilha')),
   criado_em  timestamptz not null default now(),
   criado_por uuid,
-  check (categoria <> 'inspecao' or freq in ('semanal','quinzenal','mensal'))
+  check (categoria <> 'inspecao' or freq in ('semanal','quinzenal','mensal','semestral','uso'))
 );
 create table if not exists ck_modelos_itens (
   modelo_id text references ck_modelos(id) on delete cascade,

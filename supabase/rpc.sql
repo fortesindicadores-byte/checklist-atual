@@ -553,7 +553,7 @@ declare u ck_usuarios := ck_sessao(p_token); mid text := p->>'id'; antes ck_mode
 begin
   perform ck_exige(u, array['master','admin']::ck_papel[]);
   cat := coalesce((p->>'categoria')::ck_cat_modelo, 'inspecao'); fq := (p->>'freq')::ck_freq;
-  if cat = 'inspecao' and fq not in ('semanal','quinzenal','mensal','uso') then raise exception 'FREQUENCIA_INVALIDA'; end if;
+  if cat = 'inspecao' and fq not in ('semanal','quinzenal','mensal','semestral','uso') then raise exception 'FREQUENCIA_INVALIDA'; end if;
   if fq = 'uso' and coalesce((p->>'intervalo_km')::numeric, 0) <= 0 and coalesce((p->>'intervalo_h')::numeric, 0) <= 0 then raise exception 'INTERVALO_OBRIGATORIO'; end if;
   if cat <> 'inspecao' and fq = 'diario' then raise exception 'FREQUENCIA_INVALIDA'; end if;
   for n in select x from jsonb_array_elements(coalesce(p->'novos', '[]')) x loop                       -- itens novos só de inspeção

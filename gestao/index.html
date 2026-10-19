@@ -2732,7 +2732,7 @@ function wzIr(d){
 function wzDados(){
   const cnt={}; DB.ativos.forEach(a=>{ if(a.status==='ativo') cnt[a.tipo]=(cnt[a.tipo]||0)+1; });
   const CAT_TXT={inspecao:'Periódica, para manter os ativos em dia',preventivo:'Os mecânicos fazem na preventiva interna',preditivo:'A frota faz quando julgar importante'};
-  const fs=W.categoria==='inspecao'?['semanal','quinzenal','mensal','uso']:['livre','semanal','quinzenal','mensal','uso'];
+  const fs=W.categoria==='inspecao'?['semanal','quinzenal','mensal','semestral','uso']:['livre','semanal','quinzenal','mensal','semestral','uso'];
   return `<div class="fld"><label>Nome do checklist</label><input class="inp wz-nome" id="wzNome" value="${esc(W.nome)}" placeholder="Ex.: Inspeção mensal · Reboques" oninput="W.nome=this.value;$('wzErrNome').textContent=''"><div class="erro" id="wzErrNome"></div></div>`+
     `<div class="fld"><label>Tipo do checklist <span class="ctx">· todos são feitos pela equipe no app; o motorista não vê</span></label><div class="seg">`+
       Object.keys(CK.CATCK).map(k=>`<button type="button" class="${W.categoria===k?'on':''}" onclick="wzCatSel('${k}')">${CK.CATCK[k].nome}</button>`).join('')+`</div><div class="ctx" style="font-size:10.5px;margin-top:5px">${CAT_TXT[W.categoria]}</div></div>`+
@@ -2880,7 +2880,7 @@ async function baixarTemplate(){
   const ex=CK.modeloCsvTemplate().split(/\r?\n/).slice(1).map(l=>{ const c=l.split(';'); return [c[0],c[1],CRIT_TXT[c[2]]||c[2],+c[3]||c[3],/^s/i.test(c[4])?'Sim':'Não']; });
   const ws1=X.utils.aoa_to_sheet([['Nome do checklist',''],['Tipo do checklist','Inspeção'],['Frequência','Semanal'],['Tipos de ativo','Retroescavadeira, Escavadeira'],[],['Categoria','Item','Criticidade','Prazo (horas)','Bloqueia']].concat(ex));
   ws1['!cols']=[{wch:26},{wch:52},{wch:14},{wch:14},{wch:10}];
-  const L=[catsCatalogo(),Object.values(CRIT_TXT),['Sim','Não'],['semanal','quinzenal','mensal','livre'].map(k=>CK.FREQ[k].nome),CK.TIPOS.map(t=>t.nome),Object.values(CK.CATCK).map(c=>c.nome)], mx=Math.max(...L.map(l=>l.length));
+  const L=[catsCatalogo(),Object.values(CRIT_TXT),['Sim','Não'],['semanal','quinzenal','mensal','semestral','livre'].map(k=>CK.FREQ[k].nome),CK.TIPOS.map(t=>t.nome),Object.values(CK.CATCK).map(c=>c.nome)], mx=Math.max(...L.map(l=>l.length));
   const ws2=X.utils.aoa_to_sheet([['Categoria','Criticidade','Bloqueia','Frequência','Tipos de ativo','Tipo do checklist']].concat(Array.from({length:mx},(_,i)=>L.map(l=>l[i]||''))));
   ws2['!cols']=[{wch:28},{wch:13},{wch:10},{wch:14},{wch:22},{wch:18}];
   const ws3=X.utils.aoa_to_sheet([['Categoria','Item','Criticidade','Prazo (horas)','Bloqueia','Só inspeção']].concat(
@@ -2908,7 +2908,7 @@ function lerXlsxModelo(X,wb){
   const meta={};
   rows.slice(0,hi).forEach(r=>{ const k=nrm(r[0]), v=r[1]||''; if(!v) return;
     if(k.startsWith('nome')) meta.nome=v;
-    else if(k.startsWith('frequ')){ const f=['semanal','quinzenal','mensal'].find(x=>nrm(v).startsWith(x.slice(0,4)))||(nrm(v).startsWith('sob')?'livre':null); if(f) meta.freq=f; }
+    else if(k.startsWith('frequ')){ const f=['semanal','quinzenal','mensal','semestral'].find(x=>nrm(v).startsWith(x.slice(0,4)))||(nrm(v).startsWith('sob')?'livre':null); if(f) meta.freq=f; }
     else if(k.startsWith('tipo do')){ const c=Object.keys(CK.CATCK).find(x=>nrm(CK.CATCK[x].nome)===nrm(v)||x===nrm(v)); if(c) meta.categoria=c; }
     else if(k.startsWith('tipo')) meta.tipos=v.split(/[,;\n]/).map(t=>nrm(t.trim())).filter(Boolean).map(t=>{ const x=CK.TIPOS.find(T=>nrm(T.nome)===t||nrm(T.id)===t||nrm(TIPO_CURTO[T.id]||'')===t); return x?x.id:null; }).filter(Boolean); });
   const h=rows[hi].map(nrm), col=p=>h.findIndex(c=>c.startsWith(p)), ix={c:col('categ'),i:h.indexOf('item'),k:col('critic'),p:col('prazo'),b:col('bloq')};

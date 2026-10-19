@@ -226,14 +226,14 @@ var CK = (function(){
   /* ── MODELOS DE CHECKLIST ("Tipos de checklist", Renan 11/10/2026) ──
      Diários: um por tipo de ativo, gerados do catálogo (Itens e SLA) — executados pelo motorista.
      Inspeções: criados pelo admin (semanal/quinzenal/mensal), executados SÓ pela equipe (admin e frota), nunca pelo motorista. */
-  var FREQ = { diario:{ nome:'DIÁRIO', dias:1 }, semanal:{ nome:'SEMANAL', dias:7 }, quinzenal:{ nome:'QUINZENAL', dias:15 }, mensal:{ nome:'MENSAL', dias:30 }, livre:{ nome:'SOB DEMANDA', dias:null }, uso:{ nome:'POR USO (KM / HORAS)', dias:null, uso:true } };   /* uso = plano do fabricante (Renan, 16/10/2026) */
+  var FREQ = { diario:{ nome:'DIÁRIO', dias:1 }, semanal:{ nome:'SEMANAL', dias:7 }, quinzenal:{ nome:'QUINZENAL', dias:15 }, mensal:{ nome:'MENSAL', dias:30 }, semestral:{ nome:'SEMESTRAL', dias:180 }, livre:{ nome:'SOB DEMANDA', dias:null }, uso:{ nome:'POR USO (KM / HORAS)', dias:null, uso:true } };   /* uso = plano do fabricante (Renan, 16/10/2026) */
   /* tipos de checklist da equipe (Renan, 12/10/2026): inspeção (periódica), preventivo (mecânicos na preventiva interna) e preditivo (a frota decide quando);
      preventivo e preditivo podem ser sob demanda (sem periodicidade) */
   var CATCK = { inspecao:{ nome:'INSPEÇÃO', plural:'INSPEÇÕES', quem:'admin e frota · o motorista não vê' },
                 preventivo:{ nome:'PREVENTIVO', plural:'PREVENTIVOS', quem:'mecânicos, na preventiva interna' },
                 preditivo:{ nome:'PREDITIVO', plural:'PREDITIVOS', quem:'frota, quando julgar importante' } };
   function catDe(m){ return !m ? null : m.freq === 'diario' ? 'diario' : (CATCK[m.categoria] ? m.categoria : 'inspecao'); }
-  function freqOk(cat, f){ return cat === 'inspecao' ? ['semanal','quinzenal','mensal','uso'].indexOf(f) >= 0 : ['livre','semanal','quinzenal','mensal','uso'].indexOf(f) >= 0; }
+  function freqOk(cat, f){ return cat === 'inspecao' ? ['semanal','quinzenal','mensal','semestral','uso'].indexOf(f) >= 0 : ['livre','semanal','quinzenal','mensal','semestral','uso'].indexOf(f) >= 0; }
   /* texto da frequência: 'QUINZENAL · a cada 15 dias', 'POR USO · a cada 10.000 km / 250 h', 'SOB DEMANDA' */
   function freqTxt(m){ if (!m) return ''; var f = FREQ[m.freq] || {}; if (m.freq === 'uso') { var p = []; if (m.intervalo_km) p.push(Number(m.intervalo_km).toLocaleString('pt-BR') + ' km'); if (m.intervalo_h) p.push(Number(m.intervalo_h).toLocaleString('pt-BR') + ' h'); return 'POR USO' + (p.length ? ' · a cada ' + p.join(' / ') : ''); } return f.dias ? f.nome + ' · a cada ' + f.dias + ' dias' : (f.nome || m.freq); }
   /* diário de um tipo pode ser desligado pelo admin (Renan, 11/10/2026): o motorista deixa de ter checklist nesses ativos */
@@ -253,7 +253,7 @@ var CK = (function(){
     var db = load(); var nome = UP(d.nome);
     if (!nome) return { ok:false, erro:'Dê um nome ao checklist.' };
     var cat = CATCK[d.categoria] ? d.categoria : 'inspecao';
-    if (!freqOk(cat, d.freq)) return { ok:false, erro: cat === 'inspecao' ? 'Escolha a frequência (semanal, quinzenal ou mensal).' : 'Escolha a frequência (sob demanda, semanal, quinzenal ou mensal).' };
+    if (!freqOk(cat, d.freq)) return { ok:false, erro: cat === 'inspecao' ? 'Escolha a frequência (semanal, quinzenal, mensal ou semestral).' : 'Escolha a frequência (sob demanda, semanal, quinzenal, mensal ou semestral).' };
     if (!d.tipos || !d.tipos.length) return { ok:false, erro:'Escolha ao menos um tipo de ativo.' };
     db.itens_extra = db.itens_extra || [];
     var novos = (d.novos || []).filter(function(n){ return n && String(n.nome || '').trim(); }).map(function(n){
