@@ -721,11 +721,12 @@ var CK = (function(){
   function migraSeguranca(){   /* despacho MPT (16/10/2026): inspeção de transmissão, freios e direção dos pesados (mensal, 19/10) + preditivo */
     if (DB.seg_transm && DB.pred_oleo) return; DB.modelos = DB.modelos || [];
     if (!DB.pred_oleo) { DB.pred_oleo = true;
-      var ms = DB.modelos.filter(function(m){ return m.id === 'm-seg-pesados'; })[0]; if (ms) { ms.freq = 'mensal'; ms.nome = 'INSPEÇÃO MENSAL · TRANSMISSÃO, FREIOS E DIREÇÃO'; }
-      DB.modelos.push({ id:'m-pred-oleo', nome:'PREDITIVO · ANÁLISE DE ÓLEO E TERMOGRAFIA', categoria:'preditivo', freq:'uso', intervalo_km:10000, intervalo_h:250, exec:'equipe',
+      var ms = DB.modelos.filter(function(m){ return m.id === 'm-seg-pesados'; })[0]; if (ms) { ms.freq = 'mensal'; ms.nome = 'TRANSMISSÃO, FREIOS E DIREÇÃO'; }
+      DB.modelos.push({ id:'m-pred-oleo', nome:'ANÁLISE DE ÓLEO E TERMOGRAFIA', categoria:'preditivo', freq:'uso', intervalo_km:10000, intervalo_h:250, exec:'equipe',
         tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG','RETRO','ESCAV','MINI','CARREG','MOTO','ROLO','VIBRO'], itens:['i-amost','i-amosth','i-amostd','i-termo'], sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:null, origem:'manual' }); }
+    DB.modelos.forEach(function(m){ if (m.id === 'm-seg-pesados') m.nome = 'TRANSMISSÃO, FREIOS E DIREÇÃO'; if (m.id === 'm-pred-oleo') m.nome = 'ANÁLISE DE ÓLEO E TERMOGRAFIA'; });   /* sem frequência/tipo no nome (Renan, 19/10) */
     if (DB.seg_transm) { save(); return; } DB.seg_transm = true;
-    DB.modelos.push({ id:'m-seg-pesados', nome:'INSPEÇÃO MENSAL · TRANSMISSÃO, FREIOS E DIREÇÃO', categoria:'inspecao', freq:'mensal', exec:'equipe', tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG'],
+    DB.modelos.push({ id:'m-seg-pesados', nome:'TRANSMISSÃO, FREIOS E DIREÇÃO', categoria:'inspecao', freq:'mensal', exec:'equipe', tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG'],
       itens:['i-cardan','i-difer','i-direc','i-lonas','i-ar','i-torque','i-rolam'], sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:null, origem:'manual' });
     save();
   }
