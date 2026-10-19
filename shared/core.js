@@ -186,6 +186,9 @@ var CK = (function(){
     { id:'i-cardan', cat:'TRANSMISSÃO',      nome:'EIXO CARDÃ, CRUZETAS E FLANGES',      dica:'Veículo parado e calçado: folga nas cruzetas, fixação dos parafusos dos flanges, mancal central e lubrificação.', ex:'Folga na cruzeta traseira', crit:'critica', prazo:24, bloqueia:true, ap:[], insp:true },
     { id:'i-difer',  cat:'TRANSMISSÃO',      nome:'DIFERENCIAL',                         dica:'Nível de óleo, vazamentos e ruído.',                     ex:'Vazamento no retentor do pinhão',       crit:'alta',    prazo:48,  bloqueia:false, ap:[], insp:true },
     { id:'i-direc',  cat:'FREIOS E DIREÇÃO', nome:'TERMINAIS E BARRA DE DIREÇÃO',        dica:'Com a frente levantada: folga em terminais, barras e caixa de direção.', ex:'Folga no terminal esquerdo', crit:'critica', prazo:24, bloqueia:true, ap:[], insp:true },
+    { id:'i-amosth', cat:'SISTEMA HIDRÁULICO', nome:'AMOSTRA DE ÓLEO HIDRÁULICO',     dica:'Coleta para análise em laboratório (viscosidade, contaminação, desgaste).', ex:'Amostra coletada e enviada', crit:'baixa', prazo:168, bloqueia:false, ap:[], insp:true },
+    { id:'i-amostd', cat:'TRANSMISSÃO',        nome:'AMOSTRA DE ÓLEO DO DIFERENCIAL E CÂMBIO', dica:'Coleta para análise de partículas de desgaste.', ex:'Amostra coletada e enviada', crit:'baixa', prazo:168, bloqueia:false, ap:[], insp:true },
+    { id:'i-termo',  cat:'ELÉTRICA',           nome:'TERMOGRAFIA (CUBOS, FREIOS E ELÉTRICA)', dica:'Imagem térmica de cubos de roda, tambores/discos e painel elétrico; registrar pontos quentes.', ex:'Cubo traseiro direito 20 °C acima dos demais', crit:'alta', prazo:72, bloqueia:false, ap:[], insp:true },
     { id:'i-extval', cat:'DOCUMENTAÇÃO E SEGURANÇA', nome:'EXTINTOR · VALIDADE E RECARGA', dica:'Etiqueta de recarga e validade.',                     ex:'Recarga vence em 30 dias',              crit:'alta',    prazo:168, bloqueia:true,  ap:[], insp:true }
   ];
   ITENS_INSP.forEach(function(i){ ITENS.push(i); });
@@ -715,9 +718,14 @@ var CK = (function(){
     });
     save();
   }
-  function migraSeguranca(){   /* despacho MPT (16/10/2026): inspeção quinzenal de transmissão, freios e direção dos pesados */
-    if (DB.seg_transm) return; DB.seg_transm = true; DB.modelos = DB.modelos || [];
-    DB.modelos.push({ id:'m-seg-pesados', nome:'INSPEÇÃO QUINZENAL · TRANSMISSÃO, FREIOS E DIREÇÃO', categoria:'inspecao', freq:'quinzenal', exec:'equipe', tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG'],
+  function migraSeguranca(){   /* despacho MPT (16/10/2026): inspeção de transmissão, freios e direção dos pesados (mensal, 19/10) + preditivo */
+    if (DB.seg_transm && DB.pred_oleo) return; DB.modelos = DB.modelos || [];
+    if (!DB.pred_oleo) { DB.pred_oleo = true;
+      var ms = DB.modelos.filter(function(m){ return m.id === 'm-seg-pesados'; })[0]; if (ms) { ms.freq = 'mensal'; ms.nome = 'INSPEÇÃO MENSAL · TRANSMISSÃO, FREIOS E DIREÇÃO'; }
+      DB.modelos.push({ id:'m-pred-oleo', nome:'PREDITIVO · ANÁLISE DE ÓLEO E TERMOGRAFIA', categoria:'preditivo', freq:'uso', intervalo_km:10000, intervalo_h:250, exec:'equipe',
+        tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG','RETRO','ESCAV','MINI','CARREG','MOTO','ROLO','VIBRO'], itens:['i-amost','i-amosth','i-amostd','i-termo'], sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:null, origem:'manual' }); }
+    if (DB.seg_transm) { save(); return; } DB.seg_transm = true;
+    DB.modelos.push({ id:'m-seg-pesados', nome:'INSPEÇÃO MENSAL · TRANSMISSÃO, FREIOS E DIREÇÃO', categoria:'inspecao', freq:'mensal', exec:'equipe', tipos:['CAMINHAO','CAVALO','PIPA','COMBOIO','ESPARG'],
       itens:['i-cardan','i-difer','i-direc','i-lonas','i-ar','i-torque','i-rolam'], sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:null, origem:'manual' });
     save();
   }
