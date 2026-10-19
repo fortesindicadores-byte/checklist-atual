@@ -505,6 +505,7 @@ table.dre.md-it select.inp.sm{width:112px;} table.dre.md-it input.inp.sm{width:6
 .m-steps{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--txt3);margin-right:6px;}
 .m-steps:empty{display:none;}
 .m-steps span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.m-steps span.lk{cursor:pointer;} .m-steps span.lk:hover{color:var(--txt);}
 .m-steps i{font-style:normal;width:20px;height:20px;border-radius:50%;border:1px solid var(--card-brd);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;}
 .m-steps i svg{width:10px;height:10px;}
 .m-steps b{width:18px;height:1px;background:var(--card-brd);}
@@ -2666,7 +2667,7 @@ function abrirModeloForm(id){
   if(!podeEditar()) return;
   const m=id?CK.modelo(id):null;
   if(m&&m.sistema){ W=wzNovo('diario',m); W.categoria='diario'; W.itens=new Set(CK.modeloDoTipo(m.tipos[0]).filter(i=>!i.insp).map(i=>i.id)); W.antes=new Set(W.itens); W.passos=['Itens','Revisar']; W.passo=0; wzRender(); return; }
-  W=wzNovo(m?'editar':'criar',m); W.categoria=m?CK.catDe(m):'inspecao'; if(m) W.passo=1; wzRender();
+  W=wzNovo(m?'editar':'criar',m); W.categoria=m?CK.catDe(m):'inspecao'; wzRender();   /* editar abre em Dados: o nome fica à vista (Renan, 19/10/2026) */
 }
 function abrirImportar(){ if(!podeEditar()) return; W=wzNovo('importar',null); W.categoria='inspecao'; wzRender(); }
 const wzEtapa=()=>W.passos[W.passo];
@@ -2679,7 +2680,7 @@ function wzRender(){
     (W.passo>0?`<button class="btn" onclick="wzIr(-1)">Voltar</button>`:'')+
     (ult?`<button class="btn pri" onclick="wzSalvar()">Salvar</button>`:`<button class="btn pri" id="wzProx" onclick="wzIr(1)">Próximo</button>`);
   abrirModal(W.modo==='diario'?'Editar itens · '+W.nome:W.modo==='editar'?'Editar checklist':W.modo==='importar'?'Importar planilha':'Criar checklist', body, foot, 'wiz');
-  $('m-steps').innerHTML=W.passos.map((p,i)=>`${i?'<b></b>':''}<span class="${i===W.passo?'on':i<W.passo?'ok':''}"><i>${i<W.passo?CHK_SVG:i+1}</i>${p}</span>`).join('');
+  $('m-steps').innerHTML=W.passos.map((p,i)=>`${i?'<b></b>':''}<span class="${i===W.passo?'on':i<W.passo?'ok':''}${i<W.passo||W.modo==='editar'?' lk':''}" ${i<W.passo||W.modo==='editar'?`onclick="wzPara(${i})" title="Ir para ${esc(p)}"`:''}><i>${i<W.passo?CHK_SVG:i+1}</i>${p}</span>`).join('');
   $('m-body').classList.toggle('split', e==='Itens');
   if(e==='Itens'){ wzCat(); wzSel(); }
   if(e==='Planilha'&&W.imp) $('impPrev').innerHTML=impPrevHtml();
@@ -2691,6 +2692,8 @@ function wzConta(){
   const k=W.itens.size+W.novos.length, c=wzCov();
   set('wzCnt', `${n(k)} ${k===1?'item':'itens'} · ${n(c)} ${c===1?'ativo':'ativos'}`);
 }
+/* etapas clicáveis: volta a qualquer etapa já vista; ao editar, vai a qualquer uma (Renan, 19/10/2026) */
+function wzPara(i){ if(!W||i===W.passo) return; if(i<W.passo){ W.nome=($('wzNome')||{}).value||W.nome; W.passo=i; wzRender(); return; } if(W.modo!=='editar') return; let g=0; while(W.passo<i&&g++<5){ const antes=W.passo; wzIr(1); if(W.passo===antes) break; } }
 function wzIr(d){
   const e=wzEtapa();
   if(d>0){
