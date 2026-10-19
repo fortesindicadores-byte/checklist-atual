@@ -1479,7 +1479,7 @@ function cascata(){
   const tp=CK.TIPOS.filter(t=>DB.ativos.some(a=>a.tipo===t.id&&ativoOk(f,a,'tipo'))).map(t=>{ MAP.tipo[t.nome]=t.id; return t.nome; });
   setMsOptions('ms-tipo', tp);
   MAP.modelo={};
-  const md=CK.modelos(true).filter(m=>DB.ativos.some(a=>m.tipos.includes(a.tipo)&&ativoOk(f,a,'modelo'))).map(m=>{ MAP.modelo[m.nome]=m.id; return m.nome; });
+  const md=CK.modelos(true).filter(m=>DB.ativos.some(a=>CK.modeloCobre(m,a)&&ativoOk(f,a,'modelo'))).map(m=>{ MAP.modelo[m.nome]=m.id; return m.nome; });
   setMsOptions('ms-modelo', md);
   MAP.ativo={};
   const at=DB.ativos.filter(a=>ativoOk(f,a,'ativo')).map(a=>{ const l=ativoLbl(a); MAP.ativo[l]=a.id; return l; }).sort((a,b)=>a.localeCompare(b,'pt-BR'));
@@ -2124,7 +2124,8 @@ const REL=[
   { id:'frota', ic:'at', tit:'Relação da frota', desc:'Cadastro completo da frota: placa, nº de frota, Renavam, chassi, proprietário, marca, modelo, ano, tipo, unidade, situação e documentos anexados (manual e plano do fabricante).',
     cols:[['Placa','t'],['Nº de frota','t'],['Renavam','t'],['Chassi','t'],['Proprietário','t'],['Marca','t'],['Modelo','t'],['Ano','n'],['Tipo de ativo','t'],['Unidade','t'],['Situação','t'],['Manual do fabricante','t'],['Plano do fabricante','t'],['Documentos','n']],
     linhas:f=>DB.ativos.filter(a=>ativoOk(f,a)).sort((x,y)=>ativoLbl(x).localeCompare(ativoLbl(y),'pt-BR')).map(a=>{ const ds=CK.documentos(a.id);
-      return [a.placa||'',a.frota||'',a.renavam||'',a.chassi||'',a.prop||'',a.marca||'',a.modelo||'',a.ano||null,CK.TIPO[a.tipo].nome,a.unidade,a.status==='ativo'?'Em operação':'Inativo',simN(ds.some(d=>/^MANUAL/.test(d.tipo))),simN(ds.some(d=>/^PLANO/.test(d.tipo))),ds.length]; }) },
+      const dm=CK.modelos(true).filter(m=>!ehDiario(m)&&CK.modeloCobre(m,a)).flatMap(m=>CK.documentosModelo(m.id)), todos=ds.concat(dm);
+      return [a.placa||'',a.frota||'',a.renavam||'',a.chassi||'',a.prop||'',a.marca||'',a.modelo||'',a.ano||null,CK.TIPO[a.tipo].nome,a.unidade,a.status==='ativo'?'Em operação':'Inativo',simN(todos.some(d=>/^MANUAL/.test(d.tipo))),simN(todos.some(d=>/^PLANO/.test(d.tipo))),todos.length]; }) },
   { id:'ativos', ic:'at', tit:'Resumo por ativo', desc:'Uma linha por ativo: checklists, conformidade, OS do período, OS em aberto agora, se está bloqueado e o MTBF.',
     cols:[['Ativo','t'],['Modelo','t'],['Tipo de ativo','t'],['Unidade','t'],['Status','t'],['Checklists','n'],['Itens verificados','n'],['Não conformidades','n'],['Conformidade','p'],['OS no período','n'],['OS em aberto agora','n'],['Bloqueado agora','t'],['MTBF (dias)','d']],
     linhas:f=>{ const cks={}, oss={}; fCks(f).forEach(c=>{ const x=cks[c.ativo]||(cks[c.ativo]={n:0,it:0,nc:0}); x.n++; x.it+=c.itens_total||0; x.nc+=c.nc; });
@@ -2388,7 +2389,7 @@ async function dcSalvar(){
   refreshIdx(); afDocs();
 }
 async function dcAbrir(id){
-  const d=CK.documentos().find(x=>x.id===id); if(!d) return;
+  const d=CK.documentos().concat(CK.documentosModelo()).find(x=>x.id===id); if(!d) return;
   if(CK.REMOTO){ const u=await CK.anexoUrl(d.path); if(u) window.open(u,'_blank'); else alert('Não foi possível abrir o documento.'); return; }
   abrirAnexo(d.anexo);
 }
@@ -2572,7 +2573,7 @@ function tiposChips(tipos,max){
   const vis=tipos.slice(0,max), resto=tipos.length-vis.length;
   return `<span class="chips" style="flex-wrap:nowrap" title="${esc(tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', '))}">`+vis.map(t=>chip(TIPO_CURTO[t]||t)).join('')+(resto>0?chip('+'+resto):'')+`</span>`;
 }
-function cobertos(m,f){ return DB.ativos.filter(a=>a.status==='ativo'&&m.tipos.includes(a.tipo)&&(!f||ativoOk(f,a))); }
+function cobertos(m,f){ return DB.ativos.filter(a=>a.status==='ativo'&&CK.modeloCobre(m,a)&&(!f||ativoOk(f,a))); }
 let modChip='todos';
 function renderModelos(){
   const f=lastF; if(!f) return;
@@ -2623,7 +2624,7 @@ function prazoCtl(it,cb,dis){ const u=pzUn(it.id,it.prazo);
 function abrirModeloDet(id,manterScroll){
   const m=CK.modelo(id); if(!m) return;
   const dia=ehDiario(m), its=itensMod(m), cov=cobertos(m,null), ativo=m.ativo!==false, ed=podeEditar();
-  const bl=its.filter(i=>i.bloqueia).length, tps=m.tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ');
+  const bl=its.filter(i=>i.bloqueia).length, tps=(m.ativos&&m.ativos.length)?cov.map(a=>ativoLbl(a)).join(', ')+' (só estes)':m.tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ');
   const k=(l,v,sub,cls)=>`<div class="md-k"><small>${l}</small><b class="${cls||''}">${v}</b><i title="${esc(sub)}">${esc(sub)}</i></div>`;
   let h=`<div class="md-top">`+
     k('Tipo', dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome, dia?'todo dia, antes de operar':m.freq==='uso'?CK.freqTxt(m).toLowerCase():CK.FREQ[m.freq].dias?`${CK.FREQ[m.freq].nome.toLowerCase()} · a cada ${CK.FREQ[m.freq].dias} dias`:'sob demanda · sem periodicidade')+
@@ -2634,13 +2635,32 @@ function abrirModeloDet(id,manterScroll){
   const fora=dia?cov.filter(a=>(a.itens_fora||[]).length).length:0;
   h+=`<div class="md-nota">${ed?'Clique no item para ver e editar criticidade, prazo e bloqueio. A mudança vale em todos os checklists que usam o item e só para OS novas.':'Clique no item para ver a ficha · somente leitura para o seu perfil.'}`+
     (fora?` ${n(fora)} ${fora===1?'ativo deste tipo tem':'ativos deste tipo têm'} itens retirados na tela Ativos.`:'')+`</div>`;
+  if(!dia) h+=`<div class="af-docs" id="mdDocs" style="margin:10px 0"></div>`;
   h+=`<div class="md-tab"><table class="dre md-it" data-agrupada><thead><tr><th>Item</th><th style="width:140px">Criticidade</th><th style="width:200px">Prazo</th><th style="width:90px">Bloqueia</th></tr></thead><tbody>${mdLinhas(m,its,ed)}</tbody></table></div>`;
   const foot=(ed?`<button class="btn ${ativo?'warn':'ok'}" style="margin-right:auto" onclick="modAtivo('${m.id}',${ativo?'false':'true'},true)">${dia?(ativo?'Desligar':'Ligar'):(ativo?'Desativar':'Ativar')}</button>`+
       `<button class="btn" onclick="abrirModeloForm('${m.id}')">${dia?'Adicionar ou remover itens':'Editar'}</button>`:'')+`<button class="btn" onclick="fecharModal()">Fechar</button>`;
   const sc=manterScroll?$('m-body').scrollTop:0;
   abrirModal(m.nome, h, foot, 'wiz');
-  if(sc) $('m-body').scrollTop=sc;
+  if(!dia) mdDocs(m.id); if(sc) $('m-body').scrollTop=sc;
 }
+/* documentos do checklist (manual / plano do fabricante), opcional — Renan, 19/10/2026 */
+function mdDocs(mid,form){
+  const box=$('mdDocs'); if(!box) return; const ed=EU&&['master','admin','frota'].includes(EU.papel), l=CK.documentosModelo(mid).slice().sort((x,y)=>(y.criado_em||'')<(x.criado_em||'')?-1:1);
+  box.innerHTML=`<div class="wz-ch" style="padding:0 0 6px"><div><b>Manual / plano do fabricante</b><small>opcional · PDF ou imagem${CK.REMOTO?', até 50 MB':''}</small></div>${ed&&!form?`<button type="button" class="btn sm" style="margin-left:auto" onclick="mdDocs('${mid}',true)">+ Anexar</button>`:''}</div>`+
+    (form?`<div class="af-docf"><div class="frow"><div class="fld"><label>Tipo</label><select class="inp" id="mdcTipo">${CK.DOC_TIPOS.filter(t=>!/CRLV/.test(t)).map(t=>`<option>${esc(t)}</option>`).join('')}</select></div><div class="fld"><label>Descrição <span class="ctx">· opcional</span></label><input class="inp" id="mdcTit" placeholder="Ex.: Manual de manutenção Dynapac CP221"></div></div>`+
+      `<div class="fld"><label>Arquivo</label><input class="inp" type="file" id="mdcArq" accept="application/pdf,image/*"></div><div class="erro" id="mdcErro"></div><div style="display:flex;gap:8px"><button type="button" class="btn pri sm" id="mdcBt" onclick="mdcSalvar('${mid}')">Anexar</button><button type="button" class="btn sm" onclick="mdDocs('${mid}')">Cancelar</button></div></div>`:'')+
+    (l.length?l.map(d=>`<div class="af-doc"><div><b>${esc(d.tipo)}</b><small>${esc(d.titulo||d.nome||'')} · anexado ${CK.fmtData(String(d.criado_em).slice(0,10))} por ${esc(nomeAbrev(d.criado_por)||'—')}</small></div><button type="button" class="btn sm" onclick="dcAbrir('${d.id}')">Abrir</button>${EU&&['master','admin'].includes(EU.papel)?`<button type="button" class="btn sm" style="color:var(--vermelho)" onclick="mdcExcluir('${d.id}','${mid}')">✕</button>`:''}</div>`).join('')
+      :(form?'':`<div class="muted" style="font-size:11.5px;padding:4px 0 8px">Nenhum documento anexado.</div>`));
+}
+async function mdcSalvar(mid){
+  const f=$('mdcArq').files[0], er=t=>{ $('mdcErro').textContent=t; }; if(!f) return er('Escolha o arquivo.');
+  const d={modelo:mid, tipo:$('mdcTipo').value, titulo:($('mdcTit').value||'').trim(), por:EU.id, file:f, nome:f.name, mime:f.type};
+  $('mdcBt').disabled=true; $('mdcBt').textContent='Enviando…';
+  if(!CK.REMOTO){ if(f.size>2*1024*1024){ $('mdcBt').disabled=false; $('mdcBt').textContent='Anexar'; return er('Na demonstração o limite é 2 MB.'); } d.data=await new Promise(res=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(f); }); }
+  const r=await CK.documentoCriar(d); if(!r.ok){ $('mdcBt').disabled=false; $('mdcBt').textContent='Anexar'; return er(r.erro||'Não foi possível anexar.'); }
+  refreshIdx(); mdDocs(mid);
+}
+async function mdcExcluir(id,mid){ if(!confirm('Excluir este documento?')) return; const r=await CK.documentoExcluir(id,EU.id); if(r&&r.ok===false){ alert(r.erro||'Não foi possível excluir.'); return; } refreshIdx(); mdDocs(mid); }
 function mdLinhas(m,its,ed){
   if(!its.length) return `<tr><td colspan="4" class="muted" style="text-align:center;padding:20px">Nenhum item.</td></tr>`;
   const ordem=catsCatalogo(), pos=c=>{ const i=ordem.indexOf(c); return i<0?999:i; };
@@ -2660,7 +2680,7 @@ const CHEV_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const LUPA_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>';
 let W=null;
 function wzNovo(modo,m){
-  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
+  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
     passos:modo==='importar'?['Planilha','Dados','Itens','Revisar']:['Dados','Itens','Revisar'], passo:0};
 }
 function abrirModeloForm(id){
@@ -2672,7 +2692,7 @@ function abrirModeloForm(id){
 function abrirImportar(){ if(!podeEditar()) return; W=wzNovo('importar',null); W.categoria='inspecao'; wzRender(); }
 const wzEtapa=()=>W.passos[W.passo];
 const wzNota=()=>W&&W.modo==='diario'?`<div class="nota"><b>Diário do motorista: feito no app antes de operar. Vale para os próximos checklists; OS já abertas não mudam.</b></div>`:`<div class="nota"><b>Executado só pela equipe (admin e frota) no app. O motorista não vê.</b></div>`;
-const wzCov=()=>DB.ativos.filter(a=>a.status==='ativo'&&W.tipos.has(a.tipo)).length;
+const wzCov=()=>DB.ativos.filter(a=>a.status==='ativo'&&W.tipos.has(a.tipo)&&(!W.ativos.size||W.ativos.has(a.id))).length;
 function wzRender(){
   const e=wzEtapa(), ult=W.passo===W.passos.length-1;
   const body=e==='Planilha'?wzPlanilha():e==='Dados'?wzDados():e==='Itens'?wzItens():wzRevisar();
@@ -2701,6 +2721,7 @@ function wzIr(d){
     if(e==='Dados'){ let ok=true;
       if(!String(W.nome||'').trim()){ $('wzErrNome').textContent='Dê um nome ao checklist.'; ok=false; }
       if(!W.tipos.size){ $('wzErrTipo').textContent='Escolha ao menos um tipo de ativo.'; ok=false; }
+      if(W.soAlguns&&!W.ativos.size){ $('wzErrTipo').textContent='Escolha ao menos um ativo (ou volte para "Todos dos tipos").'; ok=false; }
       if(!ok) return; }
     if(e==='Itens'&&!(W.itens.size+W.novos.length)){ $('wzSel').innerHTML=`<div class="wz-vazio cr">Escolha ao menos um item para continuar.</div>`; return; }
   }
@@ -2720,11 +2741,20 @@ function wzDados(){
     (W.freq==='uso'?`<div class="frow"><div class="fld"><label>A cada (km) <span class="ctx">· caminhões e veículos</span></label><input class="inp" type="number" min="0" step="500" id="wzIntKm" value="${W.intervalo_km||''}" placeholder="Ex.: 10000" oninput="W.intervalo_km=+this.value||null"></div><div class="fld"><label>A cada (horas) <span class="ctx">· máquinas com horímetro</span></label><input class="inp" type="number" min="0" step="50" id="wzIntH" value="${W.intervalo_h||''}" placeholder="Ex.: 250" oninput="W.intervalo_h=+this.value||null"></div></div><div class="ctx" style="font-size:10.5px;margin:-4px 0 10px">Use o intervalo do plano do fabricante. A próxima vence na leitura da última execução + o intervalo; o app mostra quanto falta pela leitura do checklist diário.</div>`:'')+
     `<div class="fld"><label>Tipos de ativo <span class="ctx">· vale para todos os ativos em operação dos tipos escolhidos</span></label><div class="wz-tipos">`+
       CK.TIPOS.map(t=>`<button type="button" class="wz-tc ${W.tipos.has(t.id)?'on':''}" onclick="wzTipo('${t.id}',this)"><span class="ic">${CK.ICONES[t.icone]||''}</span><span class="tx"><b title="${esc(t.nome)}">${esc(t.nome)}</b><small>${n(cnt[t.id]||0)} ${cnt[t.id]===1?'ativo':'ativos'}</small></span><span class="ck">${CHK_SVG}</span></button>`).join('')+
-    `</div><div class="erro" id="wzErrTipo"></div></div>`+wzNota();
+    `</div><div class="erro" id="wzErrTipo"></div></div>`+
+    (W.modo!=='diario'?`<div class="fld"><label>Quais ativos <span class="ctx">· todos dos tipos escolhidos, ou só alguns (ex.: só os VW 15.180)</span></label><div class="seg"><button type="button" class="${W.soAlguns?'':'on'}" onclick="W.soAlguns=false;W.ativos.clear();wzRender()">Todos dos tipos</button><button type="button" class="${W.soAlguns?'on':''}" onclick="W.soAlguns=true;wzRender()">Só alguns ativos</button></div>`+
+      (W.soAlguns?`<div class="busca" style="margin:8px 0 6px;max-width:320px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Placa, frota, marca, modelo…" value="${esc(W.qAt||'')}" oninput="W.qAt=this.value;wzAtivosLista()"></div><div class="wz-list wz-ativos" id="wzAtivos" style="max-height:220px;overflow:auto"></div><div class="ctx" id="wzAtivosN" style="font-size:10.5px;margin-top:4px"></div>`:'')+`</div>`:'')+wzNota();
 }
+/* lista de ativos para restringir o checklist (dos tipos marcados) */
+function wzAtivosLista(){ const box=$('wzAtivos'); if(!box) return; const q=nrm(W.qAt||'');
+  const l=DB.ativos.filter(a=>a.status==='ativo'&&W.tipos.has(a.tipo)&&(!q||nrm([a.id,a.placa,a.frota,a.marca,a.modelo].join(' ')).includes(q))).sort((x,y)=>(x.marca+' '+x.modelo+' '+ativoLbl(x)).localeCompare(y.marca+' '+y.modelo+' '+ativoLbl(y),'pt-BR'));
+  box.innerHTML=l.length?l.map(a=>`<button type="button" class="wz-it ${W.ativos.has(a.id)?'on':''}" onclick="wzAtivoTog('${a.id}')"><span class="wz-ck">${CHK_SVG}</span><span class="nm">${esc(ativoLbl(a))} · ${esc((a.marca||'')+' '+(a.modelo||''))}</span><span class="ctx">${esc(CK.TIPO[a.tipo]?CK.TIPO[a.tipo].nome:a.tipo)}</span></button>`).join(''):'<div class="wz-vazio">Nenhum ativo dos tipos escolhidos.</div>';
+  set('wzAtivosN', `${n(W.ativos.size)} ${W.ativos.size===1?'ativo escolhido':'ativos escolhidos'}`); wzConta();
+}
+function wzAtivoTog(id){ if(W.ativos.has(id)) W.ativos.delete(id); else W.ativos.add(id); wzAtivosLista(); }
 /* troca o tipo: inspeção não tem "sob demanda"; preventivo e preditivo começam sob demanda */
 function wzCatSel(k){ W.categoria=k; if(k==='inspecao'&&W.freq==='livre') W.freq='mensal'; else if(k!=='inspecao'&&W.modo!=='editar'&&W.freq==='mensal') W.freq='livre'; W.nome=($('wzNome')||{}).value||W.nome; wzRender(); }
-function wzTipo(t,el){ if(W.tipos.has(t)) W.tipos.delete(t); else W.tipos.add(t); el.classList.toggle('on',W.tipos.has(t)); $('wzErrTipo').textContent=''; W.abertas=null; wzConta(); }
+function wzTipo(t,el){ if(W.tipos.has(t)) W.tipos.delete(t); else W.tipos.add(t); el.classList.toggle('on',W.tipos.has(t)); $('wzErrTipo').textContent=''; W.abertas=null; [...W.ativos].forEach(id=>{ const a=ATV[id]; if(!a||!W.tipos.has(a.tipo)) W.ativos.delete(id); }); wzAtivosLista(); wzConta(); }
 
 /* passo Itens: catálogo (acordeão por categoria) à esquerda, escolhidos à direita */
 function wzItens(){
@@ -2797,7 +2827,7 @@ function wzRevisar(){
   return `<div class="wz-rev">`+
     card('Nome',`<span class="wz-kn" title="${esc(W.nome)}">${esc(W.nome)}</span>`, W.modo==='importar'?'importado de planilha':W.modo==='diario'?'diário do motorista':W.modo==='editar'?'alteração de checklist existente':'cadastro manual')+
     card(W.modo==='diario'?'Frequência':CK.CATCK[W.categoria].nome,CK.FREQ[W.freq].nome,W.modo==='diario'?'todo dia, antes de operar':W.freq==='uso'?CK.freqTxt({freq:'uso',intervalo_km:W.intervalo_km,intervalo_h:W.intervalo_h}).replace('POR USO · ',''):CK.FREQ[W.freq].dias?`cada ativo a cada ${CK.FREQ[W.freq].dias} dias`:'sem periodicidade')+
-    card('Ativos cobertos',n(cov),esc([...W.tipos].map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ')))+
+    card('Ativos cobertos',n(cov),W.soAlguns&&W.ativos.size?esc([...W.ativos].map(id=>ativoLbl(ATV[id])).join(', ')):esc([...W.tipos].map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ')))+
     card('Itens',n(its.length),porC.map(([k,q])=>`<span style="white-space:nowrap">${farolCrit(k)}${q} ${esc(CK.CRIT[k].nome.toLowerCase())}</span>`).join(' &nbsp; ')||'—')+
     card('Bloqueiam o ativo',n(bl),bl?'reprovado = ativo parado até fechar a OS':'nenhum item bloqueia')+
     (W.modo==='diario'?(()=>{ const ent=[...W.itens].filter(x=>!W.antes.has(x)).length, sai=[...W.antes].filter(x=>!W.itens.has(x)).length; return card('Mudanças',`+${n(ent)} / −${n(sai)}`,`${n(ent)} ${ent===1?'entra':'entram'} · ${n(sai)} ${sai===1?'sai':'saem'}`); })()
@@ -2811,7 +2841,7 @@ async function wzSalvar(){
   if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.'); refreshIdx(); atualizar(); abrirModeloDet(W.id); return; }
   if(W.modo!=='editar'){
     if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
+    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
     if(!r.ok) return err(r.erro||'Não foi possível criar.');
     refreshIdx(); atualizar(); abrirModeloDet(r.modelo.id); return;
   }
@@ -2824,7 +2854,7 @@ async function wzSalvar(){
     novos.forEach(x=>{ const it={id:CK.uid('x'), cat:x.cat||'INSPEÇÃO', nome:x.nome, crit:x.crit, prazo:x.prazo, bloqueia:x.bloqueia, ap:[], insp:true}; db.itens_extra.push(it); ids.push(it.id); });
     CK.save(); CK.recarregar(); }
   if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
+  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
   if(!r.ok) return err(r.erro||'Não foi possível salvar.');
   refreshIdx(); atualizar(); abrirModeloDet(W.id);
 }

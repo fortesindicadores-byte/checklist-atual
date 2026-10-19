@@ -155,6 +155,9 @@ create table if not exists ck_documentos (            -- manual, plano do fabric
 alter table ck_documentos enable row level security;
 -- 16/10/2026 (despacho MPT): preventiva por uso e fechamento NR-12
 alter table ck_modelos add column if not exists intervalo_km numeric, add column if not exists intervalo_h numeric;
+alter table ck_modelos add column if not exists ativos text[];   -- null/vazio = todos os ativos dos tipos; senão só estes (19/10/2026)
+alter table ck_documentos alter column ativo_id drop not null;
+alter table ck_documentos add column if not exists modelo_id text references ck_modelos(id);   -- manual/plano anexado ao checklist (19/10/2026)
 alter table ck_os add column if not exists pecas jsonb not null default '[]', add column if not exists condicao text check (condicao in ('apto','restricao')),
   add column if not exists condicao_obs text, add column if not exists executado_por uuid references ck_usuarios(id), add column if not exists executado_txt text;
 alter table ck_os add column if not exists os_externa text;

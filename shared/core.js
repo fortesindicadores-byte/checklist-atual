@@ -239,6 +239,8 @@ var CK = (function(){
   /* diário de um tipo pode ser desligado pelo admin (Renan, 11/10/2026): o motorista deixa de ter checklist nesses ativos */
   function modelosDiarios(){ var off = load().diarios_off || []; return TIPOS.map(function(t){ return { id:'d-' + t.id, nome:'Diário · ' + t.nome, freq:'diario', exec:'motorista', tipos:[t.id], itens:null, sistema:true, ativo: off.indexOf(t.id) < 0 }; }); }
   function diarioAtivo(tipoId){ return (load().diarios_off || []).indexOf(tipoId) < 0; }
+  /* o checklist cobre o ativo? tipos do modelo e, se houver, só a lista de ativos específicos (Renan, 19/10/2026) */
+  function modeloCobre(m, a){ if (!m || !a) return false; if (m.tipos.indexOf(a.tipo) < 0) return false; return !(m.ativos && m.ativos.length) || m.ativos.indexOf(a.id) >= 0; }
   function modelos(todos){ var l = modelosDiarios().concat(load().modelos || []); return todos ? l : l.filter(function(m){ return m.ativo !== false; }); }
   function modelo(id){ return modelos(true).filter(function(m){ return m.id === id; })[0] || null; }
   /* itens que aparecem num checklist: diário = itens do ativo (catálogo do tipo menos as exceções); inspeção = lista do modelo */
@@ -262,7 +264,7 @@ var CK = (function(){
     var itens = (d.itens || []).filter(function(id){ return ITEM[id]; }).concat(novos.map(function(n){ return n.id; }));
     if (!itens.length) return { ok:false, erro:'O checklist precisa ter ao menos um item.' };
     if (d.freq === 'uso' && !(+d.intervalo_km > 0) && !(+d.intervalo_h > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
-    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
+    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
     db.modelos = db.modelos || []; db.modelos.push(m); save();
     garantePrevItens(); return { ok:true, modelo:m, itens_novos:novos.length };
   }
@@ -297,6 +299,7 @@ var CK = (function(){
     if (!freqOk(cat2, fr2)) return { ok:false, erro:'Frequência não vale para ' + CATCK[cat2].nome.toLowerCase() + '.' };
     if (fr2 === 'uso' && !(+(patch.intervalo_km != null ? patch.intervalo_km : m.intervalo_km) > 0) && !(+(patch.intervalo_h != null ? patch.intervalo_h : m.intervalo_h) > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
     ['nome','categoria','freq','tipos','itens','ativo'].forEach(function(k){ if (patch[k] != null) m[k] = patch[k]; });
+    if (patch.ativos !== undefined) m.ativos = (patch.ativos && patch.ativos.length) ? patch.ativos.slice() : null;
     if (patch.intervalo_km !== undefined) m.intervalo_km = +patch.intervalo_km || null; if (patch.intervalo_h !== undefined) m.intervalo_h = +patch.intervalo_h || null;
     save(); garantePrevItens(); return { ok:true, modelo:m };
   }
@@ -305,7 +308,7 @@ var CK = (function(){
     if (!u || ['master','admin','frota'].indexOf(u.papel) < 0) return [];
     var db = load(), agora = isoDT(new Date()), out = [];
     modelos().filter(function(m){ return m.freq !== 'diario'; }).forEach(function(m){
-      db.ativos.filter(function(a){ return a.status === 'ativo' && m.tipos.indexOf(a.tipo) >= 0; }).forEach(function(a){
+      db.ativos.filter(function(a){ return a.status === 'ativo' && modeloCobre(m, a); }).forEach(function(a){
         var ult = null; for (var i = db.checklists.length - 1; i >= 0; i--) { var c = db.checklists[i]; if (c.ativo === a.id && c.modelo === m.id) { ult = c; break; } }
         if (m.freq === 'uso') {   /* por uso: próxima = leitura da última execução + intervalo do medidor do ativo */
           var iv = a.medidor === 'km' ? +m.intervalo_km : a.medidor === 'h' ? +m.intervalo_h : 0;
@@ -764,12 +767,13 @@ var CK = (function(){
   function anexo(id){ return id ? ((load().anexos || {})[id] || null) : null; }
   /* documentos do ativo (Renan, 16/10/2026 — despacho MPT): manual, plano do fabricante, laudo preditivo, ART… */
   var DOC_TIPOS = ['MANUAL DO FABRICANTE','PLANO DE MANUTENÇÃO DO FABRICANTE','LAUDO PREDITIVO (ÓLEO / TERMOGRAFIA)','ART / APRECIAÇÃO DE RISCO','DOCUMENTO DO VEÍCULO (CRLV)','OUTRO'];
-  function documentos(ativoId){ return (load().documentos || []).filter(function(d){ return !d.excluido && (!ativoId || d.ativo === ativoId); }); }
-  function documentoCriar(d){ var db = load(), a = ativo(d.ativo); if (!a) return { ok:false, erro:'Ativo não encontrado.' };
+  function documentos(ativoId){ return (load().documentos || []).filter(function(d){ return !d.excluido && d.ativo && (!ativoId || d.ativo === ativoId); }); }
+  function documentosModelo(mid){ return (load().documentos || []).filter(function(d){ return !d.excluido && d.modelo && (!mid || d.modelo === mid); }); }
+  function documentoCriar(d){ var db = load(), a = d.ativo ? ativo(d.ativo) : null, md = d.modelo ? modelo(d.modelo) : null; if (!a && !md) return { ok:false, erro:'Ativo ou checklist não encontrado.' };
     if (DOC_TIPOS.indexOf(d.tipo) < 0) return { ok:false, erro:'Escolha o tipo de documento.' }; if (!d.data) return { ok:false, erro:'Anexe o arquivo.' };
     if (String(d.data).length > 2800000) return { ok:false, erro:'Na demonstração o limite é 2 MB por arquivo.' };
     var aid = uid('a'); db.anexos = db.anexos || {}; db.anexos[aid] = { nome:d.nome || 'documento', mime:d.mime || '', data:d.data };
-    var doc = { id:uid('doc'), ativo:a.id, tipo:d.tipo, titulo:UP(d.titulo), data_ref:d.data_ref || null, anexo:aid, nome:d.nome || 'documento', mime:d.mime || '', criado_em:isoDT(new Date()), criado_por:d.por };
+    var doc = { id:uid('doc'), ativo:a ? a.id : null, modelo:md ? md.id : null, tipo:d.tipo, titulo:UP(d.titulo), data_ref:d.data_ref || null, anexo:aid, nome:d.nome || 'documento', mime:d.mime || '', criado_em:isoDT(new Date()), criado_por:d.por };
     db.documentos = db.documentos || []; db.documentos.push(doc); save(); return { ok:true, documento:doc }; }
   function documentoExcluir(id, por){ var db = load(), d = (db.documentos || []).filter(function(x){ return x.id === id; })[0]; if (!d) return { ok:false, erro:'Documento não encontrado.' }; d.excluido = isoDT(new Date()); d.excluido_por = por; save(); return { ok:true }; }
   function save(){ if (REMOTO) return; try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch(e){ console.warn('localStorage cheio?', e); } }
@@ -1068,7 +1072,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,

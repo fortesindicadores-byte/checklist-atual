@@ -137,14 +137,14 @@ begin
     'itens', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'cat', i.categoria, 'nome', i.nome, 'dica', i.dica, 'ex', i.ex, 'crit', i.crit, 'prazo', i.prazo_h,
                 'bloqueia', i.bloqueia, 'insp', i.insp, 'sugerido', i.sugerido, 'ativo', i.ativo,
                 'ap', (select coalesce(array_agg(tipo_id), '{}') from ck_itens_tipos where item_id = i.id)) order by i.ordem), '[]') from ck_itens i),
-    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'tipos', m.tipos, 'ativo', m.ativo,
+    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'ativos', m.ativos, 'tipos', m.tipos, 'ativo', m.ativo,
                 'origem', m.origem, 'criado_em', m.criado_em, 'criado_por', m.criado_por,
                 'itens', (select coalesce(array_agg(item_id order by ordem), '{}') from ck_modelos_itens where modelo_id = m.id)) order by m.nome), '[]') from ck_modelos m),
     'usuarios', case when u.papel in ('master','admin','frota')
                   then (select coalesce(jsonb_agg(ck_usuario_json(x) - 'cpf' || jsonb_build_object('cpf', case when u.papel in ('master','admin') then x.cpf end) order by x.nome), '[]') from ck_usuarios x)
                   else (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'nome', x.nome, 'papel', x.papel) order by x.nome), '[]') from ck_usuarios x where x.status = 'ativo') end,
     'fornecedores', (select coalesce(jsonb_agg(to_jsonb(f) order by f.nome), '[]') from ck_fornecedores f),
-    'documentos', (select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'ativo', d.ativo_id, 'tipo', d.tipo, 'titulo', d.titulo, 'data_ref', d.data_ref, 'path', d.path, 'nome', d.nome, 'mime', d.mime, 'criado_em', d.criado_em, 'criado_por', d.criado_por) order by d.criado_em desc), '[]') from ck_documentos d where d.excluido_em is null),
+    'documentos', (select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'ativo', d.ativo_id, 'modelo', d.modelo_id, 'tipo', d.tipo, 'titulo', d.titulo, 'data_ref', d.data_ref, 'path', d.path, 'nome', d.nome, 'mime', d.mime, 'criado_em', d.criado_em, 'criado_por', d.criado_por) order by d.criado_em desc), '[]') from ck_documentos d where d.excluido_em is null),
     'ativos', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'tipo', a.tipo_id, 'placa', a.placa, 'frota', a.frota, 'marca', a.marca, 'modelo', a.modelo, 'ano', a.ano,
                 'prop', a.proprietario, 'renavam', a.renavam, 'chassi', a.chassi, 'unidade', (select nome from ck_unidades where id = a.unidade_id), 'unidade_id', a.unidade_id, 'operador', a.operador_id,
                 'itens_fora', a.itens_fora, 'leitura', a.leitura, 'status', a.status, 'medidor', t.medidor,
@@ -177,10 +177,15 @@ create or replace function ck_documento_salvar(p_token uuid, p jsonb) returns js
 declare u ck_usuarios := ck_sessao(p_token); nid uuid;
 begin
   perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
-  if not exists (select 1 from ck_ativos where id = p->>'ativo') then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
-  if coalesce(p->>'path', '') !~ ('^docs/' || (p->>'ativo') || '/') then raise exception 'ARQUIVO_INVALIDO'; end if;
-  insert into ck_documentos (ativo_id, tipo, titulo, data_ref, path, nome, mime, tamanho, criado_por)
-  values (p->>'ativo', ck_up(p->>'tipo'), ck_up(p->>'titulo'), nullif(p->>'data_ref', '')::date, p->>'path', p->>'nome', p->>'mime', nullif(p->>'tamanho', '')::bigint, u.id)
+  if p->>'modelo' is not null then
+    if not exists (select 1 from ck_modelos where id = p->>'modelo') then raise exception 'MODELO_NAO_ENCONTRADO'; end if;
+    if coalesce(p->>'path', '') !~ ('^docs/modelo/' || (p->>'modelo') || '/') then raise exception 'ARQUIVO_INVALIDO'; end if;
+  else
+    if not exists (select 1 from ck_ativos where id = p->>'ativo') then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
+    if coalesce(p->>'path', '') !~ ('^docs/' || (p->>'ativo') || '/') then raise exception 'ARQUIVO_INVALIDO'; end if;
+  end if;
+  insert into ck_documentos (ativo_id, modelo_id, tipo, titulo, data_ref, path, nome, mime, tamanho, criado_por)
+  values (nullif(p->>'ativo',''), nullif(p->>'modelo',''), ck_up(p->>'tipo'), ck_up(p->>'titulo'), nullif(p->>'data_ref', '')::date, p->>'path', p->>'nome', p->>'mime', nullif(p->>'tamanho', '')::bigint, u.id)
   returning id into nid;
   perform ck_audit(u.id, 'ck_documentos', nid::text, 'insert', null, p);
   return jsonb_build_object('ok', true, 'id', nid);
@@ -563,8 +568,8 @@ begin
     mid := 'm-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
     if ck_up(p->>'nome') is null then raise exception 'NOME_OBRIGATORIO'; end if;
     if jsonb_array_length(coalesce(p->'tipos', '[]')) = 0 then raise exception 'TIPOS_OBRIGATORIOS'; end if;
-    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, origem, criado_por)
-    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), coalesce(p->>'origem', 'manual'), u.id);
+    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, ativos, origem, criado_por)
+    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}'), coalesce(p->>'origem', 'manual'), u.id);
     perform ck_audit(u.id, 'ck_modelos', mid, 'insert', null, p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   else
@@ -572,6 +577,7 @@ begin
     update ck_modelos set nome = coalesce(ck_up(p->>'nome'), nome), categoria = cat, freq = fq,
       intervalo_km = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_km','')::numeric, intervalo_km) end, intervalo_h = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_h','')::numeric, intervalo_h) end,
       tipos = case when p ? 'tipos' then (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x) else tipos end,
+      ativos = case when p ? 'ativos' then nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}') else ativos end,
       ativo = coalesce((p->>'ativo')::boolean, ativo) where id = mid;
     perform ck_audit(u.id, 'ck_modelos', mid, 'update', to_jsonb(antes), p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;

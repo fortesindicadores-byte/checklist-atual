@@ -169,10 +169,10 @@
   CK.documentoCriar = async function(d){
     try {
       if (!d.file) return { ok:false, erro:'Anexe o arquivo.' }; if (d.file.size > 50 * 1024 * 1024) return { ok:false, erro:'Arquivo grande demais (máximo 50 MB).' };
-      var path = 'docs/' + d.ativo + '/' + Date.now() + '-' + limpaNome(d.file.name);
+      var path = 'docs/' + (d.modelo ? 'modelo/' + d.modelo : d.ativo) + '/' + Date.now() + '-' + limpaNome(d.file.name);
       var r = await fetch(URL0 + '/storage/v1/object/anexos/' + path, { method:'POST', headers:hdr({ 'Content-Type':d.file.type || 'application/octet-stream', 'x-upsert':'false' }), body:d.file });
       if (!r.ok) return { ok:false, erro:'Não deu para enviar o arquivo (tipo aceito: PDF ou imagem, até 50 MB).' };
-      return await escreve('ck_documento_salvar', { p:{ ativo:d.ativo, tipo:d.tipo, titulo:d.titulo, data_ref:d.data_ref || null, path:path, nome:d.file.name, mime:d.file.type, tamanho:d.file.size } });
+      return await escreve('ck_documento_salvar', { p:{ ativo:d.ativo || null, modelo:d.modelo || null, tipo:d.tipo, titulo:d.titulo, data_ref:d.data_ref || null, path:path, nome:d.file.name, mime:d.file.type, tamanho:d.file.size } });
     } catch(e){ return erro(e); }
   };
   CK.documentoExcluir = function(id){ return escreve('ck_documento_excluir', { p_documento:id }); };
