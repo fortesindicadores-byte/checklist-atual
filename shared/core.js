@@ -800,6 +800,13 @@ var CK = (function(){
     mods.forEach(function(m){ db.prev_base.push({ id:uid('pb'), ativo:a.id, modelo:m.id, leitura: m.freq === 'uso' ? lt : null, data: dt + 'T12:00:00', criado_em:isoDT(new Date()), criado_por:d.por }); });
     save(); return { ok:true, n:mods.length };
   }
+  /* excluir tipo de checklist (23/10/2026): só sem histórico; com histórico, só desativar */
+  function modeloExcluir(id){ var db = load(), m = (db.modelos || []).filter(function(x){ return x.id === id; })[0]; if (!m) return { ok:false, erro:'Checklist não encontrado.' };
+    if (db.checklists.some(function(c){ return c.modelo === id; }) || db.os.some(function(o){ return o.item === prevItemId(id); })) return { ok:false, erro:'Este checklist já tem execuções: dá para desativar, não excluir.' };
+    if ((db.documentos || []).some(function(d){ return d.modelo === id && !d.excluido; })) return { ok:false, erro:'Exclua os documentos anexados antes.' };
+    (db.modelos || []).forEach(function(x){ if (x.inclui) { x.inclui = x.inclui.filter(function(i){ return i !== id; }); if (!x.inclui.length) x.inclui = null; } });
+    db.modelos = db.modelos.filter(function(x){ return x.id !== id; }); db.prev_base = (db.prev_base || []).filter(function(b){ return b.modelo !== id; }); save(); return { ok:true }; }
+  function modeloTemHistorico(id){ var db = load(); return db.checklists.some(function(c){ return c.modelo === id; }) || db.os.some(function(o){ return o.item === prevItemId(id); }); }
   function documentos(ativoId){ return (load().documentos || []).filter(function(d){ return !d.excluido && d.ativo && (!ativoId || d.ativo === ativoId); }); }
   function documentosModelo(mid){ return (load().documentos || []).filter(function(d){ return !d.excluido && d.modelo && (!mid || d.modelo === mid); }); }
   function documentoCriar(d){ var db = load(), a = d.ativo ? ativo(d.ativo) : null, md = d.modelo ? modelo(d.modelo) : null; if (!a && !md) return { ok:false, erro:'Ativo ou checklist não encontrado.' };
@@ -1107,7 +1114,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,

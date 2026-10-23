@@ -2631,6 +2631,10 @@ function renderModelos(){
       `<td data-sort="${ativo?0:1}" onclick="event.stopPropagation()">${st}</td></tr>`; }).join('')
     :`<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">Nenhum tipo de checklist${q?' para a busca':''}.</td></tr>`;
 }
+function modExcluirPerg(id){ const m=CK.modelo(id); if(!m) return;
+  abrirModal('Excluir checklist',`<p class="tsub" style="font-size:12.5px;line-height:1.6">Excluir <b>${esc(m.nome)}</b>? Ele ainda não tem nenhuma execução. Não dá para desfazer.</p><div class="erro" id="mxErr"></div>`,
+    `<button class="btn" onclick="abrirModeloDet('${id}')">Voltar</button><button class="btn warn" style="margin-left:auto" onclick="modExcluir('${id}')">Excluir</button>`); }
+async function modExcluir(id){ const r=await CK.modeloExcluir(id); if(!r.ok){ $('mxErr').textContent=r.erro||'Não foi possível excluir.'; return; } fecharModal(); refreshIdx(); atualizar(); }
 async function modAtivo(id,v,reabrir){
   if(!podeEditar()) return;
   const m=CK.modelo(id);
@@ -2676,7 +2680,9 @@ function abrirModeloDet(id,manterScroll){
     (fora?` ${n(fora)} ${fora===1?'ativo deste tipo tem':'ativos deste tipo têm'} itens retirados na tela Ativos.`:'')+`</div>`;
   if(!dia) h+=`<div class="af-docs" id="mdDocs" style="margin:10px 0"></div>`;
   h+=`<div class="md-tab"><table class="dre md-it" data-agrupada><thead><tr><th>Item</th><th style="width:140px">Criticidade</th><th style="width:200px">Prazo</th><th style="width:90px">Bloqueia</th></tr></thead><tbody>${mdLinhas(m,its,ed)}</tbody></table></div>`;
-  const foot=(ed?`<button class="btn ${ativo?'warn':'ok'}" style="margin-right:auto" onclick="modAtivo('${m.id}',${ativo?'false':'true'},true)">${dia?(ativo?'Desligar':'Ligar'):(ativo?'Desativar':'Ativar')}</button>`+
+  const podeExcl=ed&&!dia&&!CK.modeloTemHistorico(m.id);
+  const foot=(ed?`<button class="btn ${ativo?'warn':'ok'}" onclick="modAtivo('${m.id}',${ativo?'false':'true'},true)">${dia?(ativo?'Desligar':'Ligar'):(ativo?'Desativar':'Ativar')}</button>`+
+      (podeExcl?`<button class="btn warn" onclick="modExcluirPerg('${m.id}')" title="Sem nenhuma execução: pode excluir">Excluir</button>`:'')+`<span style="margin-right:auto"></span>`+
       `<button class="btn" onclick="abrirModeloForm('${m.id}')">${dia?'Adicionar ou remover itens':'Editar'}</button>`:'')+`<button class="btn" onclick="fecharModal()">Fechar</button>`;
   const sc=manterScroll?$('m-body').scrollTop:0;
   abrirModal(m.nome, h, foot, 'wiz');
@@ -3398,7 +3404,7 @@ const AUTO_MS=30000; let autoEm=false, ultTecla=0, assinatura='';
 document.addEventListener('keydown',()=>{ ultTecla=Date.now(); },true);
 function assinaDB(){
   const o=DB.os.map(x=>x.id+':'+x.status+':'+(x.limite_atual||'')+':'+(x.responsavel||'')+':'+((x.eventos||[]).length)).join('|');
-  return [DB.checklists.length, DB.os.length, o.length, hashTxt(o), DB.usuarios.map(u=>u.id+u.status+u.papel).join(''), DB.ativos.map(a=>a.id+a.status).join(''), (DB.modelos||[]).length, (DB.documentos||[]).length].join('#');
+  return [DB.checklists.length, DB.os.length, o.length, hashTxt(o), DB.usuarios.map(u=>u.id+u.status+u.papel).join(''), DB.ativos.map(a=>a.id+a.status).join(''), (DB.modelos||[]).map(m=>m.id+m.nome+m.ativo+(m.inclui||[]).join(',')).join('|'), (DB.documentos||[]).length, (DB.prev_base||[]).length].join('#');
 }
 function hashTxt(t){ let h=0; for(let i=0;i<t.length;i++){ h=((h<<5)-h+t.charCodeAt(i))|0; } return h; }
 function ocupado(){

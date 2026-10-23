@@ -12,7 +12,7 @@
   var ORIGEM = /\/gestao\//.test(location.pathname) ? 'portal' : 'app';
 
   var MSG = {
-    INCLUSAO_CIRCULAR:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.', LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
+    MODELO_COM_HISTORICO:'Este checklist já tem execuções: dá para desativar, não excluir.', MODELO_COM_DOCUMENTOS:'Exclua os documentos anexados antes.', INCLUSAO_CIRCULAR:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.', LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
     SENHA_INCORRETA:'Senha incorreta.', CPF_NAO_CADASTRADO:'CPF não cadastrado. Peça acesso ao gestor da frota.', AGUARDANDO_APROVACAO:'Seu acesso ainda não foi aprovado.',
     USUARIO_BLOQUEADO:'Usuário bloqueado. Fale com o gestor da frota.', USUARIO_PENDENTE:'Seu acesso ainda não foi aprovado.', MUITAS_TENTATIVAS:'Muitas tentativas. Aguarde 15 minutos.',
     PRIMEIRO_ACESSO:'Primeiro acesso: crie sua senha de 6 números.', SENHA_6_NUMEROS:'A senha são 6 números.', JA_TEM_SENHA:'Você já tem senha. Entre com ela.',
@@ -204,11 +204,14 @@
     if (r.ok) r.modelo = CK.modelo(r.id); return r; };
   CK.modeloSet = function(id, p){
     if (/^d-/.test(id)) return escreve('ck_diario_set', { p_tipo:id.slice(2), p_ativo:p.ativo !== false });
-    return escreve('ck_modelo_salvar', { p:Object.assign({ id:id }, p) }).then(async function(r){
+    var m0 = CK.modelo(id) || {};   /* o banco reescreve tipo e frequência: manda os atuais quando a tela só muda o ativo/nome (23/10/2026) */
+    var base = { categoria:m0.categoria, freq:m0.freq, intervalo_km:m0.intervalo_km, intervalo_h:m0.intervalo_h };
+    return escreve('ck_modelo_salvar', { p:Object.assign({ id:id }, base, p) }).then(async function(r){
       if (r.ok && p.inclui !== undefined) { var r2 = await escreve('ck_modelo_inclui', { p_modelo:id, p_inclui:p.inclui || [] }); if (!r2.ok) return r2; } return r; });
   };
   CK.fornecedorCriar = function(d){ return escreve('ck_fornecedor_salvar', { p:d }); };
   CK.fornecedorSet = function(id, p){ return escreve('ck_fornecedor_salvar', { p:Object.assign({ id:id }, p) }); };
+  CK.modeloExcluir = function(id){ return escreve('ck_modelo_excluir', { p_modelo:id }); };
   CK.metasSet = function(p){ return escreve('ck_metas_set', { p:p }); };
   CK.fatura = async function(mk){
     try {

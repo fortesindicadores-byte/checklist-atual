@@ -245,6 +245,24 @@ begin
 end $$;
 
 
+-- excluir tipo de checklist: só sem histórico (nenhuma execução nem OS de preventiva); com histórico, só desativar
+create or replace function ck_modelo_excluir(p_token uuid, p_modelo text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); m ck_modelos;
+begin
+  perform ck_exige(u, array['master','admin']::ck_papel[]);
+  select * into m from ck_modelos where id = p_modelo; if m.id is null then raise exception 'MODELO_NAO_ENCONTRADO'; end if;
+  if exists (select 1 from ck_checklists where modelo_id = p_modelo) or exists (select 1 from ck_os where item_id = 'prev-' || p_modelo) then raise exception 'MODELO_COM_HISTORICO'; end if;
+  if exists (select 1 from ck_documentos where modelo_id = p_modelo and excluido_em is null) then raise exception 'MODELO_COM_DOCUMENTOS'; end if;
+  update ck_modelos set inclui = nullif(array_remove(inclui, p_modelo), '{}') where p_modelo = any(inclui);
+  delete from ck_prev_base where modelo_id = p_modelo;
+  delete from ck_documentos where modelo_id = p_modelo;
+  delete from ck_modelos_itens where modelo_id = p_modelo;
+  delete from ck_modelos where id = p_modelo;
+  delete from ck_itens where id = 'prev-' || p_modelo;
+  perform ck_audit(u.id, 'ck_modelos', p_modelo, 'delete', to_jsonb(m), null);
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- ── checklist do motorista / equipe ──
 -- p = {ativo, modelo?, leitura?, duracao_s?, cliente_id?, lat?, lng?, itens:[{item, ok:true|false|null, obs?, foto?}]}
 -- foto = caminho no bucket "fotos" (o app sobe antes, com a chave anon; ver políticas no fim)
@@ -700,7 +718,7 @@ grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,tex
   ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_documento_salvar(uuid,jsonb), ck_documento_excluir(uuid,uuid), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
-  ck_metas_set(uuid,jsonb), ck_fatura(uuid,date), ck_prev_base_salvar(uuid,jsonb), ck_modelo_inclui(uuid,text,text[]), ck_extra(uuid)
+  ck_metas_set(uuid,jsonb), ck_fatura(uuid,date), ck_prev_base_salvar(uuid,jsonb), ck_modelo_inclui(uuid,text,text[]), ck_extra(uuid), ck_modelo_excluir(uuid,text)
 to anon, authenticated;
 
 -- ── Storage (buckets privados "fotos" e "anexos", criados pela API) ──
