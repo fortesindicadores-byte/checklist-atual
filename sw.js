@@ -4,7 +4,7 @@
    Estratégia: rede primeiro, cache como rede de segurança (obra com sinal
    ruim mostra o último estado carregado). Chamadas a backend (quando houver)
    NUNCA entram no cache — dado é sempre da rede. Ao publicar, trocar CACHE. */
-const CACHE = 'ck-atual-v95';
+const CACHE = 'ck-atual-v96';
 const ESSENCIAIS = ['./', './index.html', './manifest.json', './shared/ativos.js', './shared/config.js', './shared/core.js', './shared/remote.js', './img/logo-atual-escuro.png','./img/logo-atual-claro.png','./img/icone-192.png', './img/onespot-icon.svg'];
 
 self.addEventListener('install', e => {

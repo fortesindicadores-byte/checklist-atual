@@ -1845,7 +1845,7 @@ function entrarTV(){
   document.body.classList.add('tv'); set('btTvTxt','Sair do Modo TV');
   const el=document.documentElement; if(el.requestFullscreen){ try{ const p=el.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }
   relogio(); clearInterval(tvRel); tvRel=setInterval(relogio,1000);
-  clearInterval(tvTimer); tvTimer=setInterval(()=>{ refreshIdx(); atualizar(); },60000);
+  clearInterval(tvTimer); tvTimer=setInterval(autoSync,AUTO_MS);   /* Modo TV usa a mesma busca no servidor */
 }
 function sairTV(){
   if(!document.body.classList.contains('tv')) return;
@@ -3237,6 +3237,37 @@ async function iniciar(){
     const esp=LS.get('ck_gestao_espera'); if(esp&&CK.usuario(esp)){ ESP=esp; mostraEspera(); } }   /* quem pediu acesso volta direto para a tela de espera */
 }
 document.addEventListener('DOMContentLoaded',iniciar);
+/* ── Atualização automática (22/10/2026): busca o servidor a cada 30 s com a aba visível e ao voltar para a aba.
+   Só redesenha se algo mudou, e nunca com OS/janela aberta ou com alguém digitando: espera o próximo ciclo. */
+const AUTO_MS=30000; let autoEm=false, ultTecla=0, assinatura='';
+document.addEventListener('keydown',()=>{ ultTecla=Date.now(); },true);
+function assinaDB(){
+  const o=DB.os.map(x=>x.id+':'+x.status+':'+(x.limite_atual||'')+':'+(x.responsavel||'')+':'+((x.eventos||[]).length)).join('|');
+  return [DB.checklists.length, DB.os.length, o.length, hashTxt(o), DB.usuarios.map(u=>u.id+u.status+u.papel).join(''), DB.ativos.map(a=>a.id+a.status).join(''), (DB.modelos||[]).length, (DB.documentos||[]).length].join('#');
+}
+function hashTxt(t){ let h=0; for(let i=0;i<t.length;i++){ h=((h<<5)-h+t.charCodeAt(i))|0; } return h; }
+function ocupado(){
+  if($('drawer').classList.contains('on')||$('modal').classList.contains('on')) return true;
+  if(document.querySelector('.ms-panel.open')) return true;
+  const a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&Date.now()-ultTecla<15000) return true;
+  return false;
+}
+async function autoSync(){
+  if(!EU||autoEm||document.hidden||ocupado()) return;
+  autoEm=true;
+  try{
+    if(CK.REMOTO) await CK.sincronizar(); else CK.recarregar();
+    if(ocupado()) return;                      /* abriu algo enquanto buscava: desenha no próximo ciclo */
+    refreshIdx(); const sig=assinaDB(); if(sig===assinatura) return; assinatura=sig;
+    const vw=document.querySelector('.vw.on'), rolos=vw?[vw,...vw.querySelectorAll('.twrap,.kb-b')].map(el=>[el,el.scrollTop,el.scrollLeft]):[];
+    atualizar();
+    rolos.forEach(([el,t,l])=>{ if(document.contains(el)){ el.scrollTop=t; el.scrollLeft=l; } });
+  }catch(e){ /* sem rede ou sessão caiu: tenta de novo no próximo ciclo */ }
+  finally{ autoEm=false; }
+}
+setInterval(autoSync,AUTO_MS);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) autoSync(); });
+window.addEventListener('focus',()=>autoSync());
 let _rt;
 window.addEventListener('resize',()=>{ clearTimeout(_rt); _rt=setTimeout(()=>{ if(lastF) renderCharts(lastF); },400); });
 </script>
