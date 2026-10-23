@@ -12,7 +12,7 @@
   var ORIGEM = /\/gestao\//.test(location.pathname) ? 'portal' : 'app';
 
   var MSG = {
-    LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
+    INCLUSAO_CIRCULAR:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.', LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
     SENHA_INCORRETA:'Senha incorreta.', CPF_NAO_CADASTRADO:'CPF não cadastrado. Peça acesso ao gestor da frota.', AGUARDANDO_APROVACAO:'Seu acesso ainda não foi aprovado.',
     USUARIO_BLOQUEADO:'Usuário bloqueado. Fale com o gestor da frota.', USUARIO_PENDENTE:'Seu acesso ainda não foi aprovado.', MUITAS_TENTATIVAS:'Muitas tentativas. Aguarde 15 minutos.',
     PRIMEIRO_ACESSO:'Primeiro acesso: crie sua senha de 6 números.', SENHA_6_NUMEROS:'A senha são 6 números.', JA_TEM_SENHA:'Você já tem senha. Entre com ela.',
@@ -65,7 +65,7 @@
         reprog:(o.reprog || []).map(function(r){ return { q:loc(r.q), por:r.por, motivo:r.motivo, novo_limite:loc(r.novo_limite) }; }) }); })
         .sort(function(a, b){ return a.abertura < b.abertura ? -1 : 1; }),
       fotos:{}, anexos:{},
-      modelos:(d.modelos || []).map(function(m){ return Object.assign({ exec:'equipe', sistema:false }, m, { criado_em:loc(m.criado_em) }); }),
+      modelos:(d.modelos || []).map(function(m){ var inc = (d.inclui || {})[m.id]; return Object.assign({ exec:'equipe', sistema:false }, m, { criado_em:loc(m.criado_em), inclui: inc && inc.length ? inc : null }); }),
       diarios_off:(d.tipos || []).filter(function(t){ return t.diario_ativo === false; }).map(function(t){ return t.id; }),
       itens_extra:[], itens_cfg:{}, maiusculas:true,
       prev_base:(d.prev_base || []).map(function(x){ return Object.assign({}, x, { leitura: x.leitura == null ? null : +x.leitura, data: String(x.data).slice(0, 10) + 'T12:00:00', criado_em:loc(x.criado_em) }); }),
@@ -78,7 +78,9 @@
   }
   async function sync(){
     if (!token) return CK.load();
-    try { return adaptar(await rpc('ck_dataset', { p_token:token })); }
+    try { var d = await rpc('ck_dataset', { p_token:token });
+      try { var ex = await rpc('ck_extra', { p_token:token }); d.prev_base = ex.prev_base || []; d.inclui = ex.inclui || {}; } catch(e2){ d.prev_base = []; d.inclui = {}; }   /* ponto de partida e básica/completa (22/10/2026) */
+      return adaptar(d); }
     catch(e){ if (erro(e).code === 'SESSAO_INVALIDA') { token = null; try { localStorage.removeItem(LSK); } catch(x){} } throw e; }
   }
   async function escreve(fn, body){
@@ -197,10 +199,13 @@
   CK.itemCriar = async function(d){ var r = await escreve('ck_item_salvar', { p:d }); if (r.ok) r.item = CK.ITEM[r.id]; return r; };
   CK.itemSet = function(id, p){ return escreve('ck_item_salvar', { p:Object.assign({ id:id }, p) }); };
   CK.diarioItensSet = function(){ return Promise.resolve({ ok:false, erro:'Os itens do diário são editados em Itens e SLA.' }); };
-  CK.modeloCriar = async function(d){ var r = await escreve('ck_modelo_salvar', { p:d }); if (r.ok) r.modelo = CK.modelo(r.id); return r; };
+  CK.modeloCriar = async function(d){ var r = await escreve('ck_modelo_salvar', { p:d });
+    if (r.ok && d.inclui && d.inclui.length) { var r2 = await escreve('ck_modelo_inclui', { p_modelo:r.id, p_inclui:d.inclui }); if (!r2.ok) return r2; }
+    if (r.ok) r.modelo = CK.modelo(r.id); return r; };
   CK.modeloSet = function(id, p){
     if (/^d-/.test(id)) return escreve('ck_diario_set', { p_tipo:id.slice(2), p_ativo:p.ativo !== false });
-    return escreve('ck_modelo_salvar', { p:Object.assign({ id:id }, p) });
+    return escreve('ck_modelo_salvar', { p:Object.assign({ id:id }, p) }).then(async function(r){
+      if (r.ok && p.inclui !== undefined) { var r2 = await escreve('ck_modelo_inclui', { p_modelo:id, p_inclui:p.inclui || [] }); if (!r2.ok) return r2; } return r; });
   };
   CK.fornecedorCriar = function(d){ return escreve('ck_fornecedor_salvar', { p:d }); };
   CK.fornecedorSet = function(id, p){ return escreve('ck_fornecedor_salvar', { p:Object.assign({ id:id }, p) }); };

@@ -150,6 +150,7 @@ create table if not exists ck_prev_base (
 );
 create index if not exists ck_prev_base_am on ck_prev_base (ativo_id, modelo_id, criado_em desc);
 alter table ck_prev_base enable row level security;
+alter table ck_modelos add column if not exists inclui text[];   -- revisão que inclui outra (COMPLETA inclui BÁSICA), 22/10/2026
 
 create table if not exists ck_documentos (            -- manual, plano do fabricante, laudo preditivo, ART… (Storage anexos/docs/<ativo>/)
   id           uuid primary key default gen_random_uuid(),

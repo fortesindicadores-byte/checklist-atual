@@ -240,6 +240,14 @@ var CK = (function(){
   function modelosDiarios(){ var off = load().diarios_off || []; return TIPOS.map(function(t){ return { id:'d-' + t.id, nome:'Diário · ' + t.nome, freq:'diario', exec:'motorista', tipos:[t.id], itens:null, sistema:true, ativo: off.indexOf(t.id) < 0 }; }); }
   function diarioAtivo(tipoId){ return (load().diarios_off || []).indexOf(tipoId) < 0; }
   /* o checklist cobre o ativo? tipos do modelo e, se houver, só a lista de ativos específicos (Renan, 19/10/2026) */
+  /* revisão que inclui outras (22/10/2026): COMPLETA inclui BÁSICA; 500 h inclui 250 h… (transitivo) */
+  function inclusos(mid, vis){ vis = vis || {}; var m = modelo(mid), out = []; if (!m || vis[mid]) return out; vis[mid] = 1;
+    (m.inclui || []).forEach(function(i){ if (i !== mid && out.indexOf(i) < 0) { out.push(i); inclusos(i, vis).forEach(function(k){ if (k !== mid && out.indexOf(k) < 0) out.push(k); }); } }); return out; }
+  function cobridores(mid){ return (load().modelos || []).filter(function(m){ return m.id !== mid && inclusos(m.id).indexOf(mid) >= 0; }).map(function(m){ return m.id; }); }
+  /* km (ou horas) por dia do ativo, pelas leituras dos últimos 60 dias; null sem dado suficiente */
+  function taxaUso(aid){ var lim = iso(new Date(Date.now() - 60 * 864e5)), l = load().checklists.filter(function(c){ return c.ativo === aid && c.leitura != null && String(c.data).slice(0, 10) >= lim; });
+    if (l.length < 2) return null; var a = l[0], b = l[l.length - 1]; l.forEach(function(c){ if (c.data < a.data) a = c; if (c.data > b.data) b = c; });
+    var d = diffH(a.data, b.data) / 24, k = +b.leitura - +a.leitura; return d >= 3 && k > 0 ? k / d : null; }
   function modeloCobre(m, a){ if (!m || !a) return false; if (m.tipos.indexOf(a.tipo) < 0) return false; return !(m.ativos && m.ativos.length) || m.ativos.indexOf(a.id) >= 0; }
   function modelos(todos){ var l = modelosDiarios().concat(load().modelos || []); return todos ? l : l.filter(function(m){ return m.ativo !== false; }); }
   function modelo(id){ return modelos(true).filter(function(m){ return m.id === id; })[0] || null; }
@@ -247,7 +255,8 @@ var CK = (function(){
   function itensDoModelo(modeloId, ativoOuId){
     var m = modelo(modeloId); if (!m) return [];
     if (m.freq === 'diario') return itensDoAtivo(ativoOuId);
-    return (m.itens || []).map(function(id){ return ITEM[id]; }).filter(Boolean);
+    var ids = []; inclusos(m.id).slice().reverse().concat([m.id]).forEach(function(x){ var mm = modelo(x); ((mm && mm.itens) || []).forEach(function(i){ if (ids.indexOf(i) < 0) ids.push(i); }); });
+    return ids.map(function(id){ return ITEM[id]; }).filter(Boolean);
   }
   function modeloCriar(d){
     var db = load(); var nome = UP(d.nome);
@@ -264,7 +273,7 @@ var CK = (function(){
     var itens = (d.itens || []).filter(function(id){ return ITEM[id]; }).concat(novos.map(function(n){ return n.id; }));
     if (!itens.length) return { ok:false, erro:'O checklist precisa ter ao menos um item.' };
     if (d.freq === 'uso' && !(+d.intervalo_km > 0) && !(+d.intervalo_h > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
-    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
+    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, inclui:(cat === 'preventivo' && d.inclui && d.inclui.length) ? d.inclui.slice() : null, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
     db.modelos = db.modelos || []; db.modelos.push(m); save();
     garantePrevItens(); return { ok:true, modelo:m, itens_novos:novos.length };
   }
@@ -300,31 +309,40 @@ var CK = (function(){
     if (fr2 === 'uso' && !(+(patch.intervalo_km != null ? patch.intervalo_km : m.intervalo_km) > 0) && !(+(patch.intervalo_h != null ? patch.intervalo_h : m.intervalo_h) > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
     ['nome','categoria','freq','tipos','itens','ativo'].forEach(function(k){ if (patch[k] != null) m[k] = patch[k]; });
     if (patch.ativos !== undefined) m.ativos = (patch.ativos && patch.ativos.length) ? patch.ativos.slice() : null;
+    if (patch.inclui !== undefined) { var inc = (patch.inclui || []).filter(function(x){ return x !== m.id && modelo(x); });
+      if (inc.some(function(x){ return inclusos(x).indexOf(m.id) >= 0; })) return { ok:false, erro:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.' };
+      m.inclui = inc.length ? inc : null; }
     if (patch.intervalo_km !== undefined) m.intervalo_km = +patch.intervalo_km || null; if (patch.intervalo_h !== undefined) m.intervalo_h = +patch.intervalo_h || null;
     save(); garantePrevItens(); return { ok:true, modelo:m };
   }
   /* inspeções da equipe para o usuário (admin/frota/master): modelo × ativo, com a situação pela última execução */
   function inspecoesPara(u){
     if (!u || ['master','admin','frota'].indexOf(u.papel) < 0) return [];
-    var db = load(), agora = isoDT(new Date()), out = [];
+    var db = load(), agora = isoDT(new Date()), out = [], pct = (+metas().prev_aviso_pct || 10) / 100;   /* margem do 'em atenção' (Parâmetros) */
     modelos().filter(function(m){ return m.freq !== 'diario'; }).forEach(function(m){
       db.ativos.filter(function(a){ return a.status === 'ativo' && modeloCobre(m, a); }).forEach(function(a){
-        var ult = null; for (var i = db.checklists.length - 1; i >= 0; i--) { var c = db.checklists[i]; if (c.ativo === a.id && c.modelo === m.id) { ult = c; break; } }
-        var b = prevBase(a.id, m.id);   /* ponto de partida informado (22/10/2026): vale se for mais novo que a última execução */
-        if (b && (!ult || (m.freq === 'uso' ? (b.leitura != null && +b.leitura > +(ult.leitura == null ? -1 : ult.leitura)) : b.data > ult.data))) ult = { data:b.data, leitura:b.leitura, usuario:b.criado_por, base:true, nc:0, itens_total:0 };
+        var cob = [m.id].concat(cobridores(m.id));   /* fazer a COMPLETA conta como BÁSICA feita (22/10/2026) */
+        var ult = null; for (var i = db.checklists.length - 1; i >= 0; i--) { var c = db.checklists[i]; if (c.ativo === a.id && cob.indexOf(c.modelo) >= 0) { ult = c; break; } }
+        cob.forEach(function(mx){ var b = prevBase(a.id, mx);   /* ponto de partida informado: vale se for mais novo que a última execução */
+          if (b && (!ult || (m.freq === 'uso' ? (b.leitura != null && +b.leitura > +(ult.leitura == null ? -1 : ult.leitura)) : b.data > ult.data))) ult = { data:b.data, leitura:b.leitura, usuario:b.criado_por, base:true, nc:0, itens_total:0, modelo:mx }; });
         if (m.freq === 'uso') {   /* por uso: próxima = leitura da última execução + intervalo do medidor do ativo */
           var iv = a.medidor === 'km' ? +m.intervalo_km : a.medidor === 'h' ? +m.intervalo_h : 0;
           if (!iv) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:Infinity, status:'livre', uso:true }); return; }
           if (!ult || ult.leitura == null) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:-1, status:'nunca', uso:true, intervalo:iv, medidor:a.medidor }); return; }
           var prox = +ult.leitura + iv, falta = prox - (+a.leitura || 0);
-          out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas: falta / iv * 720, status: falta < 0 ? 'atrasada' : falta <= iv * .1 ? 'vence' : 'em_dia', uso:true, prox:prox, falta:falta, intervalo:iv, medidor:a.medidor }); return;
+          out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas: falta / iv * 720, status: falta < 0 ? 'atrasada' : falta <= iv * pct ? 'vence' : 'em_dia', uso:true, prox:prox, falta:falta, intervalo:iv, medidor:a.medidor }); return;
         }
         if (!FREQ[m.freq].dias) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:Infinity, status:'livre' }); return; }   /* sob demanda: nunca atrasa */
         var vence = ult ? addH(ult.data, FREQ[m.freq].dias * 24) : null;
         var h = vence ? diffH(agora, vence) : -1;
-        out.push({ modelo:m, ativo:a, ultima:ult, vence:vence, horas:h, status: !ult ? 'nunca' : h < 0 ? 'atrasada' : h < 48 ? 'vence' : 'em_dia' });
+        out.push({ modelo:m, ativo:a, ultima:ult, vence:vence, horas:h, status: !ult ? 'nunca' : h < 0 ? 'atrasada' : h < Math.max(48, FREQ[m.freq].dias * 24 * pct) ? 'vence' : 'em_dia' });
       });
     });
+    /* a menor que vence junto com uma maior que a inclui é feita junto: some da lista e aparece na maior */
+    out.forEach(function(x){ if (x.status !== 'atrasada' && x.status !== 'vence') return;
+      var y = out.filter(function(z){ return z !== x && z.ativo.id === x.ativo.id && (z.status === 'atrasada' || z.status === 'vence') && inclusos(z.modelo.id).indexOf(x.modelo.id) >= 0; })
+        .sort(function(p, q){ return inclusos(q.modelo.id).length - inclusos(p.modelo.id).length; })[0];   /* a maior de todas (GERAL leva COMPLETA e BÁSICA) */
+      if (y) { x.junto_de = y.modelo; (y.juntas = y.juntas || []).push(x.modelo); } });
     var ord = { atrasada:0, nunca:1, vence:2, em_dia:3, livre:4 };
     return out.sort(function(x, y){ return ord[x.status] - ord[y.status] || (x.horas - y.horas); });
   }
@@ -976,7 +994,8 @@ var CK = (function(){
     sla:          { verde:85, amarelo:70 },        // % OS fechadas no prazo
     inspecoes:    { verde:85, amarelo:70 },        // % ativos com a inspeção em dia
     mttr_h:       72,                              // meta de tempo médio de reparo (horas)
-    mtbf_d:       7                                // meta de tempo médio entre falhas (dias)
+    mtbf_d:       7,                               // meta de tempo médio entre falhas (dias)
+    prev_aviso_pct: 10                             // revisões e inspeções: 'em atenção' quando falta até X% do intervalo (22/10/2026)
   };
   function metas(){ var c = load().config || {}; var m = JSON.parse(JSON.stringify(METAS_PADRAO)), u = c.metas || {};
     Object.keys(u).forEach(function(k){ m[k] = (typeof u[k] === 'object') ? Object.assign({}, m[k], u[k]) : u[k]; }); return m; }
@@ -985,6 +1004,7 @@ var CK = (function(){
     Object.keys(patch || {}).forEach(function(k){ if (!(k in METAS_PADRAO)) return; m[k] = (typeof METAS_PADRAO[k] === 'object') ? Object.assign({}, m[k], patch[k]) : +patch[k]; });
     var erro = null;
     ['conformidade','sla','inspecoes'].forEach(function(k){ var f = m[k]; if (!(f.verde > 0 && f.verde <= 100 && f.amarelo >= 0 && f.amarelo < f.verde)) erro = 'Em ' + k + ': o amarelo precisa ser menor que o verde, entre 0 e 100.'; });
+    if (!(m.prev_aviso_pct >= 1 && m.prev_aviso_pct <= 50)) erro = 'O aviso das revisões precisa ficar entre 1% e 50% do intervalo.';
     if (!(m.mttr_h > 0)) erro = 'A meta de MTTR precisa ser maior que zero.'; if (!(m.mtbf_d > 0)) erro = 'A meta de MTBF precisa ser maior que zero.';
     if (erro) return { ok:false, erro:erro };
     db.config.metas = m; db.config.metas_log = (db.config.metas_log || []).concat([{ q:isoDT(new Date()), por:por || null, metas:m }]); save();
@@ -1087,7 +1107,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,

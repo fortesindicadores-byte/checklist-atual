@@ -796,6 +796,9 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
 #tb-pv td.pv-rv{max-width:128px;white-space:normal;line-height:1.3}
 .pv-inf{font-size:10px!important;padding:3px 8px!important}
 .pv-mods label{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;cursor:pointer}
+.wz-inc{display:flex;flex-wrap:wrap;gap:6px}
+.wz-inc button{border:1px solid var(--card-brd);background:var(--side);color:var(--txt2);border-radius:999px;padding:6px 11px;font:600 11px/1.2 inherit;cursor:pointer}
+.wz-inc button.on{border-color:var(--azul);color:var(--txt);background:rgba(14,139,200,.16)}
 </style>
 </head>
 <body>
@@ -2666,6 +2669,8 @@ function abrirModeloDet(id,manterScroll){
     k('Ativos cobertos', n(cov.length), tps)+
     k('Itens', n(its.length), bl?`${n(bl)} ${bl===1?'bloqueia':'bloqueiam'} o ativo`:'nenhum bloqueia o ativo')+
     k('Status', ativo?'Ativo':'Inativo', dia?(ativo?'motoristas fazem o checklist':'sem checklist nesses ativos'):(m.criado_em?'criado em '+CK.fmtDH(m.criado_em).slice(0,10):'—'), ativo?'cg':'cr')+`</div>`;
+  { const inc=CK.inclusos(m.id).map(id=>CK.modelo(id)).filter(Boolean), por=CK.cobridores(m.id).map(id=>CK.modelo(id)).filter(Boolean);
+    if(inc.length||por.length) h+=`<div class="md-nota">${inc.length?`<b>Inclui:</b> ${inc.map(x=>esc(x.nome)).join(', ')} · fazer esta revisão faz as tarefas delas e zera todas.`:''}${inc.length&&por.length?'<br>':''}${por.length?`<b>Incluída em:</b> ${por.map(x=>esc(x.nome)).join(', ')} · fazer a maior conta esta como feita.`:''}</div>`; }
   const fora=dia?cov.filter(a=>(a.itens_fora||[]).length).length:0;
   h+=`<div class="md-nota">${ed?'Clique no item para ver e editar criticidade, prazo e bloqueio. A mudança vale em todos os checklists que usam o item e só para OS novas.':'Clique no item para ver a ficha · somente leitura para o seu perfil.'}`+
     (fora?` ${n(fora)} ${fora===1?'ativo deste tipo tem':'ativos deste tipo têm'} itens retirados na tela Ativos.`:'')+`</div>`;
@@ -2714,7 +2719,7 @@ const CHEV_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const LUPA_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>';
 let W=null;
 function wzNovo(modo,m){
-  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
+  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), inclui:new Set(m&&m.inclui?m.inclui:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
     passos:modo==='importar'?['Planilha','Dados','Itens','Revisar']:['Dados','Itens','Revisar'], passo:0};
 }
 function abrirModeloForm(id){
@@ -2773,6 +2778,7 @@ function wzDados(){
     `<div class="fld"><label>Frequência <span class="ctx">· ${W.categoria==='inspecao'?'de quanto em quanto tempo a equipe inspeciona cada ativo':'sob demanda = sem prazo; feito quando precisar'}</span></label><div class="seg">`+
       fs.map(k=>`<button type="button" class="${W.freq===k?'on':''}" onclick="W.freq='${k}';W.nome=($('wzNome')||{}).value||W.nome;wzRender()">${CK.FREQ[k].nome}</button>`).join('')+`</div></div>`+
     (W.freq==='uso'?`<div class="frow"><div class="fld"><label>A cada (km) <span class="ctx">· caminhões e veículos</span></label><input class="inp" type="number" min="0" step="500" id="wzIntKm" value="${W.intervalo_km||''}" placeholder="Ex.: 10000" oninput="W.intervalo_km=+this.value||null"></div><div class="fld"><label>A cada (horas) <span class="ctx">· máquinas com horímetro</span></label><input class="inp" type="number" min="0" step="50" id="wzIntH" value="${W.intervalo_h||''}" placeholder="Ex.: 250" oninput="W.intervalo_h=+this.value||null"></div></div><div class="ctx" style="font-size:10.5px;margin:-4px 0 10px">Use o intervalo do plano do fabricante. A próxima vence na leitura da última execução + o intervalo; o app mostra quanto falta pela leitura do checklist diário.</div>`:'')+
+    (W.categoria==='preventivo'&&W.modo!=='diario'?wzInclui():'')+
     `<div class="fld"><label>Tipos de ativo <span class="ctx">· vale para todos os ativos em operação dos tipos escolhidos</span></label><div class="wz-tipos">`+
       CK.TIPOS.map(t=>`<button type="button" class="wz-tc ${W.tipos.has(t.id)?'on':''}" onclick="wzTipo('${t.id}',this)"><span class="ic">${CK.ICONES[t.icone]||''}</span><span class="tx"><b title="${esc(t.nome)}">${esc(t.nome)}</b><small>${n(cnt[t.id]||0)} ${cnt[t.id]===1?'ativo':'ativos'}</small></span><span class="ck">${CHK_SVG}</span></button>`).join('')+
     `</div><div class="erro" id="wzErrTipo"></div></div>`+
@@ -2868,6 +2874,14 @@ function wzRevisar(){
       :card('Itens novos',n(nv),nv?'entram no catálogo como itens de inspeção':'todos já existem no catálogo'))+`</div>`+
     wzNota()+`<div class="erro" id="wzErr"></div>`+itensAgrupados(its);
 }
+/* revisão que inclui outra (22/10/2026): a COMPLETA inclui a BÁSICA: junta as tarefas e zera as duas */
+function wzInclui(){
+  const l=CK.modelos().filter(m=>CK.catDe(m)==='preventivo'&&m.id!==W.id&&(!W.id||!CK.inclusos(m.id).includes(W.id))).sort((x,y)=>x.nome.localeCompare(y.nome,'pt-BR',{numeric:true}));
+  if(!l.length) return '';
+  return `<div class="fld"><label>Inclui outra revisão <span class="ctx">· opcional · ex.: a COMPLETA inclui a BÁSICA: o mecânico faz as tarefas das duas num checklist só e as duas zeram</span></label><div class="wz-inc">`+
+    l.map(m=>`<button type="button" class="${W.inclui.has(m.id)?'on':''}" onclick="wzIncTog('${m.id}',this)">${esc(m.nome)}</button>`).join('')+`</div></div>`;
+}
+function wzIncTog(id,el){ if(W.inclui.has(id)) W.inclui.delete(id); else W.inclui.add(id); el.classList.toggle('on',W.inclui.has(id)); }
 async function wzSalvar(){
   if(!podeEditar()||!W) return;
   const err=t=>{ $('wzErr').textContent=t; };
@@ -2875,7 +2889,7 @@ async function wzSalvar(){
   if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.'); refreshIdx(); atualizar(); abrirModeloDet(W.id); return; }
   if(W.modo!=='editar'){
     if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
+    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
     if(!r.ok) return err(r.erro||'Não foi possível criar.');
     refreshIdx(); atualizar(); abrirModeloDet(r.modelo.id); return;
   }
@@ -2888,7 +2902,7 @@ async function wzSalvar(){
     novos.forEach(x=>{ const it={id:CK.uid('x'), cat:x.cat||'INSPEÇÃO', nome:x.nome, crit:x.crit, prazo:x.prazo, bloqueia:x.bloqueia, ap:[], insp:true}; db.itens_extra.push(it); ids.push(it.id); });
     CK.save(); CK.recarregar(); }
   if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
+  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
   if(!r.ok) return err(r.erro||'Não foi possível salvar.');
   refreshIdx(); atualizar(); abrirModeloDet(W.id);
 }
@@ -2982,12 +2996,14 @@ function renderParametros(){
       `<div class="fld"><label>Meta (verde até)</label>${inp('pm-mttr',M.mttr_h,'horas')}</div><div class="ctx" id="pm-mttr-eq" style="font-size:11px"></div></div>`+
     `<div class="card pm-card"><div class="pm-h"><b>MTBF · Tempo entre falhas</b><span class="ctx">média dos intervalos entre falhas do mesmo ativo · maior é melhor</span></div>`+
       `<div class="fld"><label>Meta (verde a partir de)</label>${inp('pm-mtbf',M.mtbf_d,'dias')}</div><div class="ctx" id="pm-mtbf-eq" style="font-size:11px"></div></div>`+
+    `<div class="card pm-card"><div class="pm-h"><b>Revisões e inspeções · aviso</b><span class="ctx">quando a revisão passa a "em atenção" no painel Preventivas e no app do mecânico</span></div>`+
+      `<div class="fld"><label>Em atenção quando faltar até</label>${inp('pm-prev',M.prev_aviso_pct,'% do intervalo')}</div><div class="ctx" id="pm-prev-eq" style="font-size:11px"></div></div>`+
     `<div class="card pm-card"><div class="pm-h"><b>Aplicar</b><span class="ctx">As metas valem para todo o portal: cores, legendas e linhas de meta dos gráficos.</span></div>`+
       `<div class="pm-acts">${ed?`<button class="btn pri" onclick="pmSalvar()">Salvar</button><button class="btn" onclick="pmPadrao()">Restaurar padrão</button>`:'<span class="ctx">Somente leitura para o seu perfil.</span>'}<span class="okmsg" id="pm-ok"></span><div class="erro" id="pm-erro"></div></div></div>`;
   pmPrev(); pmLog();
 }
 const pmNum=id=>{ const v=parseFloat(String($(id).value).replace(',','.')); return isFinite(v)?v:null; };
-function pmLer(){ const p={}; PM_PCT.forEach(([k])=>{ p[k]={verde:pmNum('pm-'+k+'-v'), amarelo:pmNum('pm-'+k+'-a')}; }); p.mttr_h=pmNum('pm-mttr'); p.mtbf_d=pmNum('pm-mtbf'); return p; }
+function pmLer(){ const p={}; PM_PCT.forEach(([k])=>{ p[k]={verde:pmNum('pm-'+k+'-v'), amarelo:pmNum('pm-'+k+'-a')}; }); p.mttr_h=pmNum('pm-mttr'); p.mtbf_d=pmNum('pm-mtbf'); p.prev_aviso_pct=pmNum('pm-prev'); return p; }
 /* pré-visualização: barra 0–100% com as três faixas e a legenda no estilo .fxl */
 function pmPrev(){
   const p=pmLer(); $('pm-erro')&&($('pm-erro').textContent=''); set('pm-ok','');
@@ -2995,6 +3011,7 @@ function pmPrev(){
     $('pmb-'+k).innerHTML=`<i style="width:${a}%;background:var(--vermelho)"></i><i style="width:${v-a}%;background:var(--ambar)"></i><i style="width:${100-v}%;background:var(--verde)"></i>`;
     $('pmf-'+k).innerHTML=`<div class="fxl"><span><i style="background:var(--verde)"></i>≥ ${numBR(p[k].verde)}%</span><span><i style="background:var(--ambar)"></i>${numBR(p[k].amarelo)}–${numBR(p[k].verde)}%</span><span><i style="background:var(--vermelho)"></i>&lt; ${numBR(p[k].amarelo)}%</span></div>`; });
   set('pm-mttr-eq', p.mttr_h>0?`= ${(p.mttr_h/24).toFixed(1).replace('.',',').replace(/,0$/,'')} ${p.mttr_h===24?'dia':'dias'} · verde até a meta, vermelho acima`:'informe a meta em horas');
+  set('pm-prev-eq', p.prev_aviso_pct>0?`revisão de 10.000 km: em atenção a partir de ${n(Math.round(10000*p.prev_aviso_pct/100))} km antes · de 250 h: ${n(Math.round(250*p.prev_aviso_pct/100))} h antes · inspeção mensal: ${n(Math.max(2,Math.round(30*p.prev_aviso_pct/100)))} dias antes`:'informe a porcentagem');
   set('pm-mtbf-eq', p.mtbf_d>0?`= ${n(Math.round(p.mtbf_d*24))} horas · verde a partir da meta, vermelho abaixo`:'informe a meta em dias');
 }
 function pmAplicou(r){ if(!r.ok){ $('pm-erro').textContent=r.erro||'Não foi possível salvar.'; return; } refreshIdx(); renderParametros(); set('pm-ok','Salvo.'); }
@@ -3007,6 +3024,7 @@ function pmDiff(a,b){
     if(x.verde!==y.verde) d.push(`meta ${numBR(x.verde)}% → ${numBR(y.verde)}%`); if(x.amarelo!==y.amarelo) d.push(`atenção ${numBR(x.amarelo)}% → ${numBR(y.amarelo)}%`);
     if(d.length) out.push(`${nm}: ${d.join(', ')}`); });
   if(a.mttr_h!==b.mttr_h) out.push(`MTTR: ${numBR(a.mttr_h)} h → ${numBR(b.mttr_h)} h`);
+  if((a.prev_aviso_pct||10)!==(b.prev_aviso_pct||10)) out.push(`Aviso das revisões: ${numBR(a.prev_aviso_pct||10)}% → ${numBR(b.prev_aviso_pct||10)}%`);
   if(a.mtbf_d!==b.mtbf_d) out.push(`MTBF: ${numBR(a.mtbf_d)} d → ${numBR(b.mtbf_d)} d`);
   return out;
 }
@@ -3277,40 +3295,62 @@ document.addEventListener('DOMContentLoaded',iniciar);
    Em atenção = falta ≤ 10% do intervalo, igual ao aviso que o mecânico recebe no app. */
 const PV_ST={atrasada:{t:'VENCIDA',c:'cr',cor:'var(--vermelho)',o:0}, vence:{t:'EM ATENÇÃO',c:'ca',cor:'var(--ambar)',o:1}, em_dia:{t:'NO PRAZO',c:'cg',cor:'var(--verde)',o:2}, nunca:{t:'SEM HISTÓRICO',c:'muted',cor:'var(--txt3)',o:3}};
 const pvCurto=nm=>String(nm||'').split(' · ')[0];
-/* várias revisões juntas: 'REVISÃO A + B' (em vez de repetir a palavra) */
-const pvJunta=l=>{ const c=[...new Set(l.map(x=>pvCurto(x.modelo.nome)))].sort((x,y)=>x.localeCompare(y,'pt-BR',{numeric:true})); return c.every(x=>/^REVISÃO /.test(x))&&c.length>1?'REVISÃO '+c.map(x=>x.slice(8)).join(' + '):c.join(' + '); };
 const pvUn=a=>a.medidor==='h'?' h':a.medidor==='km'?' km':'';
+/* nome curto na tabela: revisão pelo nome; inspeção e preditivo pelo tipo */
+const pvNome=m=>{ const c=CK.catDe(m); return c==='inspecao'?'INSPEÇÃO'+(CK.FREQ[m.freq]&&CK.FREQ[m.freq].dias?' '+CK.FREQ[m.freq].nome:''):c==='preditivo'?'PREDITIVO':pvCurto(m.nome); };
+/* várias juntas: 'REVISÃO COMPLETA + INSPEÇÃO MENSAL'; repetição de 'REVISÃO' vira 'REVISÃO 500 H + 1.000 H' */
+const pvJunta=ms=>{ const c=[...new Set(ms.map(pvNome))]; const r=c.filter(x=>/^REVISÃO /.test(x)), o=c.filter(x=>!/^REVISÃO /.test(x));
+  return [r.length>1?'REVISÃO '+r.map(x=>x.slice(8)).join(' + '):r[0], ...o].filter(Boolean).join(' + '); };
+/* tira da lista a revisão que outra da mesma lista já inclui (COMPLETA cobre a BÁSICA) */
+const pvSemInclusas=ms=>ms.filter(m=>!ms.some(k=>k.id!==m.id&&CK.inclusos(k.id).includes(m.id)));
+/* Preventivas (22/10/2026): uma linha por ativo, pelo cadastro das revisões e pelos Parâmetros.
+   Âncora = a preventiva que vence primeiro. Junto = tudo (outras revisões, inspeção, preditivo) que, no dia da âncora,
+   já estará em atenção ou vencido pela margem do parâmetro. Km × data: estima pelo km/dia das leituras (60 dias). */
 function pvLinhas(f){
-  const ins=CK.inspecoesPara(EU).filter(x=>x.modelo.categoria==='preventivo'&&x.status!=='livre'&&ativoOk(f,x.ativo)&&(!f.modelo.length||f.modelo.includes(x.modelo.id)));
-  const por={}; ins.forEach(x=>{ (por[x.ativo.id]=por[x.ativo.id]||{a:x.ativo,l:[]}).l.push(x); });
+  const pct=(+CK.metas().prev_aviso_pct||10)/100, hoje=new Date();
+  const todos=CK.inspecoesPara(EU).filter(x=>['preventivo','preditivo','inspecao'].includes(CK.catDe(x.modelo))&&x.status!=='livre'&&ativoOk(f,x.ativo));
+  const por={}; todos.forEach(x=>{ (por[x.ativo.id]=por[x.ativo.id]||{a:x.ativo,l:[]}).l.push(x); });
   return Object.values(por).map(({a,l})=>{
-    const conh=l.filter(x=>x.status!=='nunca'), sem=l.filter(x=>x.status==='nunca');
-    const ults=l.filter(x=>x.ultima).sort((x,y)=>x.ultima.data<y.ultima.data?1:-1), ult=ults[0]||null;
-    const ultJuntas=ult?ults.filter(x=>x.ultima.data===ult.ultima.data):[];   /* feitas no mesmo dia: REVISÃO A + B */
-    if(!conh.length) return {a,st:'nunca',ult,ultJuntas,prox:null,juntas:[],sem,todas:l,ord:1e9};
-    const p=conh.slice().sort((x,y)=>x.horas-y.horas)[0];
-    const juntas=conh.filter(x=>p.uso?(x.uso&&x.prox===p.prox):(!x.uso&&x.vence===p.vence));
-    return {a,st:p.status,ult,ultJuntas,prox:p,juntas,sem,todas:l,ord:p.horas};
-  });
+    const prev=l.filter(x=>CK.catDe(x.modelo)==='preventivo'&&(!f.modelo.length||f.modelo.includes(x.modelo.id))); if(!prev.length) return null;
+    const taxa=CK.taxaUso(a.id), dias=x=>x.status==='nunca'?null:!x.uso?x.horas/24:taxa?x.falta/taxa:null;
+    /* última: o que foi feito por último (a revisão executada, ou as informadas no mesmo dia) */
+    const us=[]; prev.forEach(x=>{ if(x.ultima&&!us.includes(x.ultima)) us.push(x.ultima); });
+    const uMax=us.reduce((m,u)=>!m||u.data>m.data?u:m,null);
+    const uMods=uMax?pvSemInclusas([...new Set(us.filter(u=>u.data===uMax.data).map(u=>u.modelo).filter(Boolean))].map(id=>CK.modelo(id)).filter(Boolean)):[];
+    const conh=prev.filter(x=>x.status!=='nunca'), sem=prev.filter(x=>x.status==='nunca');
+    if(!conh.length) return {a,st:'nunca',uMax,uMods,p:null,juntas:[],sem,todas:l,ord:1e9,dp:null};
+    /* âncora: com km/dia conhecido, a que vence antes em dias; sem ele, a de menor falta no mesmo medidor */
+    const p=conh.slice().sort((x,y)=>{ const dx=dias(x), dy=dias(y); if(dx!=null&&dy!=null) return dx-dy; if(x.uso&&y.uso) return x.falta-y.falta; return x.horas-y.horas; })[0];
+    const dp=dias(p);
+    const junto=x=>{ if(x===p) return true; if(x.status==='nunca') return false;
+      if(x.uso&&p.uso&&x.medidor===p.medidor) return x.falta-p.falta<=x.intervalo*pct;
+      const dx=dias(x); if(dx==null||dp==null) return false;
+      const jan=x.uso?(taxa?x.intervalo*pct/taxa:0):Math.max(2,(CK.FREQ[x.modelo.freq].dias||0)*pct);
+      return dx-dp<=jan; };
+    const jm=pvSemInclusas(l.filter(x=>(CK.catDe(x.modelo)!=='preventivo'||prev.includes(x))&&junto(x)).map(x=>x.modelo));
+    const juntas=[...jm.filter(m=>CK.catDe(m)==='preventivo'),...jm.filter(m=>CK.catDe(m)!=='preventivo')];
+    return {a,st:p.status,uMax,uMods,p,juntas,sem,todas:l,ord:dp!=null?dp:p.horas/24,dp,taxa};
+  }).filter(Boolean);
 }
 function renderPreventivas(){
   const f=lastF; if(!f) return;
-  const q=nrm($('qPv').value||''), ed=podeEditar();
+  const q=nrm($('qPv').value||''), ed=podeEditar(), pct=+CK.metas().prev_aviso_pct||10;
   const all=pvLinhas(f), cnt=k=>all.filter(r=>r.st===k).length;
   const tot=all.length, ok=cnt('em_dia'), at=cnt('vence'), vc=cnt('atrasada'), sh=cnt('nunca');
   set('pv-tot',n(tot)); set('pv-ok',n(ok)); set('pv-at',n(at)); set('pv-vc',n(vc)); set('pv-sh',n(sh));
   const pc=v=>tot?Math.round(v/tot*100)+'% dos ativos':'—';
   set('pv-tot-m',`${n(all.filter(r=>r.a.medidor==='km').length)} km · ${n(all.filter(r=>r.a.medidor==='h').length)} horas · ${n(all.filter(r=>!r.a.medidor).length)} tempo`);
-  set('pv-ok-m',pc(ok)); set('pv-at-m',at?'faltam até 10% do intervalo':'nenhum perto de vencer'); set('pv-vc-m',vc?pc(vc):'nenhuma vencida');
+  set('pv-ok-m',pc(ok)); set('pv-at-m',at?`faltam até ${n(pct)}% do intervalo`:'nenhum perto de vencer'); set('pv-vc-m',vc?pc(vc):'nenhuma vencida');
   $('pv-sh-m').innerHTML=sh?(ed?'use <b>Informar</b> na linha':'aguardando a 1ª revisão'):'todos com histórico';
   const rows=all.filter(r=>!q||nrm([ativoLbl(r.a),r.a.marca,r.a.modelo,CK.TIPO[r.a.tipo].nome,...r.todas.map(x=>x.modelo.nome)].join(' ')).includes(q))
     .sort((x,y)=>PV_ST[x.st].o-PV_ST[y.st].o||x.ord-y.ord||ativoLbl(x.a).localeCompare(ativoLbl(y.a),'pt-BR'));
-  set('sub-pv',`${n(tot)} ${tot===1?'ativo':'ativos'} com revisão programada · ordem: vencidas, em atenção, no prazo; dentro de cada uma, a que vence primeiro · clique no ativo para abrir a ficha`);
-  set('titSub','Estado atual · revisões por km, horas e semestrais');
+  set('sub-pv',`${n(tot)} ${tot===1?'ativo':'ativos'} com revisão programada · próxima mostra tudo que vence junto (outras revisões, inspeção, preditivo) · em atenção: faltam até ${n(pct)}% do intervalo (Parâmetros) · clique no ativo para abrir a ficha`);
+  set('titSub','Estado atual · pelo cadastro das revisões e pelos Parâmetros');
   $('body-pv').innerHTML=rows.length?rows.map(r=>{
-    const a=r.a, S=PV_ST[r.st], p=r.prox, un=pvUn(a);
-    const ultTxt=r.ult?`${esc(pvJunta(r.ultJuntas))}<span class="pv-mais">${CK.fmtData(r.ult.ultima.data)}${r.ult.ultima.base?' · informada':''}</span>`:'<span class="muted">—</span>';
-    const proxTxt=p?`${esc(pvJunta(r.juntas))}${r.sem.length?`<span class="pv-mais">+ ${n(r.sem.length)} sem histórico</span>`:''}`:`<span class="muted">${n(r.sem.length)} ${r.sem.length===1?'revisão':'revisões'} sem histórico</span>`;
+    const a=r.a, S=PV_ST[r.st], p=r.p, un=pvUn(a);
+    const ultTxt=r.uMax?`${esc(pvJunta(r.uMods))}<span class="pv-mais">${CK.fmtData(r.uMax.data)}${r.uMax.base?' · informada':''}</span>`:'<span class="muted">—</span>';
+    const prevTxt=p&&r.dp!=null&&r.dp>=0&&p.uso?`previsão ${CK.fmtData(CK.isoDT(new Date(Date.now()+r.dp*864e5)))}`:'';
+    const proxTxt=p?`${esc(pvJunta(r.juntas))}${prevTxt||r.sem.length?`<span class="pv-mais">${[prevTxt,r.sem.length?`+ ${n(r.sem.length)} sem histórico`:''].filter(Boolean).join(' · ')}</span>`:''}`:`<span class="muted">${n(r.sem.length)} ${r.sem.length===1?'revisão':'revisões'} sem histórico</span>`;
     const lAtual=a.medidor&&a.leitura!=null?n(a.leitura)+un:'—';
     const lUlt=p&&p.uso&&p.ultima&&p.ultima.leitura!=null?n(p.ultima.leitura)+un:p&&!p.uso&&p.ultima?CK.fmtData(p.ultima.data):'—';
     const lProx=p?(p.uso?n(p.prox)+un:CK.fmtData(p.vence)):'—';
@@ -3319,11 +3359,11 @@ function renderPreventivas(){
       const v=p.uso?p.falta:Math.round(p.horas/24), u=p.uso?un:(Math.abs(v)===1?' dia':' dias');
       const frac=p.uso?Math.max(0,Math.min(1,p.falta/p.intervalo)):Math.max(0,Math.min(1,p.horas/(CK.FREQ[p.modelo.freq].dias*24)));
       falta=`<div class="pv-falta"><span class="${S.c}">${v<0?'−':''}${n(Math.abs(v))}${u}</span><span class="pv-bar"><i style="width:${Math.max(4,Math.round(frac*100))}%;background:${S.cor}"></i></span></div>`;
-      sortF=Math.round(p.horas*100);   /* inteiro: o ordenador lê '.' como milhar */
+      sortF=Math.round(r.ord*100);   /* inteiro: o ordenador lê '.' como milhar */
     }
     return `<tr class="lk" onclick="abrirAtivo('${esc(a.id)}')"><td class="conta">${esc(ativoLbl(a))}</td><td><span class="cl s" title="${esc(a.marca+' '+a.modelo)}">${esc(a.modelo)}</span><span class="pv-mais">${esc(CK.TIPO[a.tipo].nome)}</span></td>`+
-      `<td class="pv-rv" data-sort="${r.ult?r.ult.ultima.data:''}">${ultTxt}</td><td class="pv-rv">${proxTxt}</td>`+
-      `<td class="num" data-sort="${+a.leitura||0}">${lAtual}</td><td class="num">${lUlt}</td><td class="num">${lProx}</td>`+
+      `<td class="pv-rv" data-sort="${r.uMax?r.uMax.data:''}" title="${esc(r.uMods.map(m=>m.nome).join(' + '))}">${ultTxt}</td><td class="pv-rv" title="${esc(r.juntas.map(m=>m.nome).join(' + '))}">${proxTxt}</td>`+
+      `<td class="num" data-sort="${Math.round(+a.leitura||0)}">${lAtual}</td><td class="num">${lUlt}</td><td class="num">${lProx}</td>`+
       `<td data-sort="${S.o}"><span class="pv-st ${S.c}">${S.t}</span></td><td class="num" data-sort="${sortF}">${falta}</td>`+
       `<td style="text-align:right">${ed?`<button class="rt pv-inf" onclick="event.stopPropagation();abrirPrevBase('${esc(a.id)}')" title="Informar a última revisão feita antes do sistema">Informar</button>`:''}</td></tr>`;
   }).join(''):`<tr><td colspan="10" class="muted" style="text-align:center;padding:22px">Nenhum ativo com revisão programada no filtro.</td></tr>`;
@@ -3339,7 +3379,7 @@ function abrirPrevBase(aid){
   const temUso=l.some(x=>x.uso);
   abrirModal('Informar última revisão · '+ativoLbl(a),
     `<p class="tsub" style="font-size:12px;line-height:1.6;margin-bottom:12px">Para registrar a última revisão feita <b>antes</b> do Checklist Atual (planilha ou sistema de manutenção). Não é um checklist: vira o ponto de partida do cálculo da próxima e fica registrado com o seu nome. Se informar de novo, vale o último.</p>`+
-    `<div class="fld"><label>Quais revisões foram feitas nessa data</label><div class="pv-mods">${mods}</div></div>`+
+    `<div class="fld"><label>Quais revisões foram feitas nessa data <span class="ctx">· marcar a COMPLETA já conta a BÁSICA</span></label><div class="pv-mods">${mods}</div></div>`+
     (temUso?`<div class="fld"><label>${a.medidor==='h'?'Horímetro':'Km'} na revisão <span class="ctx">· atual: ${a.leitura!=null?n(a.leitura)+un:'sem leitura'}</span></label><input class="inp" id="pbLeit" type="number" inputmode="numeric" min="0" ${a.leitura!=null?`max="${+a.leitura}"`:''} placeholder="Ex.: ${a.leitura!=null?n(Math.max(0,Math.round((+a.leitura-(a.medidor==='h'?150:6000))/10)*10)):'0'}"></div>`:'')+
     `<div class="fld"><label>Data da revisão</label><input class="inp" id="pbData" type="date" max="${hoje}" value="${hoje}"></div><div class="erro" id="pbErr"></div>`,
     `<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn pri" style="margin-left:auto" onclick="salvarPrevBase('${esc(aid)}')">Salvar</button>`);

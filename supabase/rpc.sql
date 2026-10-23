@@ -144,7 +144,6 @@ begin
                   then (select coalesce(jsonb_agg(ck_usuario_json(x) - 'cpf' || jsonb_build_object('cpf', case when u.papel in ('master','admin') then x.cpf end) order by x.nome), '[]') from ck_usuarios x)
                   else (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'nome', x.nome, 'papel', x.papel) order by x.nome), '[]') from ck_usuarios x where x.status = 'ativo') end,
     'fornecedores', (select coalesce(jsonb_agg(to_jsonb(f) order by f.nome), '[]') from ck_fornecedores f),
-    'prev_base', (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'ativo', b.ativo_id, 'modelo', b.modelo_id, 'leitura', b.leitura, 'data', b.data, 'criado_em', b.criado_em, 'criado_por', b.criado_por) order by b.criado_em), '[]') from ck_prev_base b),
     'documentos', (select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'ativo', d.ativo_id, 'modelo', d.modelo_id, 'tipo', d.tipo, 'titulo', d.titulo, 'data_ref', d.data_ref, 'path', d.path, 'nome', d.nome, 'mime', d.mime, 'criado_em', d.criado_em, 'criado_por', d.criado_por) order by d.criado_em desc), '[]') from ck_documentos d where d.excluido_em is null),
     'ativos', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'tipo', a.tipo_id, 'placa', a.placa, 'frota', a.frota, 'marca', a.marca, 'modelo', a.modelo, 'ano', a.ano,
                 'prop', a.proprietario, 'renavam', a.renavam, 'chassi', a.chassi, 'unidade', (select nome from ck_unidades where id = a.unidade_id), 'unidade_id', a.unidade_id, 'operador', a.operador_id,
@@ -202,7 +201,8 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
--- ── ponto de partida das revisões (22/10/2026) ──
+-- ── preventivas (22/10/2026) ──
+-- ponto de partida: última revisão feita antes do sistema (não é checklist; o mais recente vale)
 create or replace function ck_prev_base_salvar(p_token uuid, p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
 declare u ck_usuarios := ck_sessao(p_token); a ck_ativos; m ck_modelos; mid text; lt numeric := nullif(p->>'leitura','')::numeric; dt date := nullif(p->>'data','')::date; n int := 0; nid uuid;
 begin
@@ -220,6 +220,30 @@ begin
   if n = 0 then raise exception 'ESCOLHA_REVISAO'; end if;
   return jsonb_build_object('ok', true, 'n', n);
 end $$;
+
+-- revisão que inclui outra (a COMPLETA inclui a BÁSICA): fazer a maior conta como feitas as incluídas
+create or replace function ck_modelo_inclui(p_token uuid, p_modelo text, p_inclui text[]) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); antes text[];
+begin
+  perform ck_exige(u, array['master','admin']::ck_papel[]);
+  select inclui into antes from ck_modelos where id = p_modelo and categoria = 'preventivo'; if not found then raise exception 'MODELO_INVALIDO'; end if;
+  p_inclui := coalesce(p_inclui, '{}');
+  if p_modelo = any(p_inclui) or exists (select 1 from unnest(p_inclui) x where not exists (select 1 from ck_modelos where id = x and categoria = 'preventivo')) then raise exception 'MODELO_INVALIDO'; end if;
+  if exists (with recursive c(id) as (select unnest(p_inclui) union select unnest(m.inclui) from ck_modelos m join c on m.id = c.id) select 1 from c where id = p_modelo) then raise exception 'INCLUSAO_CIRCULAR'; end if;
+  update ck_modelos set inclui = nullif(p_inclui, '{}') where id = p_modelo;
+  perform ck_audit(u.id, 'ck_modelos', p_modelo, 'update', jsonb_build_object('inclui', antes), jsonb_build_object('inclui', p_inclui));
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- dados extras lidos junto com o ck_dataset (sem mexer nele)
+create or replace function ck_extra(p_token uuid) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token);
+begin
+  return jsonb_build_object(
+    'prev_base', (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'ativo', b.ativo_id, 'modelo', b.modelo_id, 'leitura', b.leitura, 'data', b.data, 'criado_em', b.criado_em, 'criado_por', b.criado_por) order by b.criado_em), '[]') from ck_prev_base b),
+    'inclui', (select coalesce(jsonb_object_agg(m.id, to_jsonb(m.inclui)), '{}') from ck_modelos m where cardinality(m.inclui) > 0));
+end $$;
+
 
 -- ── checklist do motorista / equipe ──
 -- p = {ativo, modelo?, leitura?, duracao_s?, cliente_id?, lat?, lng?, itens:[{item, ok:true|false|null, obs?, foto?}]}
@@ -676,7 +700,7 @@ grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,tex
   ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_documento_salvar(uuid,jsonb), ck_documento_excluir(uuid,uuid), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
-  ck_metas_set(uuid,jsonb), ck_fatura(uuid,date)
+  ck_metas_set(uuid,jsonb), ck_fatura(uuid,date), ck_prev_base_salvar(uuid,jsonb), ck_modelo_inclui(uuid,text,text[]), ck_extra(uuid)
 to anon, authenticated;
 
 -- ── Storage (buckets privados "fotos" e "anexos", criados pela API) ──

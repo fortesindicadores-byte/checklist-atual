@@ -826,13 +826,13 @@ function farolInsp(x){
 function plural(n, s, p){ return n + ' ' + (n === 1 ? s : p); }
 function renderInspecoes(){
   if (!equipe()) return;
-  var l = CK.inspecoesPara(EU);
+  var l = CK.inspecoesPara(EU).filter(function(x){ return !x.junto_de; });   /* BÁSICA que vence junto com a COMPLETA é feita nela */
   var atr = 0, nun = 0, ven = 0;
   l.forEach(function(x){ if (x.status === 'atrasada') atr++; else if (x.status === 'nunca') nun++; else if (x.status === 'vence') ven++; });
   $('qtdInsp').textContent = atr + nun + ven;
   var partes = [];
   if (nun) partes.push('<b>' + nun + '</b> ' + (nun === 1 ? 'nunca feita' : 'nunca feitas'));
-  if (ven) partes.push('<b>' + ven + '</b> ' + (ven === 1 ? 'vence' : 'vencem') + ' em 48 h');
+  if (ven) partes.push('<b>' + ven + '</b> ' + 'perto de vencer');
   $('avisoInsp').innerHTML = (atr + nun + ven)
     ? '<b class="neg">' + plural(atr, 'atrasada', 'atrasadas') + '</b>' + (partes.length ? ' · ' + partes.join(' · ') : '') + ' · de ' + l.filter(function(x){ return x.status !== 'livre'; }).length + ' periódicas'
     : (l.some(function(x){ return x.status !== 'livre'; }) ? 'Todas as ' + l.filter(function(x){ return x.status !== 'livre'; }).length + ' inspeções periódicas estão em dia.' : 'Nenhuma inspeção periódica.')
@@ -867,7 +867,8 @@ function filtraInspecoes(lista){
 }
 function linhaInsp(x){
   var a = x.ativo, u = x.ultima;
-  var sub = u ? 'Última: ' + CK.fmtDataCurta(u.data) + ' por ' + esc(primeiroNome(nomeUsuario(u.usuario))) : 'Nunca feita';
+  var sub = (u ? 'Última: ' + CK.fmtDataCurta(u.data) + (u.base ? ' (informada)' : ' por ' + esc(primeiroNome(nomeUsuario(u.usuario)))) : 'Nunca feita')
+    + (x.juntas && x.juntas.length ? ' · inclui ' + x.juntas.map(function(m){ return esc(String(m.nome).split(' · ')[0]); }).join(', ') : '');
   return linha(icoTipo(a), esc(nomeAt(a)), sub, farolInsp(x), '', '', ' tap' + (x.status === 'atrasada' ? ' blk' : ''), ' data-insp="' + esc(a.id) + '" data-mod="' + esc(x.modelo.id) + '"');
 }
 $('buscaInsp').addEventListener('input', function(){ filtraInspecoes(); });
