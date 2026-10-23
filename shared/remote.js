@@ -12,7 +12,7 @@
   var ORIGEM = /\/gestao\//.test(location.pathname) ? 'portal' : 'app';
 
   var MSG = {
-    MODELO_COM_HISTORICO:'Este checklist já tem execuções: dá para desativar, não excluir.', MODELO_COM_DOCUMENTOS:'Exclua os documentos anexados antes.', INCLUSAO_CIRCULAR:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.', LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
+    STATUS_INVALIDO:'Status inválido.', DATA_PAGAMENTO_INVALIDA:'Informe a data do pagamento (não pode ser futura).', MODELO_COM_HISTORICO:'Este checklist já tem execuções: dá para desativar, não excluir.', MODELO_COM_DOCUMENTOS:'Exclua os documentos anexados antes.', INCLUSAO_CIRCULAR:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.', LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
     SENHA_INCORRETA:'Senha incorreta.', CPF_NAO_CADASTRADO:'CPF não cadastrado. Peça acesso ao gestor da frota.', AGUARDANDO_APROVACAO:'Seu acesso ainda não foi aprovado.',
     USUARIO_BLOQUEADO:'Usuário bloqueado. Fale com o gestor da frota.', USUARIO_PENDENTE:'Seu acesso ainda não foi aprovado.', MUITAS_TENTATIVAS:'Muitas tentativas. Aguarde 15 minutos.',
     PRIMEIRO_ACESSO:'Primeiro acesso: crie sua senha de 6 números.', SENHA_6_NUMEROS:'A senha são 6 números.', JA_TEM_SENHA:'Você já tem senha. Entre com ela.',
@@ -212,6 +212,7 @@
   CK.fornecedorCriar = function(d){ return escreve('ck_fornecedor_salvar', { p:d }); };
   CK.fornecedorSet = function(id, p){ return escreve('ck_fornecedor_salvar', { p:Object.assign({ id:id }, p) }); };
   CK.modeloExcluir = function(id){ return escreve('ck_modelo_excluir', { p_modelo:id }); };
+  CK.faturaStatus = function(mk, d){ return escreve('ck_fatura_status', { p_mes:mk + '-01', p:{ status:d.status, pago_em:d.pago_em || null, valor_pago: d.valor_pago === '' || d.valor_pago == null ? null : +d.valor_pago } }); };
   CK.metasSet = function(p){ return escreve('ck_metas_set', { p:p }); };
   CK.fatura = async function(mk){
     try {
@@ -219,7 +220,7 @@
       var total = +f.total + (primeira ? +(cfg.implantacao || 0) : 0);
       return { mes:mk, mes_nome:CK.mesNome(mk), usuarios:f.usuarios || [], qtd:f.qtd, inclusos:f.inclusos, excedente:f.excedentes, valor_base:+f.valor_base,
         valor_excedente:+f.valor_excedente, implantacao:primeira ? +(cfg.implantacao || 0) : 0, total:total, vencimento:f.vencimento,
-        numero:'FAT-' + p[0] + p[1] + '-ATUAL', txid:('ATUAL' + p[0] + p[1]).slice(0, 25), status:CK.parse(f.vencimento) < CK.HOJE ? 'paga' : 'em aberto' };
+        numero:'FAT-' + p[0] + p[1] + '-ATUAL', txid:('ATUAL' + p[0] + p[1]).slice(0, 25), pagamento:f.pagamento || null };
     } catch(e){ return Object.assign({ qtd:0, inclusos:0, excedente:0, valor_base:0, valor_excedente:0, implantacao:0, total:0, usuarios:[], mes:mk, mes_nome:CK.mesNome(mk), vencimento:null }, erro(e)); }
   };
 })();

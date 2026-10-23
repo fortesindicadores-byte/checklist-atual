@@ -693,6 +693,21 @@ begin
 end $$;
 
 -- ── cobrança (só master): usuários ativos no mês × tabela do contrato ──
+-- status da fatura (só master): paga com data e valor, ou em aberto; vencida é calculada (vencimento passou sem pagamento)
+create or replace function ck_fatura_status(p_token uuid, p_mes date, p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); m date := date_trunc('month', p_mes)::date; st text := p->>'status'; pg date := nullif(p->>'pago_em','')::date; antes jsonb;
+begin
+  perform ck_exige(u, array['master']::ck_papel[]);
+  if st not in ('aberta','paga') then raise exception 'STATUS_INVALIDO'; end if;
+  if st = 'paga' and (pg is null or pg > current_date) then raise exception 'DATA_PAGAMENTO_INVALIDA'; end if;
+  select to_jsonb(f) into antes from ck_faturas f where f.mes = m;
+  insert into ck_faturas (mes, status, pago_em, valor_pago, atualizado_por)
+  values (m, st, case when st = 'paga' then pg end, case when st = 'paga' then nullif(p->>'valor_pago','')::numeric end, u.id)
+  on conflict (mes) do update set status = excluded.status, pago_em = excluded.pago_em, valor_pago = excluded.valor_pago, atualizado_em = now(), atualizado_por = u.id;
+  perform ck_audit(u.id, 'ck_faturas', m::text, 'update', antes, p);
+  return jsonb_build_object('ok', true);
+end $$;
+
 create or replace function ck_fatura(p_token uuid, p_mes date) returns jsonb language plpgsql security definer set search_path = public as $$
 declare u ck_usuarios := ck_sessao(p_token); cb jsonb; q int; r jsonb;
 begin
@@ -706,7 +721,8 @@ begin
     'vencimento', (date_trunc('month', p_mes) + interval '1 month' + ((cb->>'vencimento_dia')::int - 1) * interval '1 day')::date,
     'usuarios', (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'nome', x.nome, 'papel', x.papel) order by x.nome), '[]')
                  from ck_v_usuarios_mes m join ck_usuarios x on x.id = m.usuario_id where m.mes = date_trunc('month', p_mes)::date),
-    'pix', (select valor from ck_config where chave = 'pix')) into r;
+    'pix', (select valor from ck_config where chave = 'pix'),
+    'pagamento', (select jsonb_build_object('status', f.status, 'pago_em', f.pago_em, 'valor_pago', f.valor_pago) from ck_faturas f where f.mes = date_trunc('month', p_mes)::date)) into r;
   return r;
 end $$;
 
@@ -718,7 +734,7 @@ grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,tex
   ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_documento_salvar(uuid,jsonb), ck_documento_excluir(uuid,uuid), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
   ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
-  ck_metas_set(uuid,jsonb), ck_fatura(uuid,date), ck_prev_base_salvar(uuid,jsonb), ck_modelo_inclui(uuid,text,text[]), ck_extra(uuid), ck_modelo_excluir(uuid,text)
+  ck_metas_set(uuid,jsonb), ck_fatura(uuid,date), ck_prev_base_salvar(uuid,jsonb), ck_modelo_inclui(uuid,text,text[]), ck_extra(uuid), ck_modelo_excluir(uuid,text), ck_fatura_status(uuid,date,jsonb)
 to anon, authenticated;
 
 -- ── Storage (buckets privados "fotos" e "anexos", criados pela API) ──

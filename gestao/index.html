@@ -799,6 +799,9 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
 .wz-inc{display:flex;flex-wrap:wrap;gap:6px}
 .wz-inc button{border:1px solid var(--card-brd);background:var(--side);color:var(--txt2);border-radius:999px;padding:6px 11px;font:600 11px/1.2 inherit;cursor:pointer}
 .wz-inc button.on{border-color:var(--azul);color:var(--txt);background:rgba(14,139,200,.16)}
+.fat-pago{margin:14px 0 4px;padding:12px 14px;border-radius:10px;background:rgba(59,179,59,.12);color:var(--txt);font-size:12.5px}
+.fat-pago b{color:#3BB33B}
+.pdf-cap .no-print{display:none!important}
 </style>
 </head>
 <body>
@@ -1273,7 +1276,8 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
       <section class="vw" id="vw-fatura">
         <div class="no-print" style="display:flex;gap:8px;flex:0 0 auto">
           <button class="btn" onclick="setVw('faturamento')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Voltar</button>
-          <button class="btn pri" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimir / salvar PDF</button>
+          <button class="btn pri" id="btFatPdf" onclick="baixarFaturaPdf()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Baixar PDF</button>
+          <button class="btn" id="btFatSt" onclick="abrirFatStatus(fatMk)">Alterar status</button>
         </div>
         <div class="card fat" id="fat-card"></div>
       </section>
@@ -3083,38 +3087,82 @@ async function salvarNovoUsuario(){
 async function renderFat(){
   const meses=CK.mesesCobranca().slice().reverse(), FTS={}; for(const mk of meses) FTS[mk]=await CK.fatura(mk);
   $('body-fat').innerHTML=meses.length?meses.map(mk=>{ const ft=FTS[mk];
-    return `<tr><td class="conta" title="${esc(ft.mes_nome)}">${CK.mesLabel(mk)}</td><td class="num">${n(ft.qtd)}</td><td class="num">${n(ft.inclusos)}</td><td class="num ${ft.excedente?'ca':''}">${n(ft.excedente)}</td><td class="num">${CK.brl(ft.valor_base)}</td><td class="num">${CK.brl(ft.valor_excedente)}</td><td class="num">${ft.implantacao?CK.brl(ft.implantacao):'—'}</td><td class="num" style="color:var(--txt);font-weight:800">${CK.brl(ft.total)}</td><td>${CK.fmtData(ft.vencimento)}</td><td class="${ft.status==='paga'?'cg':'ca'}">${ft.status==='paga'?'Paga':'Em aberto'}</td><td style="text-align:right"><button class="rt" onclick="verFatura('${mk}')">VER FATURA</button></td></tr>`; }).join('')
+    return `<tr><td class="conta" title="${esc(ft.mes_nome)}">${CK.mesLabel(mk)}</td><td class="num">${n(ft.qtd)}</td><td class="num">${n(ft.inclusos)}</td><td class="num ${ft.excedente?'ca':''}">${n(ft.excedente)}</td><td class="num">${CK.brl(ft.valor_base)}</td><td class="num">${CK.brl(ft.valor_excedente)}</td><td class="num">${ft.implantacao?CK.brl(ft.implantacao):'—'}</td><td class="num" style="color:var(--txt);font-weight:800">${CK.brl(ft.total)}</td><td>${CK.fmtData(ft.vencimento)}</td>${(()=>{ const s=CK.fatSituacao(ft), F=FAT_ST[s.status]; return `<td class="${F[2]}" data-sort="${s.status}">${EU&&EU.papel==='master'?`<button class="rt" style="color:inherit" onclick="abrirFatStatus('${mk}')" title="Alterar status">${esc(fatLbl(s))}</button>`:esc(fatLbl(s))}</td>`; })()}<td style="text-align:right"><button class="rt" onclick="verFatura('${mk}')">VER FATURA</button></td></tr>`; }).join('')
     :`<tr><td colspan="11" class="muted" style="text-align:center;padding:22px">Sem meses de cobrança ainda.</td></tr>`;
   const px=DB.config.pix||{}; $('pxNome').value=px.nome||''; $('pxCidade').value=px.cidade||''; $('pxChave').value=px.chave||''; $('pxOk').textContent='';
 }
 function salvarPix(){ if(!EU||EU.papel!=='master') return; if(CK.REMOTO){ $('pxOk').textContent='Na plataforma oficial o Pix é configurado pelo suporte OneSpot.'; return; } const cfg=CK.load().config; cfg.pix=Object.assign(cfg.pix||{},{nome:($('pxNome').value||'').trim(),cidade:($('pxCidade').value||'').trim()}); CK.save(); $('pxOk').textContent='Salvo.'; }
 function verFatura(mk){ fatMk=mk; setVw('fatura'); }
 async function renderFatura(mk){
-  const ft=await CK.fatura(mk), cfg=DB.config, px=cfg.pix||{};
-  const payload=CK.pixPayload({chave:px.chave,nome:px.nome,cidade:px.cidade,valor:ft.total,txid:ft.txid,descricao:'Checklist Atual '+CK.mesLabel(mk)});
+  const ft=await CK.fatura(mk), cfg=DB.config, px=cfg.pix||{}, sit=CK.fatSituacao(ft), F=FAT_ST[sit.status], aPagar=sit.status==='vencida'?sit.atualizado:ft.total;
+  $('btFatSt').style.display=EU&&EU.papel==='master'?'':'none'; $('fat-card').dataset.numero=ft.numero;
+  const payload=CK.pixPayload({chave:px.chave,nome:px.nome,cidade:px.cidade,valor:aPagar,txid:ft.txid,descricao:'Checklist Atual '+CK.mesLabel(mk)});
   const emissao=new Date(+mk.slice(0,4), +mk.slice(5,7), 1);
   const itens=[['Licença mensal · Checklist Atual (até '+ft.inclusos+' usuários)',1,ft.valor_base,ft.valor_base]];
   if(ft.excedente) itens.push(['Usuários excedentes × R$ 5,00',ft.excedente,cfg.valor_usuario,ft.valor_excedente]);
   if(ft.implantacao) itens.push(['Implantação (parcela única · 1º mês)',1,ft.implantacao,ft.implantacao]);
   $('fat-card').innerHTML=`
     <div class="fat-head">
-      <div class="fat-brand"><img src="../img/onespot-icon.svg" alt="OneSpot"><div><b>OneSpot</b><i>Gestão em um ponto</i></div></div>
+      <div class="fat-brand"><svg viewBox="0 0 64 64" width="34" height="34" role="img" aria-label="OneSpot" style="flex:0 0 auto"><circle cx="32" cy="32" r="20" fill="none" stroke="var(--txt)" stroke-width="3.5"/><circle cx="32" cy="32" r="8.5" fill="#F18F2F"/></svg><div><b>OneSpot</b><i>Gestão em um ponto</i></div></div>
       <div class="fat-brand" style="text-align:right"><img class="lgA esc" src="../img/logo-atual-escuro.png" alt="Construtora e Pavimentadora Atual"><img class="lgA cla" src="../img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual"></div>
     </div>
-    <div class="fat-tit"><h2><small>Fatura nº</small>${esc(ft.numero)}</h2>${chip(ft.status==='paga'?'Paga':'Em aberto', ft.status==='paga'?'#3BB33B':'#F4A100')}</div>
-    <div class="fat-grid"><div>Cliente<b>${esc(cfg.cliente)}</b></div><div>Período de referência<b>${esc(ft.mes_nome)}</b></div><div>Emissão<b>${CK.fmtData(CK.iso(emissao))}</b></div><div>Vencimento<b>${CK.fmtData(ft.vencimento)}</b></div></div>
+    <div class="fat-tit"><h2><small>Fatura nº</small>${esc(ft.numero)}</h2>${chip(fatLbl(sit), F[1])}</div>
+    <div class="fat-grid"><div>Cliente<b>${esc(cliNome(cfg.cliente))}</b>${cnpjFmt(cfg.cliente&&cfg.cliente.cnpj)?`<i style="display:block;font-style:normal;font-size:10.5px;color:var(--txt3);margin-top:2px">CNPJ ${cnpjFmt(cfg.cliente.cnpj)}</i>`:''}</div><div>Período de referência<b>${esc(ft.mes_nome)}</b></div><div>Emissão<b>${CK.fmtData(CK.iso(emissao))}</b></div><div>Vencimento<b>${CK.fmtData(ft.vencimento)}</b></div></div>
     <table class="fat-tbl"><thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Unitário</th><th class="num">Valor</th></tr></thead><tbody>
       ${itens.map(i=>`<tr><td>${esc(i[0])}</td><td class="num">${n(i[1])}</td><td class="num">${CK.brl(i[2])}</td><td class="num">${CK.brl(i[3])}</td></tr>`).join('')}
-      <tr class="total"><td colspan="3">Total a pagar</td><td class="num">${CK.brl(ft.total)}</td></tr></tbody></table>
-    <div class="fat-pix">
+      ${sit.status==='vencida'?`<tr><td colspan="3">Total no vencimento (${CK.fmtData(ft.vencimento)})</td><td class="num">${CK.brl(ft.total)}</td></tr><tr><td colspan="3">Multa por atraso · 2%</td><td class="num">${CK.brl(sit.multa)}</td></tr><tr><td colspan="3">Juros · 1% ao mês, ${n(sit.dias)} ${sit.dias===1?'dia':'dias'}</td><td class="num">${CK.brl(sit.juros)}</td></tr>`:''}
+      <tr class="total"><td colspan="3">${sit.status==='paga'?'Total':sit.status==='vencida'?`Total atualizado em ${CK.fmtData(CK.iso(new Date()))}`:'Total a pagar'}</td><td class="num">${CK.brl(sit.status==='vencida'?sit.atualizado:ft.total)}</td></tr></tbody></table>
+    ${sit.status==='paga'?`<div class="fat-pago"><b>Pagamento recebido${sit.pago_em?' em '+CK.fmtData(sit.pago_em):''}</b>${sit.valor_pago!=null?` · ${CK.brl(sit.valor_pago)}`:''}. Obrigado.</div>`:''}
+    <div class="fat-pix" style="${sit.status==='paga'?'display:none':''}">
       <div class="qr">${qrSvg(payload)}</div>
       <div><div class="d-sec" style="margin-top:0">Pagamento via Pix</div>
         <div class="fld"><label>Pix copia e cola</label><div class="copia"><textarea class="inp" id="pixTxt" readonly>${esc(payload)}</textarea><button class="btn no-print" onclick="copiarPix()" id="btCopiar">Copiar</button></div></div>
         <div class="dkv"><span>Chave (e-mail)</span><b>${esc(px.chave||'—')}</b><span>Recebedor</span><b>${esc(px.nome||'—')} · ${esc(px.cidade||'')}</b><span>Identificador</span><b>${esc(ft.txid)}</b></div>
-        <div class="fat-foot">QR estático (BR Code do Banco Central): não expira e pode ser pago em qualquer banco. Confira o valor de ${CK.brl(ft.total)} antes de confirmar.</div></div>
+        <div class="fat-foot">QR estático (BR Code do Banco Central): não expira e pode ser pago em qualquer banco. Confira o valor de ${CK.brl(aPagar)} antes de confirmar.</div></div>
     </div>
     <details><summary>Usuários ativos no mês (${n(ft.qtd)})</summary><ul>${ft.usuarios.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(u=>`<li>${esc(u.nome)} <span class="ctx">· ${CK.PAPEL[u.papel]}</span></li>`).join('')||'<li class="muted">nenhum</li>'}</ul></details>
     <div class="fat-foot">Regra da proposta: R$ ${fmtFull(cfg.valor_base)}/mês até ${cfg.inclusos} usuários ativos, R$ ${fmtFull(cfg.valor_usuario)} por usuário adicional, reajuste anual pelo IPCA. Usuário ativo = fez login ou checklist no mês. OneSpot · renan.fortes@onespot.com.br</div>`;
+}
+/* ── status da fatura (23/10/2026): só o master altera; vencida = passou do vencimento sem pagamento (multa 2% + juros 1% a.m.) ── */
+const FAT_ST={paga:['Paga','#3BB33B','cg'], aberta:['Em aberto','#F4A100','ca'], vencida:['Vencida','#FF5252','cr']};
+const fatLbl=s=>s.status==='vencida'?`Vencida há ${n(s.dias)} ${s.dias===1?'dia':'dias'}`:s.status==='paga'?(s.pago_em?`Paga em ${CK.fmtData(s.pago_em)}`:'Paga'):'Em aberto';
+const cliNome=c=>c&&typeof c==='object'?(c.nome||c.razao||''):String(c||'');
+async function abrirFatStatus(mk){
+  if(!EU||EU.papel!=='master') return;
+  const ft=await CK.fatura(mk), s=CK.fatSituacao(ft), hoje=CK.iso(new Date()), pg=s.status==='paga';
+  const sugerido=s.status==='vencida'?s.atualizado:ft.total;
+  abrirModal('Status da fatura · '+ft.numero,
+    `<div class="fld"><label>Status</label><div class="seg" id="fsSeg"><button type="button" class="${pg?'':'on'}" onclick="fsSel(this,'aberta')">Em aberto</button><button type="button" class="${pg?'on':''}" onclick="fsSel(this,'paga')">Paga</button></div></div>`+
+    `<div id="fsPaga" style="${pg?'':'display:none'}"><div class="frow"><div class="fld"><label>Data do pagamento</label><input class="inp" type="date" id="fsData" max="${hoje}" value="${pg&&s.pago_em?String(s.pago_em).slice(0,10):hoje}"></div>`+
+    `<div class="fld"><label>Valor recebido <span class="ctx">· opcional</span></label><input class="inp" type="number" step="0.01" min="0" id="fsValor" value="${pg&&s.valor_pago!=null?s.valor_pago:sugerido}"></div></div></div>`+
+    `<p class="tsub" style="font-size:11.5px;line-height:1.6;margin-top:6px">Em aberto vira <b>Vencida</b> sozinha depois de ${CK.fmtData(ft.vencimento)}, com multa de 2% e juros de 1% ao mês (contrato).</p><div class="erro" id="fsErr"></div>`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn pri" style="margin-left:auto" onclick="fsSalvar('${mk}')">Salvar</button>`);
+  window._fsSt=pg?'paga':'aberta';
+}
+function fsSel(b,st){ window._fsSt=st; [...$('fsSeg').children].forEach(x=>x.classList.toggle('on',x===b)); $('fsPaga').style.display=st==='paga'?'':'none'; }
+async function fsSalvar(mk){
+  const st=window._fsSt||'aberta', d={status:st, pago_em:st==='paga'?$('fsData').value:null, valor_pago:st==='paga'?$('fsValor').value:null};
+  const r=await CK.faturaStatus(mk,d); if(!r.ok){ $('fsErr').textContent=r.erro||'Não foi possível salvar.'; return; }
+  fecharModal(); refreshIdx(); if(VW==='fatura') renderFatura(mk); else renderFat();
+}
+/* PDF direto (sem impressão): fatura em tema claro, lista de usuários aberta, A4 em pé */
+function carregaJs(id,src,ok){ return new Promise((res,rej)=>{ if(ok()) return res(); let s=document.getElementById(id); if(!s){ s=document.createElement('script'); s.id=id; s.src=src; document.head.appendChild(s); }
+  s.addEventListener('load',()=>res()); s.addEventListener('error',()=>rej(new Error('Não foi possível carregar o gerador de PDF.'))); }); }
+async function baixarFaturaPdf(){
+  const bt=$('btFatPdf'), card=$('fat-card'); if(!card) return; const txt=bt.innerHTML; bt.disabled=true; bt.textContent='Gerando PDF…';
+  const escuro=!document.body.classList.contains('claro'), det=card.querySelector('details'), abriu=det&&!det.open;
+  try{
+    await carregaJs('h2c-cdn','https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',()=>typeof html2canvas!=='undefined');
+    await carregaJs('jspdf-cdn','https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',()=>!!window.jspdf);
+    if(escuro) aplicaTema('light'); if(abriu) det.open=true; card.classList.add('pdf-cap');
+    await new Promise(r=>setTimeout(r,250));
+    const cv=await html2canvas(card,{scale:2,backgroundColor:'#ffffff',useCORS:true});
+    const { jsPDF }=window.jspdf, pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    const W=210, H=297, m=10, w=W-2*m, h=cv.height*w/cv.width, k=Math.min(1,(H-2*m)/h);
+    pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',m+(w-w*k)/2,m,w*k,h*k);
+    pdf.save((card.dataset.numero||'fatura')+'.pdf');
+  }catch(e){ alert(e.message||'Não foi possível gerar o PDF.'); }
+  finally{ card.classList.remove('pdf-cap'); if(abriu) det.open=false; if(escuro) aplicaTema('dark'); bt.disabled=false; bt.innerHTML=txt; }
 }
 function copiarPix(){ const t=$('pixTxt').value, done=()=>{ $('btCopiar').textContent='Copiado'; setTimeout(()=>{ const b=$('btCopiar'); if(b) b.textContent='Copiar'; },1800); };
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done,()=>{ $('pixTxt').select(); document.execCommand('copy'); done(); });

@@ -1047,8 +1047,19 @@ var CK = (function(){
     if (primeira) total += cfg.implantacao;
     return { mes:mk, mes_nome:mesNome(mk), usuarios:us, qtd:us.length, inclusos:cfg.inclusos, excedente:exced, valor_base:cfg.valor_base,
       valor_excedente: exced * cfg.valor_usuario, implantacao: primeira ? cfg.implantacao : 0, total:total, vencimento:iso(venc),
-      numero: 'FAT-' + p[0] + p[1] + '-ATUAL', txid: ('ATUAL' + p[0] + p[1]).slice(0,25), status: parse(iso(venc)) < HOJE ? 'paga' : 'em aberto' };
+      numero: 'FAT-' + p[0] + p[1] + '-ATUAL', txid: ('ATUAL' + p[0] + p[1]).slice(0,25), pagamento: ((cfg.faturas || {})[mk]) || null };
   }
+  /* situação da fatura (23/10/2026): paga (marcada pelo master) · vencida (passou do vencimento) com multa 2% + juros 1% a.m. pro rata die (contrato) · em aberto */
+  function fatSituacao(ft){
+    var pg = ft && ft.pagamento; if (pg && pg.status === 'paga') return { status:'paga', pago_em:pg.pago_em, valor_pago:pg.valor_pago != null ? +pg.valor_pago : null };
+    var hoje = iso(new Date()); if (!ft || !ft.vencimento || hoje <= String(ft.vencimento).slice(0, 10)) return { status:'aberta' };
+    var dias = Math.round(diffH(String(ft.vencimento).slice(0, 10) + 'T00:00:00', hoje + 'T00:00:00') / 24), r2 = function(v){ return Math.round(v * 100) / 100; };
+    var multa = r2(ft.total * 0.02), juros = r2(ft.total * 0.01 * dias / 30);
+    return { status:'vencida', dias:dias, multa:multa, juros:juros, atualizado:r2(ft.total + multa + juros) };
+  }
+  function faturaStatus(mk, d){ var db = load(); db.config.faturas = db.config.faturas || {};
+    if (d.status === 'paga' && (!d.pago_em || d.pago_em > iso(new Date()))) return { ok:false, erro:'Informe a data do pagamento (não pode ser futura).' };
+    db.config.faturas[mk] = d.status === 'paga' ? { status:'paga', pago_em:d.pago_em, valor_pago: d.valor_pago === '' || d.valor_pago == null ? null : +d.valor_pago } : { status:'aberta' }; save(); return { ok:true }; }
   function mesesCobranca(){ var db = load(), set = {}; db.checklists.forEach(function(c){ set[mesKey(c.data)] = 1; }); return Object.keys(set).sort(); }
 
   /* ──────────────────────────────────────────────────────────
@@ -1114,7 +1125,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, fatSituacao:fatSituacao, faturaStatus:faturaStatus, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,
