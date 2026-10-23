@@ -12,6 +12,7 @@
   var ORIGEM = /\/gestao\//.test(location.pathname) ? 'portal' : 'app';
 
   var MSG = {
+    LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
     SENHA_INCORRETA:'Senha incorreta.', CPF_NAO_CADASTRADO:'CPF não cadastrado. Peça acesso ao gestor da frota.', AGUARDANDO_APROVACAO:'Seu acesso ainda não foi aprovado.',
     USUARIO_BLOQUEADO:'Usuário bloqueado. Fale com o gestor da frota.', USUARIO_PENDENTE:'Seu acesso ainda não foi aprovado.', MUITAS_TENTATIVAS:'Muitas tentativas. Aguarde 15 minutos.',
     PRIMEIRO_ACESSO:'Primeiro acesso: crie sua senha de 6 números.', SENHA_6_NUMEROS:'A senha são 6 números.', JA_TEM_SENHA:'Você já tem senha. Entre com ela.',
@@ -67,6 +68,7 @@
       modelos:(d.modelos || []).map(function(m){ return Object.assign({ exec:'equipe', sistema:false }, m, { criado_em:loc(m.criado_em) }); }),
       diarios_off:(d.tipos || []).filter(function(t){ return t.diario_ativo === false; }).map(function(t){ return t.id; }),
       itens_extra:[], itens_cfg:{}, maiusculas:true,
+      prev_base:(d.prev_base || []).map(function(x){ return Object.assign({}, x, { leitura: x.leitura == null ? null : +x.leitura, data: String(x.data).slice(0, 10) + 'T12:00:00', criado_em:loc(x.criado_em) }); }),
       documentos:(d.documentos || []).map(function(x){ return Object.assign({}, x, { criado_em:loc(x.criado_em) }); }),
       config:Object.assign({}, cob, { cliente:cfg.cliente, pix:cfg.pix || {}, metas:cfg.metas || {} })
     };
@@ -176,6 +178,7 @@
     } catch(e){ return erro(e); }
   };
   CK.documentoExcluir = function(id){ return escreve('ck_documento_excluir', { p_documento:id }); };
+  CK.prevBaseSalvar = function(d){ return escreve('ck_prev_base_salvar', { p:{ ativo:d.ativo, modelos:d.modelos, leitura: d.leitura === '' || d.leitura == null ? null : +d.leitura, data:String(d.data || '').slice(0, 10) } }); };
 
   function unid(d){ var x = Object.assign({}, d); if (x.unidade != null) x.unidade = String(x.unidade); return x; }
   CK.ativoCriar = function(d){ return escreve('ck_ativo_salvar', { p:unid(d) }); };

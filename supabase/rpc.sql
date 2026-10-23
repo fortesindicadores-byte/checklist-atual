@@ -144,6 +144,7 @@ begin
                   then (select coalesce(jsonb_agg(ck_usuario_json(x) - 'cpf' || jsonb_build_object('cpf', case when u.papel in ('master','admin') then x.cpf end) order by x.nome), '[]') from ck_usuarios x)
                   else (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'nome', x.nome, 'papel', x.papel) order by x.nome), '[]') from ck_usuarios x where x.status = 'ativo') end,
     'fornecedores', (select coalesce(jsonb_agg(to_jsonb(f) order by f.nome), '[]') from ck_fornecedores f),
+    'prev_base', (select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'ativo', b.ativo_id, 'modelo', b.modelo_id, 'leitura', b.leitura, 'data', b.data, 'criado_em', b.criado_em, 'criado_por', b.criado_por) order by b.criado_em), '[]') from ck_prev_base b),
     'documentos', (select coalesce(jsonb_agg(jsonb_build_object('id', d.id, 'ativo', d.ativo_id, 'modelo', d.modelo_id, 'tipo', d.tipo, 'titulo', d.titulo, 'data_ref', d.data_ref, 'path', d.path, 'nome', d.nome, 'mime', d.mime, 'criado_em', d.criado_em, 'criado_por', d.criado_por) order by d.criado_em desc), '[]') from ck_documentos d where d.excluido_em is null),
     'ativos', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'tipo', a.tipo_id, 'placa', a.placa, 'frota', a.frota, 'marca', a.marca, 'modelo', a.modelo, 'ano', a.ano,
                 'prop', a.proprietario, 'renavam', a.renavam, 'chassi', a.chassi, 'unidade', (select nome from ck_unidades where id = a.unidade_id), 'unidade_id', a.unidade_id, 'operador', a.operador_id,
@@ -199,6 +200,25 @@ begin
   update ck_documentos set excluido_em = now(), excluido_por = u.id where id = p_documento;
   perform ck_audit(u.id, 'ck_documentos', p_documento::text, 'delete', to_jsonb(d), null);
   return jsonb_build_object('ok', true);
+end $$;
+
+-- ── ponto de partida das revisões (22/10/2026) ──
+create or replace function ck_prev_base_salvar(p_token uuid, p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); a ck_ativos; m ck_modelos; mid text; lt numeric := nullif(p->>'leitura','')::numeric; dt date := nullif(p->>'data','')::date; n int := 0; nid uuid;
+begin
+  perform ck_exige(u, array['master','admin']::ck_papel[]);
+  select * into a from ck_ativos where id = p->>'ativo'; if a.id is null then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
+  if dt is null or dt > current_date then raise exception 'DATA_INVALIDA'; end if;
+  if lt is not null and (lt < 0 or (a.leitura is not null and lt > a.leitura)) then raise exception 'LEITURA_INVALIDA'; end if;
+  for mid in select jsonb_array_elements_text(coalesce(p->'modelos', '[]')) loop
+    select * into m from ck_modelos where id = mid and categoria = 'preventivo'; if m.id is null then raise exception 'MODELO_INVALIDO'; end if;
+    if m.freq = 'uso' and lt is null then raise exception 'LEITURA_OBRIGATORIA'; end if;
+    insert into ck_prev_base (ativo_id, modelo_id, leitura, data, criado_por) values (a.id, m.id, case when m.freq = 'uso' then lt end, dt, u.id) returning id into nid;
+    perform ck_audit(u.id, 'ck_prev_base', nid::text, 'insert', null, jsonb_build_object('ativo', a.id, 'modelo', m.id, 'leitura', lt, 'data', dt));
+    n := n + 1;
+  end loop;
+  if n = 0 then raise exception 'ESCOLHA_REVISAO'; end if;
+  return jsonb_build_object('ok', true, 'n', n);
 end $$;
 
 -- ── checklist do motorista / equipe ──

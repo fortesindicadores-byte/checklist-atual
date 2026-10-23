@@ -787,6 +787,15 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
   .fat-brand i,.fat-grid div,.fat-foot,.fat summary{color:#555!important;}
   .lgA.esc{display:none!important;} .lgA.cla{display:block!important;}
 }
+/* Preventivas (22/10/2026) */
+.pv-falta{display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}
+.pv-bar{width:44px;height:7px;border-radius:4px;background:var(--hover);overflow:hidden;flex:0 0 auto}
+.pv-bar i{display:block;height:100%;border-radius:4px}
+.pv-st{font-size:10.5px;font-weight:700;letter-spacing:.4px;white-space:nowrap}
+.pv-mais{display:block;font-size:10px;color:var(--txt3);margin-top:2px}
+#tb-pv td.pv-rv{max-width:128px;white-space:normal;line-height:1.3}
+.pv-inf{font-size:10px!important;padding:3px 8px!important}
+.pv-mods label{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -859,6 +868,10 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
     <button class="s-item" data-vw="mtbf" data-roles="master,admin">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
       MTBF
+    </button>
+    <button class="s-item" data-vw="preventivas" data-roles="master,admin,frota">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>
+      Preventivas
     </button>
     <button class="s-item" data-vw="lanc" data-roles="master,admin,frota">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>
@@ -1097,6 +1110,26 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
       </section>
 
       <!-- ══ LANÇAMENTOS ══ -->
+      <!-- ══ PREVENTIVAS (22/10/2026): mesma lógica do painel Looker da Atual ══ -->
+      <section class="vw" id="vw-preventivas">
+        <div class="kpis k4" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+          <div class="kpi"><div class="kl">Total de ativos</div><div class="kv" id="pv-tot">—</div><div class="km" id="pv-tot-m">—</div></div>
+          <div class="kpi"><div class="kl"><span class="dot" style="background:var(--verde)"></span>No prazo</div><div class="kv cg" id="pv-ok">—</div><div class="km" id="pv-ok-m">—</div></div>
+          <div class="kpi"><div class="kl"><span class="dot" style="background:var(--ambar)"></span>Em atenção</div><div class="kv ca" id="pv-at">—</div><div class="km" id="pv-at-m">—</div></div>
+          <div class="kpi"><div class="kl"><span class="dot" style="background:var(--vermelho)"></span>Vencidas</div><div class="kv cr" id="pv-vc">—</div><div class="km" id="pv-vc-m">—</div></div>
+          <div class="kpi"><div class="kl">Sem histórico</div><div class="kv" id="pv-sh">—</div><div class="km" id="pv-sh-m">—</div></div>
+        </div>
+        <div class="card tsec">
+          <div class="thead-row">
+            <div class="tsub" id="sub-pv" style="flex:1 1 auto">—</div>
+            <div class="busca" style="margin-left:auto"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" id="qPv" placeholder="Placa, frota, modelo, revisão…" oninput="renderPreventivas()"></div>
+          </div>
+          <div class="twrap"><table class="dre cmp" id="tb-pv"><thead><tr>
+            <th>Ativo</th><th>Modelo</th><th>Última revisão</th><th>Próxima revisão</th><th class="num">Leitura atual</th><th class="num" title="Leitura na última revisão (base da próxima)">Na última</th><th class="num" title="Leitura ou data em que vence a próxima revisão">Próxima em</th><th>Status</th><th class="num" style="min-width:112px">Faltam</th><th></th>
+          </tr></thead><tbody id="body-pv"></tbody></table></div>
+        </div>
+      </section>
+
       <section class="vw" id="vw-lanc">
         <div class="card tsec">
           <div class="thead-row">
@@ -1501,6 +1534,7 @@ function renderVw(v){
   if(v==='resumo') renderResumo(lastF);
   else if(DIMV[v]) renderDim(v);
   else if(v==='gav') renderGav();
+  else if(v==='preventivas') renderPreventivas();
   else if(v==='relatorios') renderRelatorios();
   else if(v==='lanc') renderLanc();
   else if(v==='ativos') renderAtivos();
@@ -3063,10 +3097,10 @@ function copiarPix(){ const t=$('pixTxt').value, done=()=>{ $('btCopiar').textCo
   else { $('pixTxt').select(); document.execCommand('copy'); done(); } }
 
 /* ── navegação entre as visões (seção 10) ── */
-const TIT={resumo:'Resumo Gerencial',nc:'Não Conformidades',sla:'SLA',mttr:'MTTR · Tempo de reparo',mtbf:'MTBF · Tempo entre falhas',gav:'Painel OS',relatorios:'Relatórios',lanc:'Lançamentos',ativos:'Ativos',fornecedores:'Fornecedores',itens:'Itens e SLA',modelos:'Tipos de checklist',usuarios:'Usuários',parametros:'Parâmetros',faturamento:'Faturamento',fatura:'Fatura'};
-const PERM={master:['resumo','nc','sla','mttr','mtbf','lanc','gav','relatorios','ativos','fornecedores','itens','modelos','usuarios','parametros','faturamento','fatura'],
-  admin:['resumo','nc','sla','mttr','mtbf','lanc','gav','relatorios','ativos','fornecedores','itens','modelos','usuarios','parametros'],
-  frota:['resumo','lanc','gav','relatorios','ativos']};
+const TIT={resumo:'Resumo Gerencial',nc:'Não Conformidades',sla:'SLA',mttr:'MTTR · Tempo de reparo',mtbf:'MTBF · Tempo entre falhas',preventivas:'Preventivas',gav:'Painel OS',relatorios:'Relatórios',lanc:'Lançamentos',ativos:'Ativos',fornecedores:'Fornecedores',itens:'Itens e SLA',modelos:'Tipos de checklist',usuarios:'Usuários',parametros:'Parâmetros',faturamento:'Faturamento',fatura:'Fatura'};
+const PERM={master:['resumo','nc','sla','mttr','mtbf','preventivas','lanc','gav','relatorios','ativos','fornecedores','itens','modelos','usuarios','parametros','faturamento','fatura'],
+  admin:['resumo','nc','sla','mttr','mtbf','preventivas','lanc','gav','relatorios','ativos','fornecedores','itens','modelos','usuarios','parametros'],
+  frota:['resumo','preventivas','lanc','gav','relatorios','ativos']};
 function setVw(v){
   if(EU&&!PERM[EU.papel].includes(v)) v='resumo';
   setTimeout(ajustaLateral,0);
@@ -3080,7 +3114,7 @@ function setVw(v){
   $('filtros').classList.toggle('oculto', v==='faturamento'||v==='fatura'||v==='usuarios'||v==='parametros'||v==='fornecedores');
   // Gestão à Vista é o estado atual: Período e Status OS não se aplicam
   /* filtros que não fazem sentido na visão ficam escondidos: Painel OS = estado atual; Itens e SLA = cadastro; Tipos de checklist = cadastro (Período vale só para Execuções) */
-  const FORA={gav:['ms-mes'], itens:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-status','ms-exec'], modelos:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'], ativos:['ms-mes','ms-modelo','ms-crit','ms-cat','ms-status','ms-exec'], nc:['ms-exec'], usuarios:['ms-modelo','ms-cat'], faturamento:['ms-modelo','ms-cat'], fatura:['ms-modelo','ms-cat'], resumo:['ms-cat'], lanc:['ms-cat'], relatorios:['ms-cat'], fornecedores:['ms-cat'], parametros:['ms-cat']};
+  const FORA={preventivas:['ms-mes','ms-crit','ms-cat','ms-status','ms-exec'], gav:['ms-mes'], itens:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-status','ms-exec'], modelos:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'], ativos:['ms-mes','ms-modelo','ms-crit','ms-cat','ms-status','ms-exec'], nc:['ms-exec'], usuarios:['ms-modelo','ms-cat'], faturamento:['ms-modelo','ms-cat'], fatura:['ms-modelo','ms-cat'], resumo:['ms-cat'], lanc:['ms-cat'], relatorios:['ms-cat'], fornecedores:['ms-cat'], parametros:['ms-cat']};
   ['ms-mes','ms-unidade','ms-tipo','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'].forEach(id=>{ $(id).style.display=(FORA[v]||[]).includes(id)?'none':''; });
   $('ms-sit').style.display=v==='ativos'?'':'none';
   if(lastF) atualizar();
@@ -3237,6 +3271,87 @@ async function iniciar(){
     const esp=LS.get('ck_gestao_espera'); if(esp&&CK.usuario(esp)){ ESP=esp; mostraEspera(); } }   /* quem pediu acesso volta direto para a tela de espera */
 }
 document.addEventListener('DOMContentLoaded',iniciar);
+/* ══ PREVENTIVAS (22/10/2026) ══
+   Uma linha por ativo. Base = a mesma conta do app (CK.inspecoesPara): última execução (ou ponto de partida informado) + intervalo.
+   Próxima = a revisão que vence primeiro; se várias vencem na mesma leitura, aparecem juntas (ex.: REVISÃO A + B).
+   Em atenção = falta ≤ 10% do intervalo, igual ao aviso que o mecânico recebe no app. */
+const PV_ST={atrasada:{t:'VENCIDA',c:'cr',cor:'var(--vermelho)',o:0}, vence:{t:'EM ATENÇÃO',c:'ca',cor:'var(--ambar)',o:1}, em_dia:{t:'NO PRAZO',c:'cg',cor:'var(--verde)',o:2}, nunca:{t:'SEM HISTÓRICO',c:'muted',cor:'var(--txt3)',o:3}};
+const pvCurto=nm=>String(nm||'').split(' · ')[0];
+/* várias revisões juntas: 'REVISÃO A + B' (em vez de repetir a palavra) */
+const pvJunta=l=>{ const c=[...new Set(l.map(x=>pvCurto(x.modelo.nome)))].sort((x,y)=>x.localeCompare(y,'pt-BR',{numeric:true})); return c.every(x=>/^REVISÃO /.test(x))&&c.length>1?'REVISÃO '+c.map(x=>x.slice(8)).join(' + '):c.join(' + '); };
+const pvUn=a=>a.medidor==='h'?' h':a.medidor==='km'?' km':'';
+function pvLinhas(f){
+  const ins=CK.inspecoesPara(EU).filter(x=>x.modelo.categoria==='preventivo'&&x.status!=='livre'&&ativoOk(f,x.ativo)&&(!f.modelo.length||f.modelo.includes(x.modelo.id)));
+  const por={}; ins.forEach(x=>{ (por[x.ativo.id]=por[x.ativo.id]||{a:x.ativo,l:[]}).l.push(x); });
+  return Object.values(por).map(({a,l})=>{
+    const conh=l.filter(x=>x.status!=='nunca'), sem=l.filter(x=>x.status==='nunca');
+    const ults=l.filter(x=>x.ultima).sort((x,y)=>x.ultima.data<y.ultima.data?1:-1), ult=ults[0]||null;
+    const ultJuntas=ult?ults.filter(x=>x.ultima.data===ult.ultima.data):[];   /* feitas no mesmo dia: REVISÃO A + B */
+    if(!conh.length) return {a,st:'nunca',ult,ultJuntas,prox:null,juntas:[],sem,todas:l,ord:1e9};
+    const p=conh.slice().sort((x,y)=>x.horas-y.horas)[0];
+    const juntas=conh.filter(x=>p.uso?(x.uso&&x.prox===p.prox):(!x.uso&&x.vence===p.vence));
+    return {a,st:p.status,ult,ultJuntas,prox:p,juntas,sem,todas:l,ord:p.horas};
+  });
+}
+function renderPreventivas(){
+  const f=lastF; if(!f) return;
+  const q=nrm($('qPv').value||''), ed=podeEditar();
+  const all=pvLinhas(f), cnt=k=>all.filter(r=>r.st===k).length;
+  const tot=all.length, ok=cnt('em_dia'), at=cnt('vence'), vc=cnt('atrasada'), sh=cnt('nunca');
+  set('pv-tot',n(tot)); set('pv-ok',n(ok)); set('pv-at',n(at)); set('pv-vc',n(vc)); set('pv-sh',n(sh));
+  const pc=v=>tot?Math.round(v/tot*100)+'% dos ativos':'—';
+  set('pv-tot-m',`${n(all.filter(r=>r.a.medidor==='km').length)} km · ${n(all.filter(r=>r.a.medidor==='h').length)} horas · ${n(all.filter(r=>!r.a.medidor).length)} tempo`);
+  set('pv-ok-m',pc(ok)); set('pv-at-m',at?'faltam até 10% do intervalo':'nenhum perto de vencer'); set('pv-vc-m',vc?pc(vc):'nenhuma vencida');
+  $('pv-sh-m').innerHTML=sh?(ed?'use <b>Informar</b> na linha':'aguardando a 1ª revisão'):'todos com histórico';
+  const rows=all.filter(r=>!q||nrm([ativoLbl(r.a),r.a.marca,r.a.modelo,CK.TIPO[r.a.tipo].nome,...r.todas.map(x=>x.modelo.nome)].join(' ')).includes(q))
+    .sort((x,y)=>PV_ST[x.st].o-PV_ST[y.st].o||x.ord-y.ord||ativoLbl(x.a).localeCompare(ativoLbl(y.a),'pt-BR'));
+  set('sub-pv',`${n(tot)} ${tot===1?'ativo':'ativos'} com revisão programada · ordem: vencidas, em atenção, no prazo; dentro de cada uma, a que vence primeiro · clique no ativo para abrir a ficha`);
+  set('titSub','Estado atual · revisões por km, horas e semestrais');
+  $('body-pv').innerHTML=rows.length?rows.map(r=>{
+    const a=r.a, S=PV_ST[r.st], p=r.prox, un=pvUn(a);
+    const ultTxt=r.ult?`${esc(pvJunta(r.ultJuntas))}<span class="pv-mais">${CK.fmtData(r.ult.ultima.data)}${r.ult.ultima.base?' · informada':''}</span>`:'<span class="muted">—</span>';
+    const proxTxt=p?`${esc(pvJunta(r.juntas))}${r.sem.length?`<span class="pv-mais">+ ${n(r.sem.length)} sem histórico</span>`:''}`:`<span class="muted">${n(r.sem.length)} ${r.sem.length===1?'revisão':'revisões'} sem histórico</span>`;
+    const lAtual=a.medidor&&a.leitura!=null?n(a.leitura)+un:'—';
+    const lUlt=p&&p.uso&&p.ultima&&p.ultima.leitura!=null?n(p.ultima.leitura)+un:p&&!p.uso&&p.ultima?CK.fmtData(p.ultima.data):'—';
+    const lProx=p?(p.uso?n(p.prox)+un:CK.fmtData(p.vence)):'—';
+    let falta='—', sortF=999999999;
+    if(p){
+      const v=p.uso?p.falta:Math.round(p.horas/24), u=p.uso?un:(Math.abs(v)===1?' dia':' dias');
+      const frac=p.uso?Math.max(0,Math.min(1,p.falta/p.intervalo)):Math.max(0,Math.min(1,p.horas/(CK.FREQ[p.modelo.freq].dias*24)));
+      falta=`<div class="pv-falta"><span class="${S.c}">${v<0?'−':''}${n(Math.abs(v))}${u}</span><span class="pv-bar"><i style="width:${Math.max(4,Math.round(frac*100))}%;background:${S.cor}"></i></span></div>`;
+      sortF=Math.round(p.horas*100);   /* inteiro: o ordenador lê '.' como milhar */
+    }
+    return `<tr class="lk" onclick="abrirAtivo('${esc(a.id)}')"><td class="conta">${esc(ativoLbl(a))}</td><td><span class="cl s" title="${esc(a.marca+' '+a.modelo)}">${esc(a.modelo)}</span><span class="pv-mais">${esc(CK.TIPO[a.tipo].nome)}</span></td>`+
+      `<td class="pv-rv" data-sort="${r.ult?r.ult.ultima.data:''}">${ultTxt}</td><td class="pv-rv">${proxTxt}</td>`+
+      `<td class="num" data-sort="${+a.leitura||0}">${lAtual}</td><td class="num">${lUlt}</td><td class="num">${lProx}</td>`+
+      `<td data-sort="${S.o}"><span class="pv-st ${S.c}">${S.t}</span></td><td class="num" data-sort="${sortF}">${falta}</td>`+
+      `<td style="text-align:right">${ed?`<button class="rt pv-inf" onclick="event.stopPropagation();abrirPrevBase('${esc(a.id)}')" title="Informar a última revisão feita antes do sistema">Informar</button>`:''}</td></tr>`;
+  }).join(''):`<tr><td colspan="10" class="muted" style="text-align:center;padding:22px">Nenhum ativo com revisão programada no filtro.</td></tr>`;
+}
+/* ponto de partida: última revisão feita antes do Checklist Atual (planilha, sistema de manutenção) */
+function abrirPrevBase(aid){
+  if(!podeEditar()) return;
+  const a=ATV[aid]; if(!a) return;
+  const l=CK.inspecoesPara(EU).filter(x=>x.ativo.id===aid&&x.modelo.categoria==='preventivo'&&x.status!=='livre');
+  if(!l.length) return;
+  const un=pvUn(a), hoje=CK.iso(new Date());
+  const mods=l.map(x=>`<label><input type="checkbox" class="pb-m" value="${esc(x.modelo.id)}" ${x.status==='nunca'?'checked':''}> ${esc(x.modelo.nome)} <span class="ctx">· ${x.status==='nunca'?'sem histórico':'última '+(x.ultima.leitura!=null&&x.uso?n(x.ultima.leitura)+un:CK.fmtData(x.ultima.data))}</span></label>`).join('');
+  const temUso=l.some(x=>x.uso);
+  abrirModal('Informar última revisão · '+ativoLbl(a),
+    `<p class="tsub" style="font-size:12px;line-height:1.6;margin-bottom:12px">Para registrar a última revisão feita <b>antes</b> do Checklist Atual (planilha ou sistema de manutenção). Não é um checklist: vira o ponto de partida do cálculo da próxima e fica registrado com o seu nome. Se informar de novo, vale o último.</p>`+
+    `<div class="fld"><label>Quais revisões foram feitas nessa data</label><div class="pv-mods">${mods}</div></div>`+
+    (temUso?`<div class="fld"><label>${a.medidor==='h'?'Horímetro':'Km'} na revisão <span class="ctx">· atual: ${a.leitura!=null?n(a.leitura)+un:'sem leitura'}</span></label><input class="inp" id="pbLeit" type="number" inputmode="numeric" min="0" ${a.leitura!=null?`max="${+a.leitura}"`:''} placeholder="Ex.: ${a.leitura!=null?n(Math.max(0,Math.round((+a.leitura-(a.medidor==='h'?150:6000))/10)*10)):'0'}"></div>`:'')+
+    `<div class="fld"><label>Data da revisão</label><input class="inp" id="pbData" type="date" max="${hoje}" value="${hoje}"></div><div class="erro" id="pbErr"></div>`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn pri" style="margin-left:auto" onclick="salvarPrevBase('${esc(aid)}')">Salvar</button>`);
+}
+async function salvarPrevBase(aid){
+  const modelos=[...document.querySelectorAll('.pb-m:checked')].map(i=>i.value), lt=$('pbLeit')?$('pbLeit').value:'', dt=$('pbData').value;
+  if(!modelos.length){ $('pbErr').textContent='Marque ao menos uma revisão.'; return; }
+  const r=await CK.prevBaseSalvar({ativo:aid, modelos, leitura:lt, data:dt, por:EU.id});
+  if(!r.ok){ $('pbErr').textContent=r.erro||'Não foi possível salvar.'; return; }
+  fecharModal(); refreshIdx(); atualizar();
+}
+
 /* ── Atualização automática (22/10/2026): busca o servidor a cada 30 s com a aba visível e ao voltar para a aba.
    Só redesenha se algo mudou, e nunca com OS/janela aberta ou com alguém digitando: espera o próximo ciclo. */
 const AUTO_MS=30000; let autoEm=false, ultTecla=0, assinatura='';

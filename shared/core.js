@@ -310,6 +310,8 @@ var CK = (function(){
     modelos().filter(function(m){ return m.freq !== 'diario'; }).forEach(function(m){
       db.ativos.filter(function(a){ return a.status === 'ativo' && modeloCobre(m, a); }).forEach(function(a){
         var ult = null; for (var i = db.checklists.length - 1; i >= 0; i--) { var c = db.checklists[i]; if (c.ativo === a.id && c.modelo === m.id) { ult = c; break; } }
+        var b = prevBase(a.id, m.id);   /* ponto de partida informado (22/10/2026): vale se for mais novo que a última execução */
+        if (b && (!ult || (m.freq === 'uso' ? (b.leitura != null && +b.leitura > +(ult.leitura == null ? -1 : ult.leitura)) : b.data > ult.data))) ult = { data:b.data, leitura:b.leitura, usuario:b.criado_por, base:true, nc:0, itens_total:0 };
         if (m.freq === 'uso') {   /* por uso: próxima = leitura da última execução + intervalo do medidor do ativo */
           var iv = a.medidor === 'km' ? +m.intervalo_km : a.medidor === 'h' ? +m.intervalo_h : 0;
           if (!iv) { out.push({ modelo:m, ativo:a, ultima:ult, vence:null, horas:Infinity, status:'livre', uso:true }); return; }
@@ -767,6 +769,19 @@ var CK = (function(){
   function anexo(id){ return id ? ((load().anexos || {})[id] || null) : null; }
   /* documentos do ativo (Renan, 16/10/2026 — despacho MPT): manual, plano do fabricante, laudo preditivo, ART… */
   var DOC_TIPOS = ['MANUAL DO FABRICANTE','PLANO DE MANUTENÇÃO DO FABRICANTE','LAUDO PREDITIVO (ÓLEO / TERMOGRAFIA)','ART / APRECIAÇÃO DE RISCO','DOCUMENTO DO VEÍCULO (CRLV)','OUTRO'];
+  /* ponto de partida das revisões (22/10/2026): última revisão feita antes do sistema, informada pelo admin */
+  function prevBase(aid, mid){ var l = (load().prev_base || []).filter(function(x){ return x.ativo === aid && x.modelo === mid; }); return l.length ? l[l.length - 1] : null; }
+  function prevBaseSalvar(d){
+    var db = load(), a = ativo(d.ativo); if (!a) return { ok:false, erro:'Ativo não encontrado.' };
+    var mods = (d.modelos || []).map(modelo).filter(function(m){ return m && m.categoria === 'preventivo'; }); if (!mods.length) return { ok:false, erro:'Escolha ao menos uma revisão.' };
+    var lt = d.leitura === '' || d.leitura == null ? null : +d.leitura, dt = String(d.data || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || dt > iso(new Date())) return { ok:false, erro:'Data inválida (não pode ser futura).' };
+    if (lt != null && (!(lt >= 0) || (a.leitura != null && lt > +a.leitura))) return { ok:false, erro:'A leitura não pode ser maior que a atual do ativo (' + a.leitura + ').' };
+    if (mods.some(function(m){ return m.freq === 'uso'; }) && lt == null) return { ok:false, erro:'Informe a leitura (km ou horas) da última revisão.' };
+    db.prev_base = db.prev_base || [];
+    mods.forEach(function(m){ db.prev_base.push({ id:uid('pb'), ativo:a.id, modelo:m.id, leitura: m.freq === 'uso' ? lt : null, data: dt + 'T12:00:00', criado_em:isoDT(new Date()), criado_por:d.por }); });
+    save(); return { ok:true, n:mods.length };
+  }
   function documentos(ativoId){ return (load().documentos || []).filter(function(d){ return !d.excluido && d.ativo && (!ativoId || d.ativo === ativoId); }); }
   function documentosModelo(mid){ return (load().documentos || []).filter(function(d){ return !d.excluido && d.modelo && (!mid || d.modelo === mid); }); }
   function documentoCriar(d){ var db = load(), a = d.ativo ? ativo(d.ativo) : null, md = d.modelo ? modelo(d.modelo) : null; if (!a && !md) return { ok:false, erro:'Ativo ou checklist não encontrado.' };
@@ -1072,7 +1087,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,
