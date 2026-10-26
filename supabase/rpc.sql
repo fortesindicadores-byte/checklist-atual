@@ -133,11 +133,11 @@ begin
   select jsonb_build_object(
     'versao', 'v1', 'gerado_em', now(), 'eu', ck_usuario_json(u),
     'unidades', (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'nome', nome, 'ativa', ativa) order by nome), '[]') from ck_unidades),
-    'tipos', (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'nome', nome, 'grupo', grupo, 'medidor', medidor, 'icone', icone, 'diario_ativo', diario_ativo) order by ordem), '[]') from ck_tipos),
+    'tipos', (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'nome', nome, 'grupo', grupo, 'medidor', medidor, 'icone', icone, 'diario_ativo', diario_ativo, 'diario_quem', diario_quem) order by ordem), '[]') from ck_tipos),
     'itens', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'cat', i.categoria, 'nome', i.nome, 'dica', i.dica, 'ex', i.ex, 'crit', i.crit, 'prazo', i.prazo_h,
                 'bloqueia', i.bloqueia, 'insp', i.insp, 'sugerido', i.sugerido, 'ativo', i.ativo,
                 'ap', (select coalesce(array_agg(tipo_id), '{}') from ck_itens_tipos where item_id = i.id)) order by i.ordem), '[]') from ck_itens i),
-    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'ativos', m.ativos, 'tipos', m.tipos, 'ativo', m.ativo, 'exec', m.exec,
+    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'ativos', m.ativos, 'tipos', m.tipos, 'ativo', m.ativo, 'exec', m.exec, 'quem', m.quem,
                 'origem', m.origem, 'criado_em', m.criado_em, 'criado_por', m.criado_por,
                 'itens', (select coalesce(array_agg(item_id order by ordem), '{}') from ck_modelos_itens where modelo_id = m.id)) order by m.nome), '[]') from ck_modelos m),
     'usuarios', case when u.papel in ('master','admin','frota')
@@ -279,7 +279,9 @@ begin
   end if;
   if p->>'modelo' is not null and p->>'modelo' !~ '^d-' then
     if not exists (select 1 from ck_modelos where id = p->>'modelo' and ativo) then raise exception 'MODELO_INVALIDO'; end if;
-    if u.papel = 'motorista' and not exists (select 1 from ck_modelos where id = p->>'modelo' and exec = 'motorista') then raise exception 'SEM_PERMISSAO'; end if;   -- quem executa (26/10/2026)
+    if u.papel <> 'master' and not exists (select 1 from ck_modelos where id = p->>'modelo' and u.papel::text = any(quem)) then raise exception 'SEM_PERMISSAO'; end if;   -- cargo (26/10/2026)
+  elsif u.papel <> 'master' and not exists (select 1 from ck_tipos where id = a.tipo_id and u.papel::text = any(diario_quem)) then
+    raise exception 'SEM_PERMISSAO';                                                                       -- diário: cargo liberado no tipo
   end if;
   select count(*) filter (where (x->>'ok') is not null), count(*) filter (where (x->>'ok')::boolean = false)
     into tot, nc_n from jsonb_array_elements(p->'itens') x;
@@ -395,7 +397,7 @@ language plpgsql security definer set search_path = public as $$
 declare u ck_usuarios := ck_sessao(p_token); iid text; nid int; m ck_modelos;
 begin
   select * into m from ck_modelos where id = p_modelo and ativo; if m.id is null then raise exception 'MODELO_INVALIDO'; end if;
-  if u.papel = 'motorista' and m.exec <> 'motorista' then raise exception 'SEM_PERMISSAO'; end if;   -- quem executa (26/10/2026): motorista só se o tipo liberar
+  if u.papel <> 'master' and not (u.papel::text = any(m.quem)) then raise exception 'SEM_PERMISSAO'; end if;   -- cargo liberado no checklist (26/10/2026)
   if not exists (select 1 from ck_ativos where id = p_ativo and status = 'ativo') then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
   iid := ck_prev_item(p_modelo);
   if exists (select 1 from ck_os where ativo_id = p_ativo and item_id = iid and status = 'em_andamento') then raise exception 'PREVENTIVA_JA_EM_ANDAMENTO'; end if;
@@ -610,13 +612,28 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- diário de um tipo: quais cargos fazem (26/10/2026)
+create or replace function ck_diario_quem(p_token uuid, p_tipo text, p_quem text[]) returns jsonb language plpgsql security definer set search_path = public as $$
+declare u ck_usuarios := ck_sessao(p_token); qm text[];
+begin
+  perform ck_exige(u, array['master','admin']::ck_papel[]);
+  qm := (select array_agg(x) from unnest(p_quem) x where x in ('motorista','frota','admin'));
+  if qm is null then raise exception 'ESCOLHA_CARGO'; end if;
+  update ck_tipos set diario_quem = qm where id = p_tipo; if not found then raise exception 'TIPO_INVALIDO'; end if;
+  perform ck_audit(u.id, 'ck_tipos', p_tipo, 'update', null, jsonb_build_object('diario_quem', qm));
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- p = {id?, nome, categoria, freq, tipos:[...], itens:[ids], novos:[{nome,cat,crit,prazo,bloqueia}], ativo?, origem?}
 create or replace function ck_modelo_salvar(p_token uuid, p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
-declare u ck_usuarios := ck_sessao(p_token); mid text := p->>'id'; antes ck_modelos; cat ck_cat_modelo; fq ck_freq; n jsonb; nid text; ids text[] := '{}'; k int := 0; ex text;
+declare u ck_usuarios := ck_sessao(p_token); mid text := p->>'id'; antes ck_modelos; cat ck_cat_modelo; fq ck_freq; n jsonb; nid text; ids text[] := '{}'; k int := 0; ex text; qm text[];
 begin
   perform ck_exige(u, array['master','admin']::ck_papel[]);
   cat := coalesce((p->>'categoria')::ck_cat_modelo, 'inspecao'); fq := (p->>'freq')::ck_freq;
-  ex := case when p->>'exec' in ('equipe','motorista') then p->>'exec' else 'equipe' end;   -- quem executa (26/10/2026): equipe, ou motorista e equipe
+  ex := case when p->>'exec' in ('equipe','motorista') then p->>'exec' else 'equipe' end;
+  -- quem pode fazer, por cargo (26/10/2026): motorista, frota (mecânico), admin; o master sempre pode
+  qm := (select array_agg(x) from jsonb_array_elements_text(coalesce(p->'quem','[]')) x where x in ('motorista','frota','admin'));
+  if p ? 'quem' and qm is null then raise exception 'ESCOLHA_CARGO'; end if;
   if cat = 'inspecao' and fq not in ('semanal','quinzenal','mensal','semestral','uso') then raise exception 'FREQUENCIA_INVALIDA'; end if;
   if fq = 'uso' and coalesce((p->>'intervalo_km')::numeric, 0) <= 0 and coalesce((p->>'intervalo_h')::numeric, 0) <= 0 then raise exception 'INTERVALO_OBRIGATORIO'; end if;
   if cat <> 'inspecao' and fq = 'diario' then raise exception 'FREQUENCIA_INVALIDA'; end if;
@@ -632,8 +649,8 @@ begin
     mid := 'm-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
     if ck_up(p->>'nome') is null then raise exception 'NOME_OBRIGATORIO'; end if;
     if jsonb_array_length(coalesce(p->'tipos', '[]')) = 0 then raise exception 'TIPOS_OBRIGATORIOS'; end if;
-    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, ativos, origem, criado_por, exec)
-    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}'), coalesce(p->>'origem', 'manual'), u.id, ex);
+    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, ativos, origem, criado_por, exec, quem)
+    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}'), coalesce(p->>'origem', 'manual'), u.id, ex, coalesce(qm, '{frota,admin}'));
     perform ck_audit(u.id, 'ck_modelos', mid, 'insert', null, p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   else
@@ -642,7 +659,7 @@ begin
       intervalo_km = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_km','')::numeric, intervalo_km) end, intervalo_h = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_h','')::numeric, intervalo_h) end,
       tipos = case when p ? 'tipos' then (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x) else tipos end,
       ativos = case when p ? 'ativos' then nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}') else ativos end,
-      ativo = coalesce((p->>'ativo')::boolean, ativo), exec = case when p ? 'exec' then ex else exec end where id = mid;
+      ativo = coalesce((p->>'ativo')::boolean, ativo), exec = case when p ? 'exec' then ex else exec end, quem = coalesce(qm, quem) where id = mid;
     perform ck_audit(u.id, 'ck_modelos', mid, 'update', to_jsonb(antes), p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   end if;
@@ -735,7 +752,7 @@ grant execute on function ck_login(text,text,text), ck_criar_senha(text,text,tex
   ck_trocar_senha(uuid,text,text), ck_resetar_senha(uuid,uuid), ck_dataset(uuid,date), ck_salvar_checklist(uuid,jsonb), ck_farol(uuid,text),
   ck_os_iniciar(uuid,int,ck_execucao), ck_os_fechar(uuid,int,jsonb), ck_os_reprogramar(uuid,int,timestamptz,text), ck_os_reabrir(uuid,int), ck_os_excluir(uuid,int,text), ck_checklist_excluir(uuid,uuid,text), ck_documento_salvar(uuid,jsonb), ck_documento_excluir(uuid,uuid), ck_preventiva_iniciar(uuid,text,text,ck_execucao), ck_preventiva_finalizar(uuid,int,jsonb),
   ck_unidade_salvar(uuid,jsonb), ck_ativo_salvar(uuid,jsonb), ck_usuario_salvar(uuid,jsonb), ck_usuario_aprovar(uuid,uuid,ck_papel),
-  ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
+  ck_item_salvar(uuid,jsonb), ck_diario_set(uuid,text,boolean), ck_diario_quem(uuid,text,text[]), ck_modelo_salvar(uuid,jsonb), ck_fornecedor_salvar(uuid,jsonb),
   ck_metas_set(uuid,jsonb), ck_fatura(uuid,date), ck_prev_base_salvar(uuid,jsonb), ck_modelo_inclui(uuid,text,text[]), ck_extra(uuid), ck_modelo_excluir(uuid,text), ck_fatura_status(uuid,date,jsonb)
 to anon, authenticated;
 

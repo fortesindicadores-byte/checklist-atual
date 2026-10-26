@@ -184,6 +184,8 @@ alter table ck_documentos enable row level security;
 alter table ck_modelos add column if not exists intervalo_km numeric, add column if not exists intervalo_h numeric;
 alter table ck_modelos add column if not exists ativos text[];   -- null/vazio = todos os ativos dos tipos; senão só estes (19/10/2026)
 alter table ck_modelos add column if not exists exec text not null default 'equipe' check (exec in ('equipe','motorista'));   -- quem executa: equipe, ou motorista e equipe (26/10/2026)
+alter table ck_modelos add column if not exists quem text[] not null default '{frota,admin}';   -- cargos que fazem o checklist; master sempre pode (26/10/2026)
+alter table ck_tipos add column if not exists diario_quem text[] not null default '{motorista,frota,admin}';   -- cargos que fazem o diário do tipo (26/10/2026)
 alter table ck_documentos alter column ativo_id drop not null;
 alter table ck_documentos add column if not exists modelo_id text references ck_modelos(id);   -- manual/plano anexado ao checklist (19/10/2026)
 alter table ck_os add column if not exists pecas jsonb not null default '[]', add column if not exists condicao text check (condicao in ('apto','restricao')),

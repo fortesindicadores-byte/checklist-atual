@@ -13,7 +13,7 @@
 
   var MSG = {
     STATUS_INVALIDO:'Status inválido.', DATA_PAGAMENTO_INVALIDA:'Informe a data do pagamento (não pode ser futura).', MODELO_COM_HISTORICO:'Este checklist já tem execuções: dá para desativar, não excluir.', MODELO_COM_DOCUMENTOS:'Exclua os documentos anexados antes.', INCLUSAO_CIRCULAR:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.', LEITURA_INVALIDA:'A leitura não pode ser maior que a atual do ativo.', DATA_INVALIDA:'Data inválida (não pode ser futura).', LEITURA_OBRIGATORIA:'Informe a leitura (km ou horas) da última revisão.', ESCOLHA_REVISAO:'Marque ao menos uma revisão.', MODELO_INVALIDO:'Revisão inválida.',
-    SENHA_INCORRETA:'Senha incorreta.', CPF_NAO_CADASTRADO:'CPF não cadastrado. Peça acesso ao gestor da frota.', AGUARDANDO_APROVACAO:'Seu acesso ainda não foi aprovado.',
+    ESCOLHA_CARGO:'Marque ao menos um cargo.', SENHA_INCORRETA:'Senha incorreta.', CPF_NAO_CADASTRADO:'CPF não cadastrado. Peça acesso ao gestor da frota.', AGUARDANDO_APROVACAO:'Seu acesso ainda não foi aprovado.',
     USUARIO_BLOQUEADO:'Usuário bloqueado. Fale com o gestor da frota.', USUARIO_PENDENTE:'Seu acesso ainda não foi aprovado.', MUITAS_TENTATIVAS:'Muitas tentativas. Aguarde 15 minutos.',
     PRIMEIRO_ACESSO:'Primeiro acesso: crie sua senha de 6 números.', SENHA_6_NUMEROS:'A senha são 6 números.', JA_TEM_SENHA:'Você já tem senha. Entre com ela.',
     SESSAO_INVALIDA:'Sua sessão expirou. Entre de novo.', SEM_PERMISSAO:'Seu perfil não pode fazer isso.', CPF_JA_CADASTRADO:'CPF já cadastrado.', CPF_INVALIDO:'CPF inválido.',
@@ -67,6 +67,7 @@
       fotos:{}, anexos:{},
       modelos:(d.modelos || []).map(function(m){ var inc = (d.inclui || {})[m.id]; return Object.assign({ exec:'equipe', sistema:false }, m, { criado_em:loc(m.criado_em), inclui: inc && inc.length ? inc : null }); }),
       diarios_off:(d.tipos || []).filter(function(t){ return t.diario_ativo === false; }).map(function(t){ return t.id; }),
+      diario_quem:(d.tipos || []).reduce(function(o, t){ if (t.diario_quem && t.diario_quem.length) o[t.id] = t.diario_quem; return o; }, {}),
       itens_extra:[], itens_cfg:{}, maiusculas:true,
       prev_base:(d.prev_base || []).map(function(x){ return Object.assign({}, x, { leitura: x.leitura == null ? null : +x.leitura, data: String(x.data).slice(0, 10) + 'T12:00:00', criado_em:loc(x.criado_em) }); }),
       documentos:(d.documentos || []).map(function(x){ return Object.assign({}, x, { criado_em:loc(x.criado_em) }); }),
@@ -203,9 +204,12 @@
     if (r.ok && d.inclui && d.inclui.length) { var r2 = await escreve('ck_modelo_inclui', { p_modelo:r.id, p_inclui:d.inclui }); if (!r2.ok) return r2; }
     if (r.ok) r.modelo = CK.modelo(r.id); return r; };
   CK.modeloSet = function(id, p){
-    if (/^d-/.test(id)) return escreve('ck_diario_set', { p_tipo:id.slice(2), p_ativo:p.ativo !== false });
+    if (/^d-/.test(id)) {
+      if (p.quem != null) return escreve('ck_diario_quem', { p_tipo:id.slice(2), p_quem:p.quem }).then(function(r){ return (r.ok && p.ativo != null) ? escreve('ck_diario_set', { p_tipo:id.slice(2), p_ativo:p.ativo !== false }) : r; });
+      return escreve('ck_diario_set', { p_tipo:id.slice(2), p_ativo:p.ativo !== false });
+    }
     var m0 = CK.modelo(id) || {};   /* o banco reescreve tipo e frequência: manda os atuais quando a tela só muda o ativo/nome (23/10/2026) */
-    var base = { categoria:m0.categoria, freq:m0.freq, intervalo_km:m0.intervalo_km, intervalo_h:m0.intervalo_h, exec:m0.exec || 'equipe' };
+    var base = { categoria:m0.categoria, freq:m0.freq, intervalo_km:m0.intervalo_km, intervalo_h:m0.intervalo_h, quem:CK.quemDe(m0) };
     return escreve('ck_modelo_salvar', { p:Object.assign({ id:id }, base, p) }).then(async function(r){
       if (r.ok && p.inclui !== undefined) { var r2 = await escreve('ck_modelo_inclui', { p_modelo:id, p_inclui:p.inclui || [] }); if (!r2.ok) return r2; } return r; });
   };

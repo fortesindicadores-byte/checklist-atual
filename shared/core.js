@@ -345,10 +345,18 @@ var CK = (function(){
                 preventivo:{ nome:'PREVENTIVO', plural:'PREVENTIVOS', quem:'mecânicos, na preventiva interna' },
                 preditivo:{ nome:'PREDITIVO', plural:'PREDITIVOS', quem:'frota, quando julgar importante' } };
   function catDe(m){ return !m ? null : m.freq === 'diario' ? 'diario' : (CATCK[m.categoria] ? m.categoria : 'inspecao'); }
-  /* quem executa o checklist da equipe no app (Renan, 26/10/2026: editável na ficha do tipo): equipe = master/admin/frota; motorista = o motorista também faz (a equipe sempre pode) */
-  var EXEC_QUEM = { equipe:{ nome:'EQUIPE', desc:'mecânicos e administradores' }, motorista:{ nome:'MOTORISTA E EQUIPE', desc:'o motorista faz no app; a equipe também pode' } };
-  function execDe(m){ return !m ? 'equipe' : m.freq === 'diario' ? 'motorista' : (EXEC_QUEM[m.exec] ? m.exec : 'equipe'); }
-  function execPermite(m, papel){ if (!m) return false; if (['master','admin','frota'].indexOf(papel) >= 0) return true; return papel === 'motorista' && execDe(m) === 'motorista'; }
+  /* quem pode fazer cada checklist, por cargo (Renan, 26/10/2026): lista de papéis; o admin master sempre pode.
+     Diário (por tipo de ativo): padrão motorista + mecânico + administrador. Equipe: padrão mecânico + administrador. */
+  var QUEM_PAPEIS = ['motorista','frota','admin'];
+  var QUEM_DIARIO = ['motorista','frota','admin'], QUEM_EQUIPE = ['frota','admin'];
+  function quemLimpa(l){ var o = QUEM_PAPEIS.filter(function(p){ return (l || []).indexOf(p) >= 0; }); return o; }
+  function quemDe(m){
+    if (!m) return [];
+    if (m.freq === 'diario') { var q = (load().diario_quem || {})[m.tipos[0]]; return q && q.length ? quemLimpa(q) : QUEM_DIARIO.slice(); }
+    if (m.quem && m.quem.length) return quemLimpa(m.quem);
+    return m.exec === 'motorista' ? QUEM_DIARIO.slice() : QUEM_EQUIPE.slice();   /* registros de antes do cargo */
+  }
+  function execPermite(m, papel){ if (!m || !papel) return false; if (papel === 'master') return true; return quemDe(m).indexOf(papel) >= 0; }
   function freqOk(cat, f){ return cat === 'inspecao' ? ['semanal','quinzenal','mensal','semestral','uso'].indexOf(f) >= 0 : ['livre','semanal','quinzenal','mensal','semestral','uso'].indexOf(f) >= 0; }
   /* texto da frequência: 'QUINZENAL · a cada 15 dias', 'POR USO · a cada 10.000 km / 250 h', 'SOB DEMANDA' */
   function freqTxt(m){ if (!m) return ''; var f = FREQ[m.freq] || {}; if (m.freq === 'uso') { var p = []; if (m.intervalo_km) p.push(Number(m.intervalo_km).toLocaleString('pt-BR') + ' km'); if (m.intervalo_h) p.push(Number(m.intervalo_h).toLocaleString('pt-BR') + ' h'); return 'POR USO' + (p.length ? ' · a cada ' + p.join(' / ') : ''); } return f.dias ? f.nome + ' · a cada ' + f.dias + ' dias' : (f.nome || m.freq); }
@@ -389,7 +397,7 @@ var CK = (function(){
     var itens = (d.itens || []).filter(function(id){ return ITEM[id]; }).concat(novos.map(function(n){ return n.id; }));
     if (!itens.length) return { ok:false, erro:'O checklist precisa ter ao menos um item.' };
     if (d.freq === 'uso' && !(+d.intervalo_km > 0) && !(+d.intervalo_h > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
-    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, inclui:(cat === 'preventivo' && d.inclui && d.inclui.length) ? d.inclui.slice() : null, exec:EXEC_QUEM[d.exec] ? d.exec : 'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
+    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, inclui:(cat === 'preventivo' && d.inclui && d.inclui.length) ? d.inclui.slice() : null, quem:quemLimpa(d.quem).length ? quemLimpa(d.quem) : QUEM_EQUIPE.slice(), tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
     db.modelos = db.modelos || []; db.modelos.push(m); save();
     garantePrevItens(); return { ok:true, modelo:m, itens_novos:novos.length };
   }
@@ -413,6 +421,7 @@ var CK = (function(){
     var db = load();
     if (/^d-/.test(id)) {   /* diário: só liga/desliga; o conteúdo vem de Itens e SLA */
       var tipo = id.slice(2); if (!TIPO[tipo]) return { ok:false, erro:'Tipo não encontrado.' };
+      if (patch.quem != null) { var dq = quemLimpa(patch.quem); if (!dq.length) return { ok:false, erro:'Marque ao menos um cargo.' }; db.diario_quem = db.diario_quem || {}; db.diario_quem[tipo] = dq; if (patch.ativo == null) { save(); return { ok:true, modelo:modelo(id) }; } }
       if (patch.ativo == null) return { ok:false, erro:'Os itens do diário são editados em Itens e SLA.' };
       db.diarios_off = (db.diarios_off || []).filter(function(x){ return x !== tipo; }); if (!patch.ativo) db.diarios_off.push(tipo);
       save(); garantePrevItens(); return { ok:true, modelo:modelo(id) };
@@ -424,7 +433,7 @@ var CK = (function(){
     if (!freqOk(cat2, fr2)) return { ok:false, erro:'Frequência não vale para ' + CATCK[cat2].nome.toLowerCase() + '.' };
     if (fr2 === 'uso' && !(+(patch.intervalo_km != null ? patch.intervalo_km : m.intervalo_km) > 0) && !(+(patch.intervalo_h != null ? patch.intervalo_h : m.intervalo_h) > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
     ['nome','categoria','freq','tipos','itens','ativo'].forEach(function(k){ if (patch[k] != null) m[k] = patch[k]; });
-    if (patch.exec != null) m.exec = EXEC_QUEM[patch.exec] ? patch.exec : 'equipe';
+    if (patch.quem != null) { var qq = quemLimpa(patch.quem); if (!qq.length) return { ok:false, erro:'Marque ao menos um cargo.' }; m.quem = qq; }
     if (patch.ativos !== undefined) m.ativos = (patch.ativos && patch.ativos.length) ? patch.ativos.slice() : null;
     if (patch.inclui !== undefined) { var inc = (patch.inclui || []).filter(function(x){ return x !== m.id && modelo(x); });
       if (inc.some(function(x){ return inclusos(x).indexOf(m.id) >= 0; })) return { ok:false, erro:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.' };
@@ -1242,7 +1251,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, fatSituacao:fatSituacao, faturaStatus:faturaStatus, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, EXEC_QUEM:EXEC_QUEM, execDe:execDe, execPermite:execPermite, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, fatSituacao:fatSituacao, faturaStatus:faturaStatus, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, QUEM_PAPEIS:QUEM_PAPEIS, quemDe:quemDe, execPermite:execPermite, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,

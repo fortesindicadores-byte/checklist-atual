@@ -622,8 +622,9 @@ CK.aplicarCfgItens();
    quinzenal, mensal) são criadas pelo admin e executadas SÓ pelo admin e pela frota.
    equipe() = a visão na tela é de master/admin/frota (não o "ver como motorista"). */
 function equipe(){ return !!(EU && GESTOR[EU.papel]); }
-/* o usuário na tela pode fazer este checklist? diário: sempre; da equipe: equipe, ou motorista quando o tipo libera (quem executa, 26/10/2026) */
-function podeFazer(mid){ if (!ehInspecao(mid)) return true; if (equipe()) return true; var m = CK.modelo(mid); return !!(m && EU && CK.execPermite(m, EU.papel)); }
+/* o usuário na tela pode fazer este checklist? pelo cargo liberado no checklist (diário e equipe; o master sempre pode) — Renan, 26/10/2026 */
+function podeFazer(mid){ var m = CK.modelo(mid); return !!(m && EU && CK.execPermite(m, EU.papel)); }
+function fazDiario(a){ return CK.diarioAtivo(a.tipo) && podeFazer('d-' + a.tipo); }
 /* modelo de inspeção = qualquer modelo que não seja o diário ("d-<TIPO>") */
 function ehInspecao(mid){ if (!mid) return false; var m = CK.modelo(mid); return m ? m.freq !== 'diario' : !/^d-/.test(mid); }
 function modeloDoCk(x){ var a = CK.ativo(x.ativo); return x.modelo || (a ? 'd-' + a.tipo : null); }
@@ -824,9 +825,9 @@ function entraComo(u){
    INSPEÇÕES DA EQUIPE (master/admin/frota)
    ══════════════════════════════════════════════════════════ */
 function recusaInsp(){
-  alert('Inspeção é feita pela equipe da frota.');
+  alert('Seu cargo não faz este checklist. Fale com o gestor da frota.');
   var r = null; try { r = JSON.parse(LS.get('ck_app_rascunho') || 'null'); } catch(e){}
-  if (r && ehInspecao(r.modelo)) limpaRascunho();
+  if (r && !podeFazer(modeloDoCk(r))) limpaRascunho();
   CK_ST = null; fechaLista();
   irPara(equipe() ? 'inspecoes' : 'inicio');
 }
@@ -881,7 +882,7 @@ function filtraInspecoes(lista){
 }
 /* ativos do checklist diário (todos os ativos ativos), os sem checklist há mais tempo primeiro; q = filtro da busca */
 function ativosDiario(q){
-  return CK.ativosPara(EU).filter(function(a){ return !q || normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0; })
+  return CK.ativosPara(EU).filter(function(a){ return fazDiario(a); }).filter(function(a){ return !q || normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0; })
     .sort(function(a, b){ var x = ultimoDiario(a.id), y = ultimoDiario(b.id); return (y ? y.data : '') > (x ? x.data : '') ? 1 : (y ? y.data : '') < (x ? x.data : '') ? -1 : nomeAt(a).localeCompare(nomeAt(b)); });
 }
 /* resumo de um tipo de checklist: quantas atrasadas / nunca feitas / perto de vencer, e o farol da pior situação */
@@ -907,15 +908,17 @@ function linhaTipo(m, xs){
 }
 function linhaDiario(){
   var at = ativosDiario(''), hoje = hojeIso(), feitos = 0, sem = 0;
-  at.forEach(function(a){ if (!CK.diarioAtivo(a.tipo)) return; var u = ultimoDiario(a.id); if (u && u.data.slice(0, 10) === hoje) feitos++; else sem++; });
+  if (!at.length) return '';   /* o cargo não faz diário de nenhum tipo */
+  at.forEach(function(a){ var u = ultimoDiario(a.id); if (u && u.data.slice(0, 10) === hoje) feitos++; else sem++; });
   var farol = sem ? '<span class="farol os">' + sem + ' sem hoje</span>' : at.length ? '<span class="farol ok">Todos hoje</span>' : '<span class="farol off">Sem ativos</span>';
   return linha(CK.ICONES.check, 'Checklist diário', plural(at.length, 'equipamento', 'equipamentos') + (at.length ? ' · ' + feitos + ' com checklist hoje' : ''), farol, '', '', ' tap', ' data-tipo="diario"');
 }
 function listaTipos(ordem, por){
-  var h = '<div class="sec" style="margin-top:8px">Escolha o tipo de checklist<span class="cont">' + (ordem.length + 1) + '</span></div>';
-  h += linhaDiario();
+  var ld = linhaDiario();
+  var h = '<div class="sec" style="margin-top:8px">Escolha o tipo de checklist<span class="cont">' + (ordem.length + (ld ? 1 : 0)) + '</span></div>';
+  h += ld;
   h += ordem.map(function(k){ return linhaTipo(por[k][0].modelo, por[k]); }).join('');
-  if (!ordem.length) h += '<div class="vazio">Nenhum checklist da equipe cadastrado. O admin cria inspeções, preventivos e preditivos no portal gestor.</div>';
+  if (!ordem.length && !ld) h += '<div class="vazio">Nenhum checklist liberado para o seu cargo. Fale com o gestor da frota.</div>';
   return h;
 }
 
@@ -1037,8 +1040,8 @@ function ultimoDiario(aid){ var l = CK.load().checklists; for (var i = l.length 
 function linhaAtivo(a){
   var s = CK.situacaoAtivo(a.id), ult = ultimoDiario(a.id);
   var sub = ult ? 'Último checklist: ' + CK.fmtDataCurta(ult.data) + ' ' + CK.fmtHora(ult.data) + ' · por ' + esc(primeiroNome(nomeUsuario(ult.usuario))) : 'Sem checklist';
-  var semDiario = !CK.diarioAtivo(a.tipo);   /* diário do tipo desligado pelo admin */
-  if (semDiario && !ult) sub = 'Este tipo de ativo não tem checklist diário';
+  var semDiario = !fazDiario(a);   /* diário do tipo desligado, ou o cargo não faz o diário desse tipo */
+  if (semDiario && !ult) sub = CK.diarioAtivo(a.tipo) ? 'O diário deste tipo é feito por outro cargo' : 'Este tipo de ativo não tem checklist diário';
   var farol = s.bloqueado ? '<span class="farol so blk" role="img" title="Não opere" aria-label="Não opere">Não opere</span>' : semDiario ? '<span class="farol so off" role="img" title="Sem checklist diário" aria-label="Sem checklist diário">Sem checklist</span>' : '<span class="farol so ok" role="img" title="Liberado" aria-label="Liberado">Liberado</span>';   /* motorista vê só o que importa (Renan, 11/10/2026: "tem que ser direto") */
   return linha(icoTipo(a), esc(nomeAt(a)), sub, farol, '', '', ' tap' + (s.bloqueado ? ' blk' : ''), ' data-ativo="' + esc(a.id) + '"');
 }
@@ -1123,8 +1126,8 @@ function abrirAtivo(id){
     var bl = s.abertas.filter(function(o){ return o.bloqueia; });
     h += '<div class="faixa">' + CK.ICONES.alert + '<div><b>Não opere este ativo</b><div class="lst">Problema de segurança em aberto: ' + bl.map(function(o){ return esc(CK.ITEM[o.item].nome); }).join(', ') + '. Avise o gestor.</div></div></div>';
   }
-  h += CK.diarioAtivo(a.tipo) ? '<button class="btn" onclick="iniciarChecklist(\'' + esc(a.id) + '\')">Iniciar checklist</button>'
-    : '<div class="vazio">Este tipo de ativo não tem checklist diário. Fale com o gestor da frota.</div>';
+  h += fazDiario(a) ? '<button class="btn" onclick="iniciarChecklist(\'' + esc(a.id) + '\')">Iniciar checklist</button>'
+    : '<div class="vazio">' + (CK.diarioAtivo(a.tipo) ? 'O checklist diário deste tipo de ativo é feito por outro cargo.' : 'Este tipo de ativo não tem checklist diário.') + ' Fale com o gestor da frota.</div>';
   var outros = CK.inspecoesPara(EU).filter(function(x){ return x.ativo.id === a.id && !x.junto_de; });   /* checklists da equipe deste ativo que esta pessoa pode fazer (quem executa) */
   if (outros.length) h += '<div class="sec" style="margin-top:14px">Outros checklists deste ativo<span class="cont">' + outros.length + '</span></div>' + outros.map(function(x){ var u = x.ultima; return linha(CK.ICONES.list, esc(x.modelo.nome), u ? 'Última: ' + CK.fmtDataCurta(u.data) : 'Nunca feita', farolInsp(x), '', '', ' tap' + (x.status === 'atrasada' ? ' blk' : ''), ' data-insp="' + esc(x.ativo.id) + '" data-mod="' + esc(x.modelo.id) + '"'); }).join('');
   h += '<div class="sec" style="margin-top:14px">Últimos checklists</div>';

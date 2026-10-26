@@ -2636,7 +2636,8 @@ function renderModelos(){
     :`<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">Nenhum tipo de checklist${q?' para a busca':''}.</td></tr>`;
 }
 /* quem executa, por extenso */
-const execLbl=m=>ehDiario(m)?'Motorista':CK.execDe(m)==='motorista'?'Motorista e equipe':'Equipe';
+const QUEM_LBL={motorista:'Motorista',frota:'Mecânico',admin:'Administrador'};
+const execLbl=m=>{ const q=CK.quemDe(m); return q.length===CK.QUEM_PAPEIS.length?'Todos':q.map(p=>QUEM_LBL[p]).join(', '); };
 /* clique na linha: quem edita cai direto na edição (tudo editável); leitura para os demais */
 function abrirModelo(id){ if(podeEditar()) abrirModeloForm(id); else abrirModeloDet(id); }
 function modExcluirPerg(id){ const m=CK.modelo(id); if(!m) return;
@@ -2677,7 +2678,7 @@ function abrirModeloDet(id,manterScroll){
   const k=(l,v,sub,cls)=>`<div class="md-k"><small>${l}</small><b class="${cls||''}">${v}</b><i title="${esc(sub)}">${esc(sub)}</i></div>`;
   let h=`<div class="md-top">`+
     k('Tipo', dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome, dia?'todo dia, antes de operar':m.freq==='uso'?CK.freqTxt(m).toLowerCase():CK.FREQ[m.freq].dias?`${CK.FREQ[m.freq].nome.toLowerCase()} · a cada ${CK.FREQ[m.freq].dias} dias`:'sob demanda · sem periodicidade')+
-    k('Quem executa', execLbl(m), dia?'no app do motorista':CK.EXEC_QUEM[CK.execDe(m)].desc)+
+    k('Quem pode fazer', execLbl(m), 'cargos liberados · o admin master sempre pode')+
     k('Ativos cobertos', n(cov.length), tps)+
     k('Itens', n(its.length), bl?`${n(bl)} ${bl===1?'bloqueia':'bloqueiam'} o ativo`:'nenhum bloqueia o ativo')+
     k('Status', ativo?'Ativo':'Inativo', dia?(ativo?'motoristas fazem o checklist':'sem checklist nesses ativos'):(m.criado_em?'criado em '+CK.fmtDH(m.criado_em).slice(0,10):'—'), ativo?'cg':'cr')+`</div>`;
@@ -2733,18 +2734,18 @@ const CHEV_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const LUPA_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>';
 let W=null;
 function wzNovo(modo,m){
-  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', exec:m?CK.execDe(m):'equipe', ativo:m?m.ativo!==false:true, intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), inclui:new Set(m&&m.inclui?m.inclui:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
+  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', quem:new Set(m?CK.quemDe(m):['frota','admin']), ativo:m?m.ativo!==false:true, intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), inclui:new Set(m&&m.inclui?m.inclui:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
     passos:modo==='importar'?['Planilha','Dados','Itens','Revisar']:['Dados','Itens','Revisar'], passo:0};
 }
 function abrirModeloForm(id){
   if(!podeEditar()) return;
   const m=id?CK.modelo(id):null;
-  if(m&&m.sistema){ W=wzNovo('diario',m); W.categoria='diario'; W.itens=new Set(CK.modeloDoTipo(m.tipos[0]).filter(i=>!i.insp).map(i=>i.id)); W.antes=new Set(W.itens); W.passos=['Itens','Revisar']; W.passo=0; wzRender(); return; }
+  if(m&&m.sistema){ W=wzNovo('diario',m); W.categoria='diario'; W.itens=new Set(CK.modeloDoTipo(m.tipos[0]).filter(i=>!i.insp).map(i=>i.id)); W.antes=new Set(W.itens); W.passos=['Dados','Itens','Revisar']; W.passo=0; wzRender(); return; }
   W=wzNovo(m?'editar':'criar',m); W.categoria=m?CK.catDe(m):'inspecao'; wzRender();   /* editar abre em Dados: o nome fica à vista (Renan, 19/10/2026) */
 }
 function abrirImportar(){ if(!podeEditar()) return; W=wzNovo('importar',null); W.categoria='inspecao'; wzRender(); }
 const wzEtapa=()=>W.passos[W.passo];
-const wzNota=()=>W&&W.modo==='diario'?`<div class="nota"><b>Diário do motorista: feito no app antes de operar. Vale para os próximos checklists; OS já abertas não mudam.</b></div>`:W.exec==='motorista'?`<div class="nota"><b>O motorista vê e faz este checklist no app (no ativo); a equipe também pode.</b></div>`:`<div class="nota"><b>Executado só pela equipe (admin e frota) no app. O motorista não vê.</b></div>`;
+const wzNota=()=>W&&W.modo==='diario'?`<div class="nota"><b>Diário: feito no app antes de operar, pelos cargos marcados. Vale para os próximos checklists; OS já abertas não mudam.</b></div>`:`<div class="nota"><b>Feito no app só pelos cargos marcados: ${esc([...W.quem].map(p=>QUEM_LBL[p]).join(', ')||'nenhum')}. Quem não está marcado não vê.</b></div>`;
 const wzCov=()=>DB.ativos.filter(a=>a.status==='ativo'&&W.tipos.has(a.tipo)&&(!W.ativos.size||W.ativos.has(a.id))).length;
 function wzRender(){
   const e=wzEtapa(), ult=W.passo===W.passos.length-1;
@@ -2755,7 +2756,7 @@ function wzRender(){
     (W.passo>0?`<button class="btn" onclick="wzIr(-1)">Voltar</button>`:'')+
     (ult?`<button class="btn pri" onclick="wzSalvar()">Salvar</button>`:`<button class="btn pri" id="wzProx" onclick="wzIr(1)">Próximo</button>`);
   abrirModal(W.modo==='diario'?'Editar itens · '+W.nome:W.modo==='editar'?'Editar checklist':W.modo==='importar'?'Importar planilha':'Criar checklist', body, foot, 'wiz');
-  $('m-steps').innerHTML=W.passos.map((p,i)=>`${i?'<b></b>':''}<span class="${i===W.passo?'on':i<W.passo?'ok':''}${i<W.passo||W.modo==='editar'?' lk':''}" ${i<W.passo||W.modo==='editar'?`onclick="wzPara(${i})" title="Ir para ${esc(p)}"`:''}><i>${i<W.passo?CHK_SVG:i+1}</i>${p}</span>`).join('');
+  $('m-steps').innerHTML=W.passos.map((p,i)=>`${i?'<b></b>':''}<span class="${i===W.passo?'on':i<W.passo?'ok':''}${i<W.passo||W.modo==='editar'||W.modo==='diario'?' lk':''}" ${i<W.passo||W.modo==='editar'||W.modo==='diario'?`onclick="wzPara(${i})" title="Ir para ${esc(p)}"`:''}><i>${i<W.passo?CHK_SVG:i+1}</i>${p}</span>`).join('');
   $('m-body').classList.toggle('split', e==='Itens');
   if(e==='Itens'){ wzCat(); wzSel(); }
   if(e==='Dados'&&W.modo==='editar') mdDocs(W.id);   /* manual / plano do fabricante na própria edição */
@@ -2769,11 +2770,12 @@ function wzConta(){
   set('wzCnt', `${n(k)} ${k===1?'item':'itens'} · ${n(c)} ${c===1?'ativo':'ativos'}`);
 }
 /* etapas clicáveis: volta a qualquer etapa já vista; ao editar, vai a qualquer uma (Renan, 19/10/2026) */
-function wzPara(i){ if(!W||i===W.passo) return; if(i<W.passo){ W.nome=($('wzNome')||{}).value||W.nome; W.passo=i; wzRender(); return; } if(W.modo!=='editar') return; let g=0; while(W.passo<i&&g++<5){ const antes=W.passo; wzIr(1); if(W.passo===antes) break; } }
+function wzPara(i){ if(!W||i===W.passo) return; if(i<W.passo){ W.nome=($('wzNome')||{}).value||W.nome; W.passo=i; wzRender(); return; } if(W.modo!=='editar'&&W.modo!=='diario') return; let g=0; while(W.passo<i&&g++<5){ const antes=W.passo; wzIr(1); if(W.passo===antes) break; } }
 function wzIr(d){
   const e=wzEtapa();
   if(d>0){
     if(e==='Planilha'&&!W.imp){ $('impErro').textContent='Envie a planilha preenchida para continuar.'; return; }
+    if(e==='Dados'&&!W.quem.size){ $('wzErrQuem').textContent='Marque ao menos um cargo.'; return; }
     if(e==='Dados'){ let ok=true;
       if(!String(W.nome||'').trim()){ $('wzErrNome').textContent='Dê um nome ao checklist.'; ok=false; }
       if(!W.tipos.size){ $('wzErrTipo').textContent='Escolha ao menos um tipo de ativo.'; ok=false; }
@@ -2785,15 +2787,21 @@ function wzIr(d){
 }
 
 /* passo Dados: nome, frequência (segmentado) e tipos de ativo (cartões) */
+/* quem pode fazer, por cargo (Renan, 26/10/2026): marca um ou mais; o admin master sempre pode */
+function wzQuem(){
+  return `<div class="fld"><label>Quem pode fazer <span class="ctx">· marque os cargos · o admin master sempre pode</span></label><div class="seg">`+
+    CK.QUEM_PAPEIS.map(p=>`<button type="button" class="${W.quem.has(p)?'on':''}" onclick="if(W.quem.has('${p}'))W.quem.delete('${p}');else W.quem.add('${p}');this.classList.toggle('on',W.quem.has('${p}'));$('wzErrQuem').textContent=''">${QUEM_LBL[p].toUpperCase()}</button>`).join('')+
+    `</div><div class="erro" id="wzErrQuem"></div></div>`;
+}
 function wzDados(){
+  if(W.modo==='diario') return wzQuem()+wzNota();   /* diário: itens vêm de Itens e SLA; aqui só os cargos */
   const cnt={}; DB.ativos.forEach(a=>{ if(a.status==='ativo') cnt[a.tipo]=(cnt[a.tipo]||0)+1; });
   const CAT_TXT={inspecao:'Periódica, para manter os ativos em dia',preventivo:'Os mecânicos fazem na preventiva interna',preditivo:'A frota faz quando julgar importante'};
   const fs=W.categoria==='inspecao'?['semanal','quinzenal','mensal','semestral','uso']:['livre','semanal','quinzenal','mensal','semestral','uso'];
   return `<div class="fld"><label>Nome do checklist</label><input class="inp wz-nome" id="wzNome" value="${esc(W.nome)}" placeholder="Ex.: Inspeção mensal · Reboques" oninput="W.nome=this.value;$('wzErrNome').textContent=''"><div class="erro" id="wzErrNome"></div></div>`+
     `<div class="fld"><label>Tipo do checklist</label><div class="seg">`+
       Object.keys(CK.CATCK).map(k=>`<button type="button" class="${W.categoria===k?'on':''}" onclick="wzCatSel('${k}')">${CK.CATCK[k].nome}</button>`).join('')+`</div><div class="ctx" style="font-size:10.5px;margin-top:5px">${CAT_TXT[W.categoria]}</div></div>`+
-    `<div class="fld"><label>Quem executa <span class="ctx">· quem vê e faz este checklist no app</span></label><div class="seg">`+
-      Object.keys(CK.EXEC_QUEM).map(k=>`<button type="button" class="${W.exec===k?'on':''}" onclick="W.exec='${k}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this));$('wzExecTx').textContent=CK.EXEC_QUEM['${k}'].desc">${CK.EXEC_QUEM[k].nome}</button>`).join('')+`</div><div class="ctx" id="wzExecTx" style="font-size:10.5px;margin-top:5px">${CK.EXEC_QUEM[W.exec].desc}</div></div>`+
+    wzQuem()+
     (W.modo==='editar'?`<div class="fld"><label>Status <span class="ctx">· inativo some do app; o histórico fica</span></label><div class="seg">${[[true,'Ativo'],[false,'Inativo']].map(([v,l])=>`<button type="button" class="${W.ativo===v?'on':''}" onclick="W.ativo=${v};this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`).join('')}</div></div>`:'')+
     `<div class="fld"><label>Frequência <span class="ctx">· ${W.categoria==='inspecao'?'de quanto em quanto tempo a equipe inspeciona cada ativo':'sob demanda = sem prazo; feito quando precisar'}</span></label><div class="seg">`+
       fs.map(k=>`<button type="button" class="${W.freq===k?'on':''}" onclick="W.freq='${k}';W.nome=($('wzNome')||{}).value||W.nome;wzRender()">${CK.FREQ[k].nome}</button>`).join('')+`</div></div>`+
@@ -2886,7 +2894,7 @@ function wzRevisar(){
   const card=(kl,kv,km)=>`<div class="kpi wz-k"><div class="kl">${kl}</div><div class="kv">${kv}</div><div class="km">${km}</div></div>`;
   return `<div class="wz-rev">`+
     card('Nome',`<span class="wz-kn" title="${esc(W.nome)}">${esc(W.nome)}</span>`, W.modo==='importar'?'importado de planilha':W.modo==='diario'?'diário do motorista':W.modo==='editar'?'alteração de checklist existente':'cadastro manual')+
-    (W.modo==='diario'?'':card('Quem executa', CK.EXEC_QUEM[W.exec].nome, CK.EXEC_QUEM[W.exec].desc))+
+    card('Quem pode fazer', esc([...W.quem].map(p=>QUEM_LBL[p]).join(', ')), 'o admin master sempre pode')+
     card(W.modo==='diario'?'Frequência':CK.CATCK[W.categoria].nome,CK.FREQ[W.freq].nome,W.modo==='diario'?'todo dia, antes de operar':W.freq==='uso'?CK.freqTxt({freq:'uso',intervalo_km:W.intervalo_km,intervalo_h:W.intervalo_h}).replace('POR USO · ',''):CK.FREQ[W.freq].dias?`cada ativo a cada ${CK.FREQ[W.freq].dias} dias`:'sem periodicidade')+
     card('Ativos cobertos',n(cov),W.soAlguns&&W.ativos.size?esc([...W.ativos].map(id=>ativoLbl(ATV[id])).join(', ')):esc([...W.tipos].map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ')))+
     card('Itens',n(its.length),porC.map(([k,q])=>`<span style="white-space:nowrap">${farolCrit(k)}${q} ${esc(CK.CRIT[k].nome.toLowerCase())}</span>`).join(' &nbsp; ')||'—')+
@@ -2907,10 +2915,13 @@ async function wzSalvar(){
   if(!podeEditar()||!W) return;
   const err=t=>{ $('wzErr').textContent=t; };
   const nome=String(W.nome||'').trim(), tipos=[...W.tipos], itens=[...W.itens].filter(id=>CK.ITEM[id]), novos=W.novos.slice();
-  if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.'); refreshIdx(); atualizar(); fecharModal(); return; }
+  if(!W.quem.size) return err('Marque ao menos um cargo.');
+  if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.');
+    const r2=await CK.modeloSet(W.id,{quem:[...W.quem]}); if(r2&&r2.ok===false) return err(r2.erro||'Não foi possível salvar os cargos.');
+    refreshIdx(); atualizar(); fecharModal(); return; }
   if(W.modo!=='editar'){
     if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, exec:W.exec, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
+    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, quem:[...W.quem], intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
     if(!r.ok) return err(r.erro||'Não foi possível criar.');
     refreshIdx(); atualizar(); fecharModal(); return;
   }
@@ -2923,7 +2934,7 @@ async function wzSalvar(){
     novos.forEach(x=>{ const it={id:CK.uid('x'), cat:x.cat||'INSPEÇÃO', nome:x.nome, crit:x.crit, prazo:x.prazo, bloqueia:x.bloqueia, ap:[], insp:true}; db.itens_extra.push(it); ids.push(it.id); });
     CK.save(); CK.recarregar(); }
   if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, exec:W.exec, ativo:W.ativo, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
+  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, quem:[...W.quem], ativo:W.ativo, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
   if(!r.ok) return err(r.erro||'Não foi possível salvar.');
   refreshIdx(); atualizar(); fecharModal();
 }
