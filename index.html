@@ -512,6 +512,17 @@ body.claro .nc1 textarea{background:#fff;}
       <div id="inspLista"></div>
     </section>
 
+    <!-- ── TELA DO TIPO DE CHECKLIST (equipe: escolheu o tipo, vê os equipamentos) ── -->
+    <section class="tela" id="v-insptipo">
+      <div id="tipoTopo"></div>
+      <div class="busca-top" style="margin-top:4px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        <input id="buscaTipo" type="search" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Placa ou nº da frota" aria-label="Filtrar equipamentos pela placa ou número da frota">
+        <button id="buscaTipoLimpa" type="button" aria-label="Limpar busca" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div id="tipoLista"></div>
+    </section>
+
     <!-- ── TELA DA INSPEÇÃO (ativo × modelo) ── -->
     <section class="tela" id="v-insp"></section>
 
@@ -635,6 +646,7 @@ function mostra(id, aba){
 function irPara(v){
   if (v === 'inspecoes' && !equipe()) v = 'inicio';   // motorista nunca vê inspeções
   if (v === 'inicio' && equipe()) v = 'inspecoes';
+  if (v === 'inspecoes') INSP_TIPO = null;   // a aba abre na lista de tipos de checklist
   if (v === 'inicio') renderInicio(); else if (v === 'inspecoes') renderInspecoes(); else if (v === 'historico') renderHistorico(); else if (v === 'os') renderOS(); else if (v === 'ajuda') renderAjuda();
   mostra(v, v);
 }
@@ -851,20 +863,97 @@ function filtraInspecoes(lista){
   // agrupa por modelo, na ordem em que os modelos aparecem (a lista já vem com as atrasadas primeiro)
   var ordem = [], por = {};
   l.forEach(function(x){ var k = x.modelo.id; if (!por[k]) { por[k] = []; ordem.push(k); } por[k].push(x); });
-  var h = q ? '<div class="sec" style="margin-top:6px">' + (l.length ? plural(l.length, 'inspeção encontrada', 'inspeções encontradas') : 'Nenhuma inspeção encontrada') + '</div>' : '';
+  if (!q) { $('inspLista').innerHTML = listaTipos(ordem, por); return; }   /* Renan, 26/10/2026: primeiro o tipo de checklist, depois os equipamentos */
+  var h = '<div class="sec" style="margin-top:6px">' + (l.length ? plural(l.length, 'inspeção encontrada', 'inspeções encontradas') : 'Nenhuma inspeção encontrada') + '</div>';
   h += ordem.map(function(k){
     var m = por[k][0].modelo, f = CK.FREQ[m.freq], fn = f ? f.nome.toLowerCase() : m.freq;
     // a frequência vai junto do nome, sem repetir quando o nome já diz ("Inspeção semanal · ...")
     return '<div class="sec" style="margin-top:8px">' + esc(m.nome) + (m.nome.toLowerCase().indexOf(fn) >= 0 ? '' : ' · ' + esc(fn)) + '<span class="cont">' + por[k].length + '</span></div>'
       + por[k].map(linhaInsp).join('');
   }).join('');
-  if (!l.length) h += q ? '<div class="vazio">Confira a placa ou o número da frota e tente de novo.</div>' : '<div class="vazio">Nenhum checklist da equipe cadastrado. O admin cria inspeções, preventivos e preditivos no portal gestor.</div>';
+  if (!l.length) h += '<div class="vazio">Confira a placa ou o número da frota e tente de novo.</div>';
   /* equipe também vê os ativos (Renan, 12/10/2026: 'os ativos estão lá'): todos os ativos ativos, com o farol; a busca filtra junto */
-  var at = CK.ativosPara(EU).filter(function(a){ return !q || normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0; })
-    .sort(function(a, b){ var x = ultimoDiario(a.id), y = ultimoDiario(b.id); return (y ? y.data : '') > (x ? x.data : '') ? 1 : (y ? y.data : '') < (x ? x.data : '') ? -1 : nomeAt(a).localeCompare(nomeAt(b)); });
+  var at = ativosDiario(q);
   h += '<div class="sec" style="margin-top:14px">Ativos<span class="cont">' + at.length + '</span></div>' + (at.map(linhaAtivo).join('') || '<div class="vazio">Nenhum ativo encontrado.</div>');
   $('inspLista').innerHTML = h;
 }
+/* ativos do checklist diário (todos os ativos ativos), os sem checklist há mais tempo primeiro; q = filtro da busca */
+function ativosDiario(q){
+  return CK.ativosPara(EU).filter(function(a){ return !q || normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0; })
+    .sort(function(a, b){ var x = ultimoDiario(a.id), y = ultimoDiario(b.id); return (y ? y.data : '') > (x ? x.data : '') ? 1 : (y ? y.data : '') < (x ? x.data : '') ? -1 : nomeAt(a).localeCompare(nomeAt(b)); });
+}
+/* resumo de um tipo de checklist: quantas atrasadas / nunca feitas / perto de vencer, e o farol da pior situação */
+function resumoTipo(xs){
+  var n = { atrasada:0, nunca:0, vence:0, em_dia:0, livre:0 };
+  xs.forEach(function(x){ n[x.status] = (n[x.status] || 0) + 1; });
+  var farol = n.atrasada ? '<span class="farol atr">' + plural(n.atrasada, 'atrasada', 'atrasadas') + '</span>'
+    : n.nunca ? '<span class="farol nun">' + plural(n.nunca, 'nunca feita', 'nunca feitas') + '</span>'
+    : n.vence ? '<span class="farol os">' + n.vence + ' perto de vencer</span>'
+    : n.em_dia ? '<span class="farol ok">Em dia</span>' : '<span class="farol off">Sob demanda</span>';
+  var partes = [];
+  if (n.atrasada) partes.push(plural(n.atrasada, 'atrasada', 'atrasadas'));
+  if (n.nunca) partes.push(plural(n.nunca, 'nunca feita', 'nunca feitas'));
+  if (n.vence) partes.push(n.vence + ' perto de vencer');
+  if (n.em_dia) partes.push(n.em_dia + ' em dia');
+  return { n:n, farol:farol, texto:partes.join(' · ') };
+}
+/* linha de um tipo de checklist (o usuário escolhe o tipo e aí vê os equipamentos) */
+function linhaTipo(m, xs){
+  var f = CK.FREQ[m.freq], fn = f ? f.nome.toLowerCase() : m.freq, r = resumoTipo(xs);
+  var sub = (m.nome.toLowerCase().indexOf(fn) >= 0 ? '' : cap(fn) + ' · ') + plural(xs.length, 'equipamento', 'equipamentos') + (r.texto ? ' · ' + r.texto : '');
+  return linha(CK.ICONES.list, esc(m.nome), sub, r.farol, '', '', ' tap os2' + (r.n.atrasada ? ' blk' : ''), ' data-tipo="' + esc(m.id) + '"');   /* os2: nome em até 2 linhas, sem cortar */
+}
+function linhaDiario(){
+  var at = ativosDiario(''), hoje = hojeIso(), feitos = 0, sem = 0;
+  at.forEach(function(a){ if (!CK.diarioAtivo(a.tipo)) return; var u = ultimoDiario(a.id); if (u && u.data.slice(0, 10) === hoje) feitos++; else sem++; });
+  var farol = sem ? '<span class="farol os">' + sem + ' sem hoje</span>' : at.length ? '<span class="farol ok">Todos hoje</span>' : '<span class="farol off">Sem ativos</span>';
+  return linha(CK.ICONES.check, 'Checklist diário', plural(at.length, 'equipamento', 'equipamentos') + (at.length ? ' · ' + feitos + ' com checklist hoje' : ''), farol, '', '', ' tap', ' data-tipo="diario"');
+}
+function listaTipos(ordem, por){
+  var h = '<div class="sec" style="margin-top:8px">Escolha o tipo de checklist<span class="cont">' + (ordem.length + 1) + '</span></div>';
+  h += linhaDiario();
+  h += ordem.map(function(k){ return linhaTipo(por[k][0].modelo, por[k]); }).join('');
+  if (!ordem.length) h += '<div class="vazio">Nenhum checklist da equipe cadastrado. O admin cria inspeções, preventivos e preditivos no portal gestor.</div>';
+  return h;
+}
+
+/* tela do tipo escolhido: cabeçalho com o resumo + os equipamentos (filtrados pela busca da própria tela) */
+var INSP_TIPO = null;   // tipo de checklist aberto na aba Checklists ('diario' ou id do modelo); a volta das telas de ativo/inspeção cai nele
+function abrirTipo(mid){
+  if (!equipe()) return recusaInsp();
+  if (mid !== INSP_TIPO) $('buscaTipo').value = '';
+  INSP_TIPO = mid;
+  var h = '<button class="volta" onclick="irPara(\'inspecoes\')">' + CK.ICONES.back + 'Checklists</button>';
+  if (mid === 'diario') {
+    var at = ativosDiario(''), hoje = hojeIso(), feitos = at.filter(function(a){ var u = ultimoDiario(a.id); return u && u.data.slice(0, 10) === hoje; }).length;
+    h += '<div class="saldo" style="margin-top:4px"><div class="rot">Checklist diário</div><div class="val">' + at.length + '</div><div class="aviso"><b>' + feitos + '</b> com checklist hoje · <b>' + (at.length - feitos) + '</b> ainda sem · toque no equipamento para fazer</div></div>';
+  } else {
+    var m = CK.modelo(mid); if (!m) return irPara('inspecoes');
+    var xs = CK.inspecoesPara(EU).filter(function(x){ return x.modelo.id === mid && !x.junto_de; }), r = resumoTipo(xs);
+    h += '<div class="saldo" style="margin-top:4px"><div class="rot">' + esc(m.nome) + '</div><div class="val">' + (r.n.atrasada + r.n.nunca + r.n.vence) + '</div><div class="aviso">' + esc(CK.freqTxt(m)) + ' · ' + plural(xs.length, 'equipamento', 'equipamentos') + (r.texto ? '<br>' + r.texto : '') + '</div></div>';
+  }
+  $('tipoTopo').innerHTML = h;
+  filtraTipo();
+  mostra('insptipo', 'inspecoes');
+}
+function filtraTipo(){
+  var q = normBusca($('buscaTipo').value), h;
+  $('buscaTipoLimpa').style.display = q ? '' : 'none';
+  if (INSP_TIPO === 'diario') {
+    var at = ativosDiario(q);
+    h = '<div class="sec" style="margin-top:6px">Equipamentos<span class="cont">' + at.length + '</span></div>' + (at.map(linhaAtivo).join('') || '<div class="vazio">' + (q ? 'Confira a placa ou o número da frota e tente de novo.' : 'Nenhum ativo cadastrado.') + '</div>');
+  } else {
+    var xs = CK.inspecoesPara(EU).filter(function(x){ return x.modelo.id === INSP_TIPO && !x.junto_de; });
+    if (q) xs = xs.filter(function(x){ var a = x.ativo; return normBusca(a.placa).indexOf(q) >= 0 || normBusca(a.frota).indexOf(q) >= 0 || normBusca(a.marca + ' ' + a.modelo).indexOf(q) >= 0; });
+    h = '<div class="sec" style="margin-top:6px">Equipamentos<span class="cont">' + xs.length + '</span></div>' + (xs.map(linhaInsp).join('') || '<div class="vazio">' + (q ? 'Confira a placa ou o número da frota e tente de novo.' : 'Nenhum ativo coberto por este checklist.') + '</div>');
+  }
+  $('tipoLista').innerHTML = h;
+}
+$('buscaTipo').addEventListener('input', filtraTipo);
+$('buscaTipo').addEventListener('keydown', function(e){ if (e.key === 'Enter') { var p = $('tipoLista').querySelector('.li[data-insp],.li[data-ativo]'); if (p && normBusca(this.value)) { this.blur(); p.click(); } } });
+$('buscaTipoLimpa').addEventListener('click', function(){ $('buscaTipo').value = ''; filtraTipo(); $('buscaTipo').focus(); });
+/* volta das telas de ativo / inspeção: para o tipo aberto, se a equipe veio dele; senão para a aba */
+function voltaLista(aba){ if (aba !== 'historico' && equipe() && INSP_TIPO) return abrirTipo(INSP_TIPO); irPara(aba); }
 function linhaInsp(x){
   var a = x.ativo, u = x.ultima;
   var sub = (u ? 'Última: ' + CK.fmtDataCurta(u.data) + (u.base ? ' (informada)' : ' por ' + esc(primeiroNome(nomeUsuario(u.usuario)))) : 'Nunca feita')
@@ -882,7 +971,7 @@ function abrirInspecao(aid, mid){
   var t = CK.TIPO[a.tipo], f = CK.FREQ[m.freq], itens = CK.itensDoModelo(mid, a), s = CK.situacaoAtivo(a.id), db = CK.load();
   var x = CK.inspecoesPara(EU).filter(function(i){ return i.ativo.id === aid && i.modelo.id === mid; })[0];
   var execs = db.checklists.filter(function(c){ return c.ativo === aid && c.modelo === mid; }).slice(-5).reverse();
-  var h = '<button class="volta" onclick="irPara(\'inspecoes\')">' + CK.ICONES.back + 'Inspeções</button>';
+  var h = '<button class="volta" onclick="voltaLista(\'inspecoes\')">' + CK.ICONES.back + (INSP_TIPO && INSP_TIPO !== 'diario' ? esc(String(m.nome).split(' · ')[0]) : 'Checklists') + '</button>';
   h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b><span>' + esc(t ? t.nome : a.tipo) + ' · ' + esc(a.unidade) + (a.ano ? ' · ' + a.ano : '') + '</span><span>Leitura atual: <b style="display:inline;font-size:11px">' + leituraTxt(a) + '</b></span></div></div>';
   if (s.bloqueado) {
     var bl = s.abertas.filter(function(o){ return o.bloqueia; });
@@ -977,6 +1066,7 @@ $('buscaTop').addEventListener('input', buscaAtivos);
 $('buscaTop').addEventListener('keydown', function(e){ if (e.key === 'Enter') { var p = $('buscaRes').querySelector('.li[data-ativo]'); if (p) { this.blur(); p.click(); } } });
 $('buscaLimpa').addEventListener('click', function(){ $('buscaTop').value = ''; buscaAtivos(); $('buscaTop').focus(); });
 document.addEventListener('click', function(e){
+  var tp = e.target.closest('.li[data-tipo]'); if (tp) { abrirTipo(tp.dataset.tipo); return; }
   var ins = e.target.closest('.li[data-insp]'); if (ins) { abrirInspecao(ins.dataset.insp, ins.dataset.mod); return; }
   var li = e.target.closest('.li[data-ativo]'); if (li) { abrirAtivo(li.dataset.ativo); return; }
   var ck = e.target.closest('.li[data-ck]'); if (ck) { abrirCk(ck.dataset.ck); return; }
@@ -1024,7 +1114,7 @@ function abrirAtivo(id){
   var a = CK.ativo(id); if (!a) return;
   var s = CK.situacaoAtivo(a.id), t = CK.TIPO[a.tipo], db = CK.load();
   var cks = db.checklists.filter(function(c){ return c.ativo === a.id && !ehInspecao(c.modelo); }).slice(-5).reverse();   // só os diários
-  var h = '<button class="volta" onclick="irPara(\'inicio\')">' + CK.ICONES.back + 'Início</button>';
+  var h = '<button class="volta" onclick="voltaLista(\'inicio\')">' + CK.ICONES.back + (equipe() ? (INSP_TIPO === 'diario' ? 'Checklist diário' : 'Checklists') : 'Início') + '</button>';
   h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b><span>' + esc(t.nome) + ' · ' + esc(a.unidade) + (a.ano ? ' · ' + a.ano : '') + '</span><span>Leitura atual: <b style="display:inline;font-size:11px">' + leituraTxt(a) + '</b></span></div></div>';
   if (s.bloqueado) {
     var bl = s.abertas.filter(function(o){ return o.bloqueia; });
@@ -1329,7 +1419,7 @@ function renderResultadoPrev(rp){
   var pOS = rp.os_pendentes || [];
   if (pend.length) h += '<div class="sec">Ficaram pendentes · viram OS para a frota</div>' + pend.map(function(t){ var it = CK.ITEM[t.item], x = pOS.filter(function(z){ return z.item === t.item; })[0];
     return linha(CK.ICONES.wrench, esc(it ? it.nome : t.item), x ? esc(x.id) + ' aberta · prazo ' + CK.prazoTxt(x.prazo_h) : 'já havia OS aberta para este item', null, '', '', '', ''); }).join('');
-  h += '<button class="btn" onclick="irPara(\'inspecoes\')">Voltar aos checklists</button>';
+  h += '<button class="btn" onclick="voltaLista(\'inspecoes\')">Voltar aos checklists</button>';
   $('v-result').innerHTML = h;
 }
 function renderResultadoEquipe(res){
@@ -1348,7 +1438,7 @@ function renderResultadoEquipe(res){
   }
   if (cri.length) h += '<div class="sec">OS abertas por esta inspeção<span class="cont">' + cri.length + '</span></div>' + cri.map(lo).join('');
   if (rei.length) h += '<div class="sec" style="margin-top:14px">Já tinham OS aberta (reincidência)<span class="cont">' + rei.length + '</span></div>' + rei.map(lo).join('');
-  h += '<button class="btn" onclick="irPara(\'inspecoes\')">Voltar às inspeções</button>';
+  h += '<button class="btn" onclick="voltaLista(\'inspecoes\')">Voltar aos checklists</button>';
   $('v-result').innerHTML = h;
 }
 function renderResultado(res){
@@ -1365,7 +1455,7 @@ function renderResultado(res){
       return linha(CK.ICONES.wrench, esc(CK.ITEM[o.item].nome), o.reincidencias ? 'a frota já estava sabendo' : 'a frota vai resolver', null);
     }).join('');
   }
-  h += '<button class="btn" onclick="irPara(\'inicio\')">Voltar ao início</button>';
+  h += '<button class="btn" onclick="voltaLista(\'inicio\')">' + (equipe() ? 'Voltar aos checklists' : 'Voltar ao início') + '</button>';
   $('v-result').innerHTML = h;
 }
 
@@ -1386,7 +1476,7 @@ function abrirCk(id){
   var db = CK.load(), c = db.checklists.filter(function(x){ return x.id === id; })[0]; if (!c) return;
   if (ehInspecao(c.modelo) && !equipe()) return recusaInsp();
   var a = CK.ativo(c.ativo), nc = c.nc || 0;
-  var h = '<button class="volta" onclick="irPara(\'' + (ABA === 'historico' || ABA === 'inspecoes' ? ABA : 'inicio') + '\')">' + CK.ICONES.back + 'Voltar</button>';
+  var h = '<button class="volta" onclick="voltaLista(\'' + (ABA === 'historico' || ABA === 'inspecoes' ? ABA : 'inicio') + '\')">' + CK.ICONES.back + 'Voltar</button>';
   h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b>' + (equipe() ? '<span style="color:var(--acc2);font-weight:600">' + esc(nomeModelo(modeloDoCk(c))) + '</span>' : '') + '<span>' + CK.fmtDH(c.data) + ' · por ' + esc(nomeUsuario(c.usuario)) + '</span><span>' + c.itens_total + ' itens · <b style="display:inline;font-size:11px" class="' + (nc ? 'neg' : 'pos') + '">' + nc + ' NC</b>' + (c.leitura ? ' · leitura ' + nInt(c.leitura) + (a.medidor === 'h' ? ' h' : ' km') : '') + (c.duracao_s ? ' · ' + Math.round(c.duracao_s / 60) + ' min' : '') + '</span></div></div>';
   if (c.origem === 'preventiva') {
     h += '<div class="sec">Tarefas<span class="cont">' + (c.tarefas || []).length + '</span></div><div class="card contorno" style="padding:4px 14px 8px">' + (c.tarefas || []).map(function(t){ var it = CK.ITEM[t.item]; return '<div class="lrow fixo"><span style="color:' + (t.feito ? 'var(--verde,#3DD47A)' : 'var(--vermelho,#F4544A)') + '">' + (t.feito ? '✓' : '✗') + '</span><span>' + esc(it ? it.nome : t.item) + '</span></div>'; }).join('') + '</div>';
