@@ -205,7 +205,7 @@
   CK.modeloSet = function(id, p){
     if (/^d-/.test(id)) return escreve('ck_diario_set', { p_tipo:id.slice(2), p_ativo:p.ativo !== false });
     var m0 = CK.modelo(id) || {};   /* o banco reescreve tipo e frequência: manda os atuais quando a tela só muda o ativo/nome (23/10/2026) */
-    var base = { categoria:m0.categoria, freq:m0.freq, intervalo_km:m0.intervalo_km, intervalo_h:m0.intervalo_h };
+    var base = { categoria:m0.categoria, freq:m0.freq, intervalo_km:m0.intervalo_km, intervalo_h:m0.intervalo_h, exec:m0.exec || 'equipe' };
     return escreve('ck_modelo_salvar', { p:Object.assign({ id:id }, base, p) }).then(async function(r){
       if (r.ok && p.inclui !== undefined) { var r2 = await escreve('ck_modelo_inclui', { p_modelo:id, p_inclui:p.inclui || [] }); if (!r2.ok) return r2; } return r; });
   };

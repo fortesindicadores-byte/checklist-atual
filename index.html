@@ -622,6 +622,8 @@ CK.aplicarCfgItens();
    quinzenal, mensal) são criadas pelo admin e executadas SÓ pelo admin e pela frota.
    equipe() = a visão na tela é de master/admin/frota (não o "ver como motorista"). */
 function equipe(){ return !!(EU && GESTOR[EU.papel]); }
+/* o usuário na tela pode fazer este checklist? diário: sempre; da equipe: equipe, ou motorista quando o tipo libera (quem executa, 26/10/2026) */
+function podeFazer(mid){ if (!ehInspecao(mid)) return true; if (equipe()) return true; var m = CK.modelo(mid); return !!(m && EU && CK.execPermite(m, EU.papel)); }
 /* modelo de inspeção = qualquer modelo que não seja o diário ("d-<TIPO>") */
 function ehInspecao(mid){ if (!mid) return false; var m = CK.modelo(mid); return m ? m.freq !== 'diario' : !/^d-/.test(mid); }
 function modeloDoCk(x){ var a = CK.ativo(x.ativo); return x.modelo || (a ? 'd-' + a.tipo : null); }
@@ -966,12 +968,13 @@ $('buscaInspLimpa').addEventListener('click', function(){ $('buscaInsp').value =
 
 /* tela da inspeção: ativo × modelo, com os itens e a última execução */
 function abrirInspecao(aid, mid){
-  if (!equipe()) return recusaInsp();
+  if (!podeFazer(mid)) return recusaInsp();
   var a = CK.ativo(aid), m = CK.modelo(mid); if (!a || !m) return;
   var t = CK.TIPO[a.tipo], f = CK.FREQ[m.freq], itens = CK.itensDoModelo(mid, a), s = CK.situacaoAtivo(a.id), db = CK.load();
   var x = CK.inspecoesPara(EU).filter(function(i){ return i.ativo.id === aid && i.modelo.id === mid; })[0];
   var execs = db.checklists.filter(function(c){ return c.ativo === aid && c.modelo === mid; }).slice(-5).reverse();
-  var h = '<button class="volta" onclick="voltaLista(\'inspecoes\')">' + CK.ICONES.back + (INSP_TIPO && INSP_TIPO !== 'diario' ? esc(String(m.nome).split(' · ')[0]) : 'Checklists') + '</button>';
+  var h = equipe() ? '<button class="volta" onclick="voltaLista(\'inspecoes\')">' + CK.ICONES.back + (INSP_TIPO && INSP_TIPO !== 'diario' ? esc(String(m.nome).split(' · ')[0]) : 'Checklists') + '</button>'
+    : '<button class="volta" onclick="abrirAtivo(\'' + esc(a.id) + '\')">' + CK.ICONES.back + esc(nomeAt(a)) + '</button>';   /* motorista chega pelo ativo */
   h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b><span>' + esc(t ? t.nome : a.tipo) + ' · ' + esc(a.unidade) + (a.ano ? ' · ' + a.ano : '') + '</span><span>Leitura atual: <b style="display:inline;font-size:11px">' + leituraTxt(a) + '</b></span></div></div>';
   if (s.bloqueado) {
     var bl = s.abertas.filter(function(o){ return o.bloqueia; });
@@ -1084,7 +1087,7 @@ function renderRascunho(boxId){
   var a = CK.ativo(r.ativo), mid = modeloDoCk(r), insp = ehInspecao(mid);
   var cab = '<div class="card contorno" style="margin-top:18px;margin-bottom:0"><div class="sec" style="margin:0 0 6px">' + (insp ? 'Inspeção em andamento' : 'Checklist em andamento') + '</div>'
     + '<b style="display:block;font-size:14px;font-weight:600">' + esc(nomeAt(a)) + '</b>';
-  if (insp && !equipe()) {   // rascunho antigo de inspeção numa conta de motorista: não deixa retomar
+  if (insp && !podeFazer(modeloDoCk(r))) {   // rascunho antigo de inspeção que esta conta não pode fazer: não deixa retomar
     box.innerHTML = cab + '<span style="display:block;font-size:11px;color:var(--txt2);margin-top:3px">Inspeção é feita pela equipe da frota.</span>'
       + '<button class="btn sec2" style="margin-top:12px;padding:12px" onclick="descartar()">Descartar</button></div>';
     return;
@@ -1097,7 +1100,7 @@ function renderRascunho(boxId){
 function retomar(){
   var r = rascunho(); if (!r) return;
   var mid = modeloDoCk(r);
-  if (ehInspecao(mid) && !equipe()) return recusaInsp();
+  if (!podeFazer(mid)) return recusaInsp();
   if (!CK.itensDoModelo(mid, r.ativo).length) { alert('Este checklist não existe mais. O rascunho foi descartado.'); limpaRascunho(); CK_ST = null; irPara(ABA); return; }
   CK_ST = { ativo:r.ativo, tipo:CK.ativo(r.ativo).tipo, modelo:mid, inicio:r.inicio, leitura:r.leitura, passo:r.passo || 1, idx:r.idx, resp:r.resp || {}, prev:!!r.prev, os:r.os || null, feito:r.feito || {}, cid:r.cid || null, condicao:r.condicao || '', condicao_obs:r.condicao_obs || '' };
   if (CK_ST.prev && !(CK.osPorId(CK_ST.os) && CK.osPorId(CK_ST.os).status === 'em_andamento')) { limpaRascunho(); CK_ST = null; irPara(ABA); return; }
@@ -1122,6 +1125,8 @@ function abrirAtivo(id){
   }
   h += CK.diarioAtivo(a.tipo) ? '<button class="btn" onclick="iniciarChecklist(\'' + esc(a.id) + '\')">Iniciar checklist</button>'
     : '<div class="vazio">Este tipo de ativo não tem checklist diário. Fale com o gestor da frota.</div>';
+  var outros = CK.inspecoesPara(EU).filter(function(x){ return x.ativo.id === a.id && !x.junto_de; });   /* checklists da equipe deste ativo que esta pessoa pode fazer (quem executa) */
+  if (outros.length) h += '<div class="sec" style="margin-top:14px">Outros checklists deste ativo<span class="cont">' + outros.length + '</span></div>' + outros.map(function(x){ var u = x.ultima; return linha(CK.ICONES.list, esc(x.modelo.nome), u ? 'Última: ' + CK.fmtDataCurta(u.data) : 'Nunca feita', farolInsp(x), '', '', ' tap' + (x.status === 'atrasada' ? ' blk' : ''), ' data-insp="' + esc(x.ativo.id) + '" data-mod="' + esc(x.modelo.id) + '"'); }).join('');
   h += '<div class="sec" style="margin-top:14px">Últimos checklists</div>';
   h += cks.map(linhaCk).join('') || '<div class="vazio">Este ativo ainda não tem checklist.</div>';
   $('v-ativo').innerHTML = h;
@@ -1143,7 +1148,7 @@ function linhaCk(c){
 async function iniciarChecklist(id, mid){
   var a = CK.ativo(id); if (!a) return;
   mid = mid || ('d-' + a.tipo);
-  if (ehInspecao(mid) && !equipe()) return recusaInsp();
+  if (!podeFazer(mid)) return recusaInsp();
   if (!ehInspecao(mid) && !CK.diarioAtivo(a.tipo)) { alert('Este tipo de ativo não tem checklist diário. Fale com o gestor da frota.'); return; }
   if (!CK.itensDoModelo(mid, a).length) { alert('Este checklist não tem itens para este ativo.'); return; }
   var r = rascunho();
@@ -1188,7 +1193,7 @@ var ICO_CAT = {
 };
 function renderCheck(dir){
   var insp = ehInspecao(CK_ST.modelo);
-  if (insp && !equipe()) return recusaInsp();
+  if (!podeFazer(CK_ST.modelo)) return recusaInsp();
   var a = CK.ativo(CK_ST.ativo), itens = itensCk(), tot = itens.length;
   if (CK_ST.idx == null) CK_ST.idx = proxPendente(0);
   var h = '<div class="ckbar" id="ckbar"><div class="lin"><button class="volta" onclick="voltarDoCheck()">' + CK.ICONES.back + '</button>'
@@ -1399,7 +1404,7 @@ async function finalizar2(){
   }
   var p = proxPendente(0);
   if (p < itens.length) { CK_ST.idx = p; salvaRascunho(); renderCheck(1); return; }
-  if (ehInspecao(CK_ST.modelo) && !equipe()) return recusaInsp();
+  if (!podeFazer(CK_ST.modelo)) return recusaInsp();
   var resp = itens.map(function(it){ var r = CK_ST.resp[it.id]; return { item:it.id, ok:r.ok, obs:r.obs || '', foto:r.ok === false ? r.foto : null }; });
   if (!CK_ST.cid) { CK_ST.cid = CK.uid('ck'); salvaRascunho(); }   /* id fixo do checklist: reenviar não duplica */
   var btns = document.querySelectorAll('#v-check button'); btns.forEach(function(b){ b.disabled = true; });
@@ -1419,7 +1424,7 @@ function renderResultadoPrev(rp){
   var pOS = rp.os_pendentes || [];
   if (pend.length) h += '<div class="sec">Ficaram pendentes · viram OS para a frota</div>' + pend.map(function(t){ var it = CK.ITEM[t.item], x = pOS.filter(function(z){ return z.item === t.item; })[0];
     return linha(CK.ICONES.wrench, esc(it ? it.nome : t.item), x ? esc(x.id) + ' aberta · prazo ' + CK.prazoTxt(x.prazo_h) : 'já havia OS aberta para este item', null, '', '', '', ''); }).join('');
-  h += '<button class="btn" onclick="voltaLista(\'inspecoes\')">Voltar aos checklists</button>';
+  h += '<button class="btn" onclick="voltaLista(\'inspecoes\')">' + (equipe() ? 'Voltar aos checklists' : 'Voltar ao início') + '</button>';
   $('v-result').innerHTML = h;
 }
 function renderResultadoEquipe(res){
@@ -1438,7 +1443,7 @@ function renderResultadoEquipe(res){
   }
   if (cri.length) h += '<div class="sec">OS abertas por esta inspeção<span class="cont">' + cri.length + '</span></div>' + cri.map(lo).join('');
   if (rei.length) h += '<div class="sec" style="margin-top:14px">Já tinham OS aberta (reincidência)<span class="cont">' + rei.length + '</span></div>' + rei.map(lo).join('');
-  h += '<button class="btn" onclick="voltaLista(\'inspecoes\')">Voltar aos checklists</button>';
+  h += '<button class="btn" onclick="voltaLista(\'inspecoes\')">' + (equipe() ? 'Voltar aos checklists' : 'Voltar ao início') + '</button>';
   $('v-result').innerHTML = h;
 }
 function renderResultado(res){
@@ -1474,7 +1479,7 @@ function renderHistorico(){
 }
 function abrirCk(id){
   var db = CK.load(), c = db.checklists.filter(function(x){ return x.id === id; })[0]; if (!c) return;
-  if (ehInspecao(c.modelo) && !equipe()) return recusaInsp();
+  if (!podeFazer(c.modelo)) return recusaInsp();
   var a = CK.ativo(c.ativo), nc = c.nc || 0;
   var h = '<button class="volta" onclick="voltaLista(\'' + (ABA === 'historico' || ABA === 'inspecoes' ? ABA : 'inicio') + '\')">' + CK.ICONES.back + 'Voltar</button>';
   h += '<div class="acab"><div class="ic">' + icoTipo(a) + '</div><div><b>' + esc(nomeAt(a)) + '</b>' + (equipe() ? '<span style="color:var(--acc2);font-weight:600">' + esc(nomeModelo(modeloDoCk(c))) + '</span>' : '') + '<span>' + CK.fmtDH(c.data) + ' · por ' + esc(nomeUsuario(c.usuario)) + '</span><span>' + c.itens_total + ' itens · <b style="display:inline;font-size:11px" class="' + (nc ? 'neg' : 'pos') + '">' + nc + ' NC</b>' + (c.leitura ? ' · leitura ' + nInt(c.leitura) + (a.medidor === 'h' ? ' h' : ' km') : '') + (c.duracao_s ? ' · ' + Math.round(c.duracao_s / 60) + ' min' : '') + '</span></div></div>';

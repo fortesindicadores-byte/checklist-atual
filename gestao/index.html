@@ -1235,7 +1235,7 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
             <button class="btn pri sm" onclick="abrirNovoUsuario()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Novo usuário</button>
           </div>
           <div class="twrap"><table class="dre cmp"><thead><tr>
-            <th>Nome</th><th>CPF</th><th>Unidade</th><th>Papel</th><th>Último acesso</th><th class="num">Checklists no período</th><th></th>
+            <th>Nome</th><th>CPF</th><th>Unidade</th><th>Papel</th><th>Último acesso</th><th class="num">Checklists no período</th>
           </tr></thead><tbody id="body-us"></tbody></table></div>
         </div>
       </section>
@@ -2625,19 +2625,23 @@ function renderModelos(){
   set('titSub', `Cadastro de tipos de checklist · filtra por Tipo de ativo`);
   const rows=G[modChip][1].filter(m=>!q||nrm(m.nome+' '+m.tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(' ')+' '+CK.FREQ[m.freq].nome).includes(q));
   const insp=todos.filter(m=>!ehDiario(m)), dias=todos.filter(ehDiario), inat=todos.filter(m=>m.ativo===false).length;
-  $('sub-mod').innerHTML=`${n(rows.length)} tipos · ${n(dias.length)} diários do motorista (itens de Itens e SLA, um por tipo de ativo; desligado = o motorista não faz checklist naquele tipo) · ${n(insp.length)} da equipe: inspeções, preventivos e preditivos${inat?` · ${n(inat)} inativos`:''} · clique na linha para ver os itens`;
+  $('sub-mod').innerHTML=`${n(rows.length)} tipos · ${n(dias.length)} diários do motorista (itens de Itens e SLA, um por tipo de ativo; desligado = o motorista não faz checklist naquele tipo) · ${n(insp.length)} da equipe: inspeções, preventivos e preditivos${inat?` · ${n(inat)} inativos`:''} · clique na linha para ${ed?'editar':'ver a ficha'}`;
   $('body-mod').innerHTML=rows.length?rows.map(m=>{
     const dia=ehDiario(m), cov=cobertos(m,f), ativo=m.ativo!==false, nIt=itensMod(m).length;
-    const st=`<div style="display:inline-flex;align-items:center;gap:7px"><label class="sw" title="${ativo?'Desativar':'Ativar'}"><input type="checkbox" ${ativo?'checked':''} ${ed?'':'disabled'} onchange="modAtivo('${m.id}',this.checked)"><i></i></label><span class="${ativo?'':'muted'}">${ativo?'Ativo':'Inativo'}</span></div>`;
-    return `<tr class="lk" onclick="abrirModeloDet('${m.id}')"><td class="conta${ativo?'':' muted'}"><span class="cl" title="${esc(m.nome)}">${esc(m.nome)}</span></td>`+
-      `<td>${dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome}</td><td data-sort="${CK.FREQ[m.freq].dias||999}">${CK.FREQ[m.freq].nome}</td><td>${dia?'Motorista':'Equipe'}</td><td data-sort="${esc(m.tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', '))}">${tiposChips(m.tipos,2)}</td>`+
+    const st=`<span class="${ativo?'cg':'muted'}">${ativo?'Ativo':'Inativo'}</span>`;   /* sem edição na linha: status muda na ficha (Renan, 26/10/2026) */
+    return `<tr class="lk" onclick="abrirModelo('${m.id}')" title="${ed?'Editar o checklist':'Abrir a ficha'}"><td class="conta${ativo?'':' muted'}"><span class="cl" title="${esc(m.nome)}">${esc(m.nome)}</span></td>`+
+      `<td>${dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome}</td><td data-sort="${CK.FREQ[m.freq].dias||999}">${CK.FREQ[m.freq].nome}</td><td>${execLbl(m)}</td><td data-sort="${esc(m.tipos.map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', '))}">${tiposChips(m.tipos,2)}</td>`+
       `<td class="num">${n(nIt)}</td><td class="num">${n(cov.length)}</td>`+
-      `<td data-sort="${ativo?0:1}" onclick="event.stopPropagation()">${st}</td></tr>`; }).join('')
+      `<td data-sort="${ativo?0:1}">${st}</td></tr>`; }).join('')
     :`<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">Nenhum tipo de checklist${q?' para a busca':''}.</td></tr>`;
 }
+/* quem executa, por extenso */
+const execLbl=m=>ehDiario(m)?'Motorista':CK.execDe(m)==='motorista'?'Motorista e equipe':'Equipe';
+/* clique na linha: quem edita cai direto na edição (tudo editável); leitura para os demais */
+function abrirModelo(id){ if(podeEditar()) abrirModeloForm(id); else abrirModeloDet(id); }
 function modExcluirPerg(id){ const m=CK.modelo(id); if(!m) return;
   abrirModal('Excluir checklist',`<p class="tsub" style="font-size:12.5px;line-height:1.6">Excluir <b>${esc(m.nome)}</b>? Ele ainda não tem nenhuma execução. Não dá para desfazer.</p><div class="erro" id="mxErr"></div>`,
-    `<button class="btn" onclick="abrirModeloDet('${id}')">Voltar</button><button class="btn warn" style="margin-left:auto" onclick="modExcluir('${id}')">Excluir</button>`); }
+    `<button class="btn" onclick="abrirModelo('${id}')">Voltar</button><button class="btn warn" style="margin-left:auto" onclick="modExcluir('${id}')">Excluir</button>`); }
 async function modExcluir(id){ const r=await CK.modeloExcluir(id); if(!r.ok){ $('mxErr').textContent=r.erro||'Não foi possível excluir.'; return; } fecharModal(); refreshIdx(); atualizar(); }
 async function modAtivo(id,v,reabrir){
   if(!podeEditar()) return;
@@ -2673,7 +2677,7 @@ function abrirModeloDet(id,manterScroll){
   const k=(l,v,sub,cls)=>`<div class="md-k"><small>${l}</small><b class="${cls||''}">${v}</b><i title="${esc(sub)}">${esc(sub)}</i></div>`;
   let h=`<div class="md-top">`+
     k('Tipo', dia?'DIÁRIO':CK.CATCK[CK.catDe(m)].nome, dia?'todo dia, antes de operar':m.freq==='uso'?CK.freqTxt(m).toLowerCase():CK.FREQ[m.freq].dias?`${CK.FREQ[m.freq].nome.toLowerCase()} · a cada ${CK.FREQ[m.freq].dias} dias`:'sob demanda · sem periodicidade')+
-    k('Quem executa', dia?'Motorista':'Equipe', dia?'no app do motorista':CK.CATCK[CK.catDe(m)].quem)+
+    k('Quem executa', execLbl(m), dia?'no app do motorista':CK.EXEC_QUEM[CK.execDe(m)].desc)+
     k('Ativos cobertos', n(cov.length), tps)+
     k('Itens', n(its.length), bl?`${n(bl)} ${bl===1?'bloqueia':'bloqueiam'} o ativo`:'nenhum bloqueia o ativo')+
     k('Status', ativo?'Ativo':'Inativo', dia?(ativo?'motoristas fazem o checklist':'sem checklist nesses ativos'):(m.criado_em?'criado em '+CK.fmtDH(m.criado_em).slice(0,10):'—'), ativo?'cg':'cr')+`</div>`;
@@ -2729,7 +2733,7 @@ const CHEV_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const LUPA_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>';
 let W=null;
 function wzNovo(modo,m){
-  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), inclui:new Set(m&&m.inclui?m.inclui:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
+  return {modo, id:m?m.id:null, nome:m?m.nome:'', freq:m?m.freq:'mensal', exec:m?CK.execDe(m):'equipe', ativo:m?m.ativo!==false:true, intervalo_km:m?m.intervalo_km||null:null, intervalo_h:m?m.intervalo_h||null:null, tipos:new Set(m?m.tipos:[]), ativos:new Set(m&&m.ativos?m.ativos:[]), inclui:new Set(m&&m.inclui?m.inclui:[]), soAlguns:!!(m&&m.ativos&&m.ativos.length), qAt:'', itens:new Set(m?m.itens:[]), novos:[], q:'', abertas:null, nv:null, imp:null,
     passos:modo==='importar'?['Planilha','Dados','Itens','Revisar']:['Dados','Itens','Revisar'], passo:0};
 }
 function abrirModeloForm(id){
@@ -2740,18 +2744,21 @@ function abrirModeloForm(id){
 }
 function abrirImportar(){ if(!podeEditar()) return; W=wzNovo('importar',null); W.categoria='inspecao'; wzRender(); }
 const wzEtapa=()=>W.passos[W.passo];
-const wzNota=()=>W&&W.modo==='diario'?`<div class="nota"><b>Diário do motorista: feito no app antes de operar. Vale para os próximos checklists; OS já abertas não mudam.</b></div>`:`<div class="nota"><b>Executado só pela equipe (admin e frota) no app. O motorista não vê.</b></div>`;
+const wzNota=()=>W&&W.modo==='diario'?`<div class="nota"><b>Diário do motorista: feito no app antes de operar. Vale para os próximos checklists; OS já abertas não mudam.</b></div>`:W.exec==='motorista'?`<div class="nota"><b>O motorista vê e faz este checklist no app (no ativo); a equipe também pode.</b></div>`:`<div class="nota"><b>Executado só pela equipe (admin e frota) no app. O motorista não vê.</b></div>`;
 const wzCov=()=>DB.ativos.filter(a=>a.status==='ativo'&&W.tipos.has(a.tipo)&&(!W.ativos.size||W.ativos.has(a.id))).length;
 function wzRender(){
   const e=wzEtapa(), ult=W.passo===W.passos.length-1;
   const body=e==='Planilha'?wzPlanilha():e==='Dados'?wzDados():e==='Itens'?wzItens():wzRevisar();
   const foot=`<span class="wz-cnt" id="wzCnt"></span><button class="btn" onclick="fecharModal()">Cancelar</button>`+
+    (W.modo==='editar'&&!CK.modeloTemHistorico(W.id)?`<button class="btn warn" onclick="modExcluirPerg('${W.id}')" title="Sem nenhuma execução: pode excluir">Excluir</button>`:'')+
+    (W.modo==='diario'?`<button class="btn ${W.ativo?'warn':'ok'}" onclick="modAtivo('${W.id}',${W.ativo?'false':'true'}).then(fecharModal)">${W.ativo?'Desligar diário':'Ligar diário'}</button>`:'')+
     (W.passo>0?`<button class="btn" onclick="wzIr(-1)">Voltar</button>`:'')+
     (ult?`<button class="btn pri" onclick="wzSalvar()">Salvar</button>`:`<button class="btn pri" id="wzProx" onclick="wzIr(1)">Próximo</button>`);
   abrirModal(W.modo==='diario'?'Editar itens · '+W.nome:W.modo==='editar'?'Editar checklist':W.modo==='importar'?'Importar planilha':'Criar checklist', body, foot, 'wiz');
   $('m-steps').innerHTML=W.passos.map((p,i)=>`${i?'<b></b>':''}<span class="${i===W.passo?'on':i<W.passo?'ok':''}${i<W.passo||W.modo==='editar'?' lk':''}" ${i<W.passo||W.modo==='editar'?`onclick="wzPara(${i})" title="Ir para ${esc(p)}"`:''}><i>${i<W.passo?CHK_SVG:i+1}</i>${p}</span>`).join('');
   $('m-body').classList.toggle('split', e==='Itens');
   if(e==='Itens'){ wzCat(); wzSel(); }
+  if(e==='Dados'&&W.modo==='editar') mdDocs(W.id);   /* manual / plano do fabricante na própria edição */
   if(e==='Planilha'&&W.imp) $('impPrev').innerHTML=impPrevHtml();
   if(e==='Planilha') $('wzProx').disabled=!W.imp;
   wzConta();
@@ -2783,8 +2790,11 @@ function wzDados(){
   const CAT_TXT={inspecao:'Periódica, para manter os ativos em dia',preventivo:'Os mecânicos fazem na preventiva interna',preditivo:'A frota faz quando julgar importante'};
   const fs=W.categoria==='inspecao'?['semanal','quinzenal','mensal','semestral','uso']:['livre','semanal','quinzenal','mensal','semestral','uso'];
   return `<div class="fld"><label>Nome do checklist</label><input class="inp wz-nome" id="wzNome" value="${esc(W.nome)}" placeholder="Ex.: Inspeção mensal · Reboques" oninput="W.nome=this.value;$('wzErrNome').textContent=''"><div class="erro" id="wzErrNome"></div></div>`+
-    `<div class="fld"><label>Tipo do checklist <span class="ctx">· todos são feitos pela equipe no app; o motorista não vê</span></label><div class="seg">`+
+    `<div class="fld"><label>Tipo do checklist</label><div class="seg">`+
       Object.keys(CK.CATCK).map(k=>`<button type="button" class="${W.categoria===k?'on':''}" onclick="wzCatSel('${k}')">${CK.CATCK[k].nome}</button>`).join('')+`</div><div class="ctx" style="font-size:10.5px;margin-top:5px">${CAT_TXT[W.categoria]}</div></div>`+
+    `<div class="fld"><label>Quem executa <span class="ctx">· quem vê e faz este checklist no app</span></label><div class="seg">`+
+      Object.keys(CK.EXEC_QUEM).map(k=>`<button type="button" class="${W.exec===k?'on':''}" onclick="W.exec='${k}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this));$('wzExecTx').textContent=CK.EXEC_QUEM['${k}'].desc">${CK.EXEC_QUEM[k].nome}</button>`).join('')+`</div><div class="ctx" id="wzExecTx" style="font-size:10.5px;margin-top:5px">${CK.EXEC_QUEM[W.exec].desc}</div></div>`+
+    (W.modo==='editar'?`<div class="fld"><label>Status <span class="ctx">· inativo some do app; o histórico fica</span></label><div class="seg">${[[true,'Ativo'],[false,'Inativo']].map(([v,l])=>`<button type="button" class="${W.ativo===v?'on':''}" onclick="W.ativo=${v};this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`).join('')}</div></div>`:'')+
     `<div class="fld"><label>Frequência <span class="ctx">· ${W.categoria==='inspecao'?'de quanto em quanto tempo a equipe inspeciona cada ativo':'sob demanda = sem prazo; feito quando precisar'}</span></label><div class="seg">`+
       fs.map(k=>`<button type="button" class="${W.freq===k?'on':''}" onclick="W.freq='${k}';W.nome=($('wzNome')||{}).value||W.nome;wzRender()">${CK.FREQ[k].nome}</button>`).join('')+`</div></div>`+
     (W.freq==='uso'?`<div class="frow"><div class="fld"><label>A cada (km) <span class="ctx">· caminhões e veículos</span></label><input class="inp" type="number" min="0" step="500" id="wzIntKm" value="${W.intervalo_km||''}" placeholder="Ex.: 10000" oninput="W.intervalo_km=+this.value||null"></div><div class="fld"><label>A cada (horas) <span class="ctx">· máquinas com horímetro</span></label><input class="inp" type="number" min="0" step="50" id="wzIntH" value="${W.intervalo_h||''}" placeholder="Ex.: 250" oninput="W.intervalo_h=+this.value||null"></div></div><div class="ctx" style="font-size:10.5px;margin:-4px 0 10px">Use o intervalo do plano do fabricante. A próxima vence na leitura da última execução + o intervalo; o app mostra quanto falta pela leitura do checklist diário.</div>`:'')+
@@ -2793,7 +2803,7 @@ function wzDados(){
       CK.TIPOS.map(t=>`<button type="button" class="wz-tc ${W.tipos.has(t.id)?'on':''}" onclick="wzTipo('${t.id}',this)"><span class="ic">${CK.ICONES[t.icone]||''}</span><span class="tx"><b title="${esc(t.nome)}">${esc(t.nome)}</b><small>${n(cnt[t.id]||0)} ${cnt[t.id]===1?'ativo':'ativos'}</small></span><span class="ck">${CHK_SVG}</span></button>`).join('')+
     `</div><div class="erro" id="wzErrTipo"></div></div>`+
     (W.modo!=='diario'?`<div class="fld"><label>Quais ativos <span class="ctx">· todos dos tipos escolhidos, ou só alguns (ex.: só os VW 15.180)</span></label><div class="seg"><button type="button" class="${W.soAlguns?'':'on'}" onclick="W.soAlguns=false;W.ativos.clear();wzRender()">Todos dos tipos</button><button type="button" class="${W.soAlguns?'on':''}" onclick="W.soAlguns=true;wzRender()">Só alguns ativos</button></div>`+
-      (W.soAlguns?`<div class="busca" style="margin:8px 0 6px;max-width:320px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Placa, frota, marca, modelo…" value="${esc(W.qAt||'')}" oninput="W.qAt=this.value;wzAtivosLista()"></div><div class="wz-list wz-ativos" id="wzAtivos" style="max-height:220px;overflow:auto"></div><div class="ctx" id="wzAtivosN" style="font-size:10.5px;margin-top:4px"></div>`:'')+`</div>`:'')+wzNota();
+      (W.soAlguns?`<div class="busca" style="margin:8px 0 6px;max-width:320px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Placa, frota, marca, modelo…" value="${esc(W.qAt||'')}" oninput="W.qAt=this.value;wzAtivosLista()"></div><div class="wz-list wz-ativos" id="wzAtivos" style="max-height:220px;overflow:auto"></div><div class="ctx" id="wzAtivosN" style="font-size:10.5px;margin-top:4px"></div>`:'')+`</div>`:'')+wzNota()+(W.modo==='editar'?`<div class="af-docs" id="mdDocs" style="margin:4px 0 10px"></div>`:'');
 }
 /* lista de ativos para restringir o checklist (dos tipos marcados) */
 function wzAtivosLista(){ const box=$('wzAtivos'); if(!box) return; const q=nrm(W.qAt||'');
@@ -2876,6 +2886,7 @@ function wzRevisar(){
   const card=(kl,kv,km)=>`<div class="kpi wz-k"><div class="kl">${kl}</div><div class="kv">${kv}</div><div class="km">${km}</div></div>`;
   return `<div class="wz-rev">`+
     card('Nome',`<span class="wz-kn" title="${esc(W.nome)}">${esc(W.nome)}</span>`, W.modo==='importar'?'importado de planilha':W.modo==='diario'?'diário do motorista':W.modo==='editar'?'alteração de checklist existente':'cadastro manual')+
+    (W.modo==='diario'?'':card('Quem executa', CK.EXEC_QUEM[W.exec].nome, CK.EXEC_QUEM[W.exec].desc))+
     card(W.modo==='diario'?'Frequência':CK.CATCK[W.categoria].nome,CK.FREQ[W.freq].nome,W.modo==='diario'?'todo dia, antes de operar':W.freq==='uso'?CK.freqTxt({freq:'uso',intervalo_km:W.intervalo_km,intervalo_h:W.intervalo_h}).replace('POR USO · ',''):CK.FREQ[W.freq].dias?`cada ativo a cada ${CK.FREQ[W.freq].dias} dias`:'sem periodicidade')+
     card('Ativos cobertos',n(cov),W.soAlguns&&W.ativos.size?esc([...W.ativos].map(id=>ativoLbl(ATV[id])).join(', ')):esc([...W.tipos].map(t=>CK.TIPO[t]?CK.TIPO[t].nome:t).join(', ')))+
     card('Itens',n(its.length),porC.map(([k,q])=>`<span style="white-space:nowrap">${farolCrit(k)}${q} ${esc(CK.CRIT[k].nome.toLowerCase())}</span>`).join(' &nbsp; ')||'—')+
@@ -2896,12 +2907,12 @@ async function wzSalvar(){
   if(!podeEditar()||!W) return;
   const err=t=>{ $('wzErr').textContent=t; };
   const nome=String(W.nome||'').trim(), tipos=[...W.tipos], itens=[...W.itens].filter(id=>CK.ITEM[id]), novos=W.novos.slice();
-  if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.'); refreshIdx(); atualizar(); abrirModeloDet(W.id); return; }
+  if(W.modo==='diario'){ const r=await CK.diarioItensSet(tipos[0], itens); if(!r.ok) return err(r.erro||'Não foi possível salvar.'); refreshIdx(); atualizar(); fecharModal(); return; }
   if(W.modo!=='editar'){
     if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
+    const r=await CK.modeloCriar({nome, categoria:W.categoria, freq:W.freq, exec:W.exec, intervalo_km:W.intervalo_km||null, intervalo_h:W.intervalo_h||null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens, novos, por:EU.id, origem:W.modo==='importar'?'planilha':'manual'});
     if(!r.ok) return err(r.erro||'Não foi possível criar.');
-    refreshIdx(); atualizar(); abrirModeloDet(r.modelo.id); return;
+    refreshIdx(); atualizar(); fecharModal(); return;
   }
   if(!nome) return err('Dê um nome ao checklist.');
   if(!tipos.length) return err('Escolha ao menos um tipo de ativo.');
@@ -2912,9 +2923,9 @@ async function wzSalvar(){
     novos.forEach(x=>{ const it={id:CK.uid('x'), cat:x.cat||'INSPEÇÃO', nome:x.nome, crit:x.crit, prazo:x.prazo, bloqueia:x.bloqueia, ap:[], insp:true}; db.itens_extra.push(it); ids.push(it.id); });
     CK.save(); CK.recarregar(); }
   if(W.freq==='uso'&&!(W.intervalo_km>0)&&!(W.intervalo_h>0)) return err('Informe o intervalo em km e/ou em horas.');
-  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
+  const r=await CK.modeloSet(W.id,Object.assign({nome, categoria:W.categoria, freq:W.freq, exec:W.exec, ativo:W.ativo, intervalo_km:W.freq==='uso'?(W.intervalo_km||null):null, intervalo_h:W.freq==='uso'?(W.intervalo_h||null):null, ativos:W.soAlguns?[...W.ativos]:[], inclui:W.categoria==='preventivo'?[...W.inclui]:[], tipos, itens:itens.concat(ids)}, CK.REMOTO?{novos}:{}));   /* remoto: itens novos nascem no servidor */
   if(!r.ok) return err(r.erro||'Não foi possível salvar.');
-  refreshIdx(); atualizar(); abrirModeloDet(W.id);
+  refreshIdx(); atualizar(); fecharModal();
 }
 
 /* passo Planilha (importação): baixa o template Excel, envia .xlsx ou .csv, vê a prévia; os itens seguem para o passo Itens */
@@ -3056,31 +3067,67 @@ function renderUsers(){
   const cks=fCks(f,null,true); const porU={}; cks.forEach(c=>{ porU[c.usuario]=(porU[c.usuario]||0)+1; });
   const qU=nrm(($('qUs')||{}).value||''), qD=qU.replace(/\D/g,'');
   const lista=grp[uTab].filter(u=>!qU||nrm([u.nome,u.unidade,CK.PAPEL[u.papel],u.especialidade].join(' ')).includes(qU)||(qD&&String(u.cpf||'').includes(qD))).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
-  $('body-us').innerHTML=lista.length?lista.map(u=>{ const ok=podeMexer(u), ehEu=u.id===EU.id;
-    const papeis=['motorista','frota','admin'].concat(EU.papel==='master'&&u.papel==='master'?['master']:[]);
-    const pend=u.status==='pendente', papelVis=pend&&u.papel_solicitado&&papeis.includes(u.papel_solicitado)?u.papel_solicitado:u.papel;
-    const selP=(u.papel==='master'||!ok||ehEu?esc(CK.PAPEL[u.papel]):`<select class="inp sm" ${pend?'data-papel':`onchange="usrSet('${u.id}',{papel:this.value})"`}>${papeis.map(p=>`<option value="${p}" ${p===papelVis?'selected':''}>${CK.PAPEL[p]}</option>`).join('')}</select>`)+(pend&&u.papel_solicitado&&u.papel_solicitado!=='motorista'?` <span title="Função pedida no cadastro">${chip('pediu '+CK.PAPEL[u.papel_solicitado].toLowerCase())}</span>`:'');
-    let acts='';
-    if(ok&&!ehEu){ if(u.status==='pendente') acts+=`<button class="btn ok sm" onclick="const s=this.closest('tr').querySelector('select[data-papel]'); usrSet('${u.id}',{status:'ativo',papel:s?s.value:'motorista'})">Aprovar</button><button class="btn sm" onclick="usrSet('${u.id}',{status:'bloqueado'})">Recusar</button>`;
-      else if(u.status==='ativo') acts+=`<button class="btn warn sm" onclick="usrSet('${u.id}',{status:'bloqueado'})">Bloquear</button>`;
-      else acts+=`<button class="btn ok sm" onclick="usrSet('${u.id}',{status:'ativo'})">Desbloquear</button>`; }
-    return `<tr><td class="conta"><div style="display:flex;align-items:center;gap:6px"><span class="cl m" title="${esc(u.nome)}">${esc(u.nome)}</span>${ehEu?chip('você'):''}${!u.pin?`<span title="O usuário cria a senha no primeiro acesso">${chip('sem senha')}</span>`:''}</div></td><td>${CK.cpfFmt(u.cpf)}</td><td><span class="cl s" title="${esc(u.unidade)}">${esc(u.unidade)}</span></td><td>${selP}</td><td data-sort="${u.ultimo_acesso||''}">${u.ultimo_acesso?dhCurta(u.ultimo_acesso):'<span class="muted">nunca</span>'}</td><td class="num">${n(porU[u.id]||0)}</td><td style="text-align:right"><div style="display:inline-flex;gap:4px">${acts}</div></td></tr>`; }).join('')
-    :`<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">Nenhum usuário nesta aba.</td></tr>`;
+  /* Renan, 26/10/2026: sem edição na linha; clique abre a ficha e lá se edita tudo (papel, unidade, status, senha) */
+  $('body-us').innerHTML=lista.length?lista.map(u=>{ const ehEu=u.id===EU.id, pend=u.status==='pendente';
+    const papel=esc(CK.PAPEL[u.papel])+(pend&&u.papel_solicitado&&u.papel_solicitado!=='motorista'?` <span title="Função pedida no cadastro">${chip('pediu '+CK.PAPEL[u.papel_solicitado])}</span>`:'');
+    return `<tr class="lk" onclick="abrirUsuario('${u.id}')" title="Abrir a ficha do usuário"><td class="conta"><div style="display:flex;align-items:center;gap:6px"><span class="cl m" title="${esc(u.nome)}">${esc(u.nome)}</span>${ehEu?chip('você'):''}${!(u.pin||u.tem_senha)?`<span title="O usuário cria a senha no primeiro acesso">${chip('sem senha')}</span>`:''}</div></td><td>${CK.cpfFmt(u.cpf)}</td><td><span class="cl s" title="${esc(u.unidade)}">${esc(u.unidade)}</span></td><td>${papel}</td><td data-sort="${u.ultimo_acesso||''}">${u.ultimo_acesso?dhCurta(u.ultimo_acesso):'<span class="muted">nunca</span>'}</td><td class="num">${n(porU[u.id]||0)}</td></tr>`; }).join('')
+    :`<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">Nenhum usuário nesta aba.</td></tr>`;
 }
 async function usrSet(id,patch){ const u=USR[id]; if(!u||!podeMexer(u)) return; const r=await CK.usuarioSet(id,patch); if(r&&r.ok===false) alert(r.erro||'Não foi possível.'); refreshIdx(); atualizar(); }
-function abrirNovoUsuario(){
-  const papeis=['motorista','frota'].concat(EU.papel==='master'?['admin']:[]);
-  abrirModal('Novo usuário', `<div class="fld"><label>Nome completo</label><input class="inp" id="nuNome"></div>
-    <div class="frow"><div class="fld"><label>CPF</label><input class="inp lc" id="nuCpf" inputmode="numeric" placeholder="000.000.000-00" oninput="mascaraCpf(this)"></div><div class="fld"><label>Papel</label><select class="inp" id="nuPapel">${papeis.map(p=>`<option value="${p}">${CK.PAPEL[p]}</option>`).join('')}</select></div></div>
-    <div class="fld"><label>Unidade</label><select class="inp" id="nuUnid">${selUnid(EU.unidade)}</select></div>
-    <div class="nota" style="margin-top:0">O usuário entra com o CPF e cria a senha de ${CK.PIN_LEN} números no primeiro acesso. Nasce já aprovado.</div><div class="erro" id="nuErro"></div>`,
-    `<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn pri" onclick="salvarNovoUsuario()">Criar usuário</button>`);
+function abrirNovoUsuario(){ abrirUsuario(null); }
+/* ficha do usuário (Renan, 26/10/2026: "clicar e abrir edição, editar tudo"): nome, papel, unidade, especialidade, telefone, status e senha.
+   CPF não muda depois de criado (é a chave do acesso). Pendente: aprova (com o papel escolhido) ou recusa aqui mesmo. */
+let FU=null;
+function abrirUsuario(id){
+  const u=id?USR[id]:null; if(id&&!u) return; const novo=!u;
+  const ed=novo?podeEditar():podeMexer(u), ehEu=!!u&&u.id===EU.id, dis=ed?'':'disabled'; if(novo&&!ed) return;
+  const papeis=['motorista','frota'].concat(EU.papel==='master'?['admin']:[]); if(u&&!papeis.includes(u.papel)) papeis.push(u.papel);
+  const pend=!!u&&u.status==='pendente', papelIni=u?(pend&&u.papel_solicitado&&papeis.includes(u.papel_solicitado)?u.papel_solicitado:u.papel):'motorista';
+  const fixoPapel=!ed||ehEu||(u&&u.papel==='master'), temSenha=!!(u&&(u.pin||u.tem_senha));
+  FU={id:u?u.id:null, novo, pend, status:u?u.status:'ativo'};
+  const v=k=>u?esc(u[k]||''):'';
+  const body=`<div class="fld"><label>Nome completo</label><input class="inp" id="usNome" value="${v('nome')}" ${dis} placeholder="Nome e sobrenome" style="text-transform:uppercase"></div>`+
+    `<div class="frow"><div class="fld"><label>CPF${novo?'':' <span class="ctx">· é a chave do acesso, não muda</span>'}</label><input class="inp lc" id="usCpf" value="${u?CK.cpfFmt(u.cpf):''}" ${novo?'':'readonly'} inputmode="numeric" placeholder="000.000.000-00" oninput="mascaraCpf(this)"></div>`+
+    `<div class="fld"><label>Papel <span class="ctx">· ${ehEu?'você não muda o próprio papel':'o que a pessoa pode fazer'}</span></label><select class="inp" id="usPapel" ${fixoPapel?'disabled':''}>${papeis.map(p=>`<option value="${p}" ${p===papelIni?'selected':''}>${CK.PAPEL[p]}</option>`).join('')}</select></div></div>`+
+    `<div class="frow"><div class="fld"><label>Unidade</label><select class="inp" id="usUnid" ${dis}>${selUnid(u?u.unidade:EU.unidade)}</select></div>`+
+    `<div class="fld"><label>Telefone <span class="ctx">· opcional</span></label><input class="inp" id="usTel" value="${v('telefone')}" ${dis} placeholder="(00) 00000-0000"></div></div>`+
+    `<div class="fld"><label>Especialidade <span class="ctx">· opcional · ex.: mecânico diesel, encarregado, operador</span></label><input class="inp" id="usEsp" value="${v('especialidade')}" ${dis} style="text-transform:uppercase"></div>`+
+    (novo?`<div class="nota" style="margin-top:0">O usuário entra com o CPF e cria a senha de ${CK.PIN_LEN} números no primeiro acesso. Nasce já aprovado.</div>`
+      :pend?`<div class="nota" style="margin-top:0"><b>Aguardando aprovação</b> · pediu acesso ${u.criado_em?'em '+CK.fmtData(String(u.criado_em).slice(0,10)):''}${u.papel_solicitado?' como '+esc(CK.PAPEL[u.papel_solicitado]):''}. Confira o papel acima e aprove, ou recuse.</div>`
+      :`<div class="fld"><label>Status <span class="ctx">· bloqueado não entra no app nem no portal; o histórico fica</span></label><div class="seg" id="usSt">${[['ativo','Ativo'],['bloqueado','Bloqueado']].map(([k,l])=>`<button type="button" class="${FU.status===k?'on':''}" ${ed&&!ehEu?'':'disabled'} onclick="FU.status='${k}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`).join('')}</div></div>`)+
+    (novo?'':`<div class="fld"><label>Senha</label><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="tsub" style="margin:0">${temSenha?'Senha criada':'Ainda não criou a senha'} · último acesso ${u.ultimo_acesso?dhCurta(u.ultimo_acesso):'nunca'}</span>${ed&&!ehEu&&temSenha?`<button type="button" class="btn sm" onclick="usResetSenha('${u.id}')">Resetar senha</button>`:''}</div></div>`)+
+    `<div class="erro" id="usErro"></div>`;
+  const foot=!ed?`<button class="btn" onclick="fecharModal()">Fechar</button>`
+    :pend?`<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn warn" onclick="usSalvar('recusar')">Recusar</button><button class="btn ok" onclick="usSalvar('aprovar')">Aprovar</button>`
+    :`<button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn pri" onclick="usSalvar()">${novo?'Criar usuário':'Salvar'}</button>`;
+  abrirModal(novo?'Novo usuário':u.nome, body, foot, 'largo');
+  if(novo) setTimeout(()=>{ const x=$('usNome'); if(x) x.focus(); },30);
 }
-async function salvarNovoUsuario(){
-  const nome=($('nuNome').value||'').trim(), cpf=($('nuCpf').value||'').replace(/\D/g,'');
-  if(!nome){ $('nuErro').textContent='Informe o nome.'; return; } if(cpf.length!==11){ $('nuErro').textContent='CPF precisa ter 11 números.'; return; }
-  const r=await CK.usuarioCriar({nome,cpf,papel:$('nuPapel').value,unidade:$('nuUnid').value}); if(!r.ok){ $('nuErro').textContent=r.erro; return; }
-  refreshIdx(); fecharModal(); uTab='ativos'; atualizar();
+async function usSalvar(acao){
+  if(!FU) return; const err=t=>{ $('usErro').textContent=t; };
+  const nome=($('usNome').value||'').trim(); if(!nome) return err('Informe o nome.');
+  const patch={nome, unidade:$('usUnid').value, especialidade:($('usEsp').value||'').trim(), telefone:($('usTel').value||'').trim()};
+  const sel=$('usPapel'); if(sel&&!sel.disabled) patch.papel=sel.value;
+  if(FU.novo){ const cpf=($('usCpf').value||'').replace(/\D/g,''); if(cpf.length!==11) return err('CPF precisa ter 11 números.');
+    const r=await CK.usuarioCriar(Object.assign({cpf},patch)); if(!r.ok) return err(r.erro||'Não foi possível criar.');
+    refreshIdx(); fecharModal(); uTab='ativos'; atualizar(); return; }
+  const u=USR[FU.id]; if(!u||!podeMexer(u)) return;
+  let r;
+  if(acao==='recusar'){ r=await CK.usuarioSet(FU.id,{status:'bloqueado'}); if(r&&r.ok===false) return err(r.erro||'Não foi possível.'); refreshIdx(); fecharModal(); atualizar(); return; }
+  if(acao==='aprovar'){   /* dados primeiro, depois a aprovação (no oficial a aprovação é uma RPC própria, só com o papel) */
+    r=await CK.usuarioSet(FU.id,patch); if(r&&r.ok===false) return err(r.erro||'Não foi possível salvar.');
+    r=await CK.usuarioSet(FU.id,{status:'ativo', papel:patch.papel||u.papel||'motorista'}); if(r&&r.ok===false) return err(r.erro||'Não foi possível aprovar.');
+    refreshIdx(); fecharModal(); uTab='ativos'; atualizar(); return; }
+  if(!FU.pend&&FU.status!==u.status&&u.id!==EU.id) patch.status=FU.status;
+  r=await CK.usuarioSet(FU.id,patch); if(r&&r.ok===false) return err(r.erro||'Não foi possível salvar.');
+  refreshIdx(); fecharModal(); atualizar();
+}
+async function usResetSenha(id){
+  const u=USR[id]; if(!u||!podeMexer(u)) return;
+  if(!confirm(`Resetar a senha de ${u.nome}? A senha atual deixa de valer e a pessoa cria outra no próximo acesso.`)) return;
+  const r=CK.resetarSenha?await CK.resetarSenha(id):await CK.usuarioSet(id,{pin:null});
+  if(r&&r.ok===false){ $('usErro').textContent=r.erro||'Não foi possível resetar.'; return; }
+  refreshIdx(); atualizar(); abrirUsuario(id);
 }
 
 /* ── FATURAMENTO ── */

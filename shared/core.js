@@ -56,119 +56,231 @@ var CK = (function(){
   };
   /* catálogo REAL da Atual (13 planilhas diárias, 12/10/2026) + itens sugeridos na validação (sugerido:true) + listas provisórias dos tipos sem planilha.
      dica = orientação que aparece para o motorista; flag = marca usada para tirar o item de ativos que não têm aquilo (basculamento, prancha, rolo de pneu…) */
-  var ITENS = [
-    {"id": "doc", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "DOCUMENTAÇÃO DO VEÍCULO E DO CONDUTOR", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "REBOQUE"], "dica": "CRLV do veículo e CNH do condutor em dia e a bordo.", "ex": "CRLV vencido desde março"},
-    {"id": "cinto", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CINTO DE SEGURANÇA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Trava, retrai e está sem cortes, em todos os bancos.", "ex": "Cinto do motorista não trava"},
-    {"id": "ext", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "EXTINTOR DE INCÊNDIO", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Dentro da validade, com lacre e ponteiro na faixa verde, fixado no suporte.", "ex": "Extintor vencido em 08/26"},
-    {"id": "taco", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "TACÓGRAFO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG"], "dica": "Funcionando e registrando.", "ex": "Tacógrafo não está registrando"},
-    {"id": "licamb", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "LICENÇAS AMBIENTAIS (FEPAM E IBAMA)", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Válidas e a bordo.", "ex": "Licença da FEPAM vencida"},
-    {"id": "fispq", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "FISPQ DOS PRODUTOS TRANSPORTADOS", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Fichas de segurança dos produtos a bordo.", "ex": "Falta a FISPQ do diesel S10"},
-    {"id": "mopp", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CURSO MOPP DO CONDUTOR", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO", "ESPARG"], "dica": "Certificado válido para movimentação de produtos perigosos.", "ex": "MOPP vence semana que vem"},
-    {"id": "cipp", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CIPP DO VEÍCULO", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO", "ESPARG"], "dica": "Certificado de inspeção para transporte de produtos perigosos, válido.", "ex": "CIPP vencido"},
-    {"id": "placpp", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "PLACAS DE PRODUTO PERIGOSO", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO", "ESPARG"], "dica": "Painel de segurança e rótulo de risco nas 2 laterais, legíveis.", "ex": "Rótulo de risco do lado direito rasgado"},
-    {"id": "epi", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "EPI DO CONDUTOR", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["COMBOIO", "ESPARG"], "dica": "Condutor com crachá e EPI; no espargidor, roupa de proteção para asfalto quente.", "ex": "Sem roupa de proteção para o asfalto quente"},
-    {"id": "mitig", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "KIT DE MITIGAÇÃO AMBIENTAL", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESPARG"], "dica": "Serragem, mantas absorventes e pá a bordo.", "ex": "Acabaram as mantas absorventes"},
-    {"id": "chaves", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CHAVES DO VEÍCULO", "crit": "baixa", "prazo": 24, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Chave principal e reserva no lugar.", "ex": "Chave reserva sumiu"},
-    {"id": "rops", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "ESTRUTURA DE PROTEÇÃO (ROPS/FOPS)", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["MINI", "ROLO"], "dica": "Sem trincas ou amassados; parafusos firmes.", "ex": "Trinca na solda do pé esquerdo", "sugerido": true},
-    {"id": "emerg", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "PARADA DE EMERGÊNCIA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["VIBRO", "EQUIP"], "dica": "Testar os botões: na vibroacabadora, os dois lados da mesa e o posto do operador.", "ex": "Botão do lado direito da mesa não desliga", "sugerido": true},
-    {"id": "protmov", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "PROTEÇÕES DAS PARTES MÓVEIS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["EQUIP"], "dica": "Carenagens e proteções no lugar e fixas.", "ex": "Proteção da correia solta", "sugerido": true},
-    {"id": "oleo", "cat": "MOTOR E FLUIDOS", "nome": "ÓLEO DO MOTOR", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Nível na vareta entre o mínimo e o máximo; sem marcas de vazamento.", "ex": "Nível abaixo do mínimo"},
-    {"id": "agua", "cat": "MOTOR E FLUIDOS", "nome": "LÍQUIDO DE ARREFECIMENTO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Nível no reservatório de expansão, com o motor frio. Na Kombi, só no motor 1.4 Flex.", "ex": "Reservatório vazio"},
-    {"id": "hidr", "cat": "SISTEMA HIDRÁULICO", "nome": "ÓLEO HIDRÁULICO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "COMBOIO", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO"], "dica": "Nível no visor, com os cilindros recolhidos; sem vazamento. No caminhão, inclui a direção hidráulica.", "ex": "Nível abaixo do visor"},
-    {"id": "transm", "cat": "MOTOR E FLUIDOS", "nome": "ÓLEO DA TRANSMISSÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["MOTO"], "dica": "Nível correto e sem vazamento.", "ex": "Vazamento na tampa lateral"},
-    {"id": "corr", "cat": "MOTOR E FLUIDOS", "nome": "CORREIAS DO MOTOR", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["CAVALO", "KOMBI", "ESCAV"], "dica": "Tensão correta e sem desgaste, trincas ou ruído.", "ex": "Correia do alternador trincada"},
-    {"id": "vaz", "cat": "MOTOR E FLUIDOS", "nome": "VAZAMENTOS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Chão sob o veículo limpo: sem poças de óleo, combustível, água ou fluido hidráulico.", "ex": "Mancha de óleo embaixo do motor"},
-    {"id": "comb", "cat": "MOTOR E FLUIDOS", "nome": "COMBUSTÍVEL", "crit": "baixa", "prazo": 24, "bloqueia": false, "ap": ["RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Suficiente para o turno de trabalho.", "ex": "Menos de 1/4 de tanque"},
-    {"id": "filtro", "cat": "MOTOR E FLUIDOS", "nome": "FILTRO DE AR E SEPARADOR DE ÁGUA", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["MINI", "MOTO"], "dica": "Válvula de poeira limpa e água drenada do separador de combustível.", "ex": "Separador cheio de água"},
-    {"id": "radiad", "cat": "MOTOR E FLUIDOS", "nome": "RADIADOR", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["ESCAV"], "dica": "Colmeias limpas, sem obstrução.", "ex": "Colmeia suja de barro"},
-    {"id": "limpmot", "cat": "MOTOR E FLUIDOS", "nome": "COMPARTIMENTO DO MOTOR", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["ESCAV"], "dica": "Sem acúmulo de sujeira, folhas ou óleo: risco de incêndio.", "ex": "Muito óleo acumulado no bloco"},
-    {"id": "bat", "cat": "ELÉTRICA", "nome": "BATERIA", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Sem vazamento, terminais limpos e suporte com proteção fixa.", "ex": "Terminal oxidado, falha na partida"},
-    {"id": "chic", "cat": "ELÉTRICA", "nome": "CHICOTE ELÉTRICO E FIAÇÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO", "ESCAV", "VIBRO"], "dica": "Sem fios expostos, soltos ou danificados.", "ex": "Fio descascado perto da bateria"},
-    {"id": "freio", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO DE SERVIÇO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Teste do pedal antes de movimentar: resposta firme, sem ir ao fundo.", "ex": "Pedal baixo, freio fraco"},
-    {"id": "freioe", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO DE ESTACIONAMENTO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Teste de retenção com o veículo parado (maneco ou catraca).", "ex": "Freio de mão não segura na rampa"},
-    {"id": "fluf", "cat": "FREIOS E DIREÇÃO", "nome": "FLUIDO DE FREIO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "COMBOIO", "LEVE", "KOMBI"], "dica": "Nível no reservatório e sem vazamento. No cavalo, inclui o fluido da embreagem.", "ex": "Reservatório abaixo do mínimo"},
-    {"id": "press", "cat": "FREIOS E DIREÇÃO", "nome": "PRESSÃO DO SISTEMA DE AR", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO"], "dica": "Manômetros sobem normalmente e seguram a pressão.", "ex": "Manômetro demora muito para subir"},
-    {"id": "dren", "cat": "FREIOS E DIREÇÃO", "nome": "DRENAGEM DO RESERVATÓRIO DE AR", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "COMBOIO"], "dica": "Eliminar a água acumulada nos reservatórios de ar.", "ex": "Saiu muita água do reservatório"},
-    {"id": "dir", "cat": "FREIOS E DIREÇÃO", "nome": "CAIXA DE DIREÇÃO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["PIPA", "COMBOIO", "KOMBI", "CAMINHAO", "CAVALO", "ESPARG", "RETRO", "MOTO", "CARREG"], "dica": "Sem folga excessiva ou ruído ao esterçar o volante.", "ex": "Folga grande no volante"},
+  var ITENS = [
+
+    {"id": "doc", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "DOCUMENTAÇÃO DO VEÍCULO E DO CONDUTOR", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "REBOQUE"], "dica": "CRLV do veículo e CNH do condutor em dia e a bordo.", "ex": "CRLV vencido desde março"},
+
+    {"id": "cinto", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CINTO DE SEGURANÇA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Trava, retrai e está sem cortes, em todos os bancos.", "ex": "Cinto do motorista não trava"},
+
+    {"id": "ext", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "EXTINTOR DE INCÊNDIO", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Dentro da validade, com lacre e ponteiro na faixa verde, fixado no suporte.", "ex": "Extintor vencido em 08/26"},
+
+    {"id": "taco", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "TACÓGRAFO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG"], "dica": "Funcionando e registrando.", "ex": "Tacógrafo não está registrando"},
+
+    {"id": "licamb", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "LICENÇAS AMBIENTAIS (FEPAM E IBAMA)", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Válidas e a bordo.", "ex": "Licença da FEPAM vencida"},
+
+    {"id": "fispq", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "FISPQ DOS PRODUTOS TRANSPORTADOS", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Fichas de segurança dos produtos a bordo.", "ex": "Falta a FISPQ do diesel S10"},
+
+    {"id": "mopp", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CURSO MOPP DO CONDUTOR", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO", "ESPARG"], "dica": "Certificado válido para movimentação de produtos perigosos.", "ex": "MOPP vence semana que vem"},
+
+    {"id": "cipp", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CIPP DO VEÍCULO", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO", "ESPARG"], "dica": "Certificado de inspeção para transporte de produtos perigosos, válido.", "ex": "CIPP vencido"},
+
+    {"id": "placpp", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "PLACAS DE PRODUTO PERIGOSO", "crit": "alta", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO", "ESPARG"], "dica": "Painel de segurança e rótulo de risco nas 2 laterais, legíveis.", "ex": "Rótulo de risco do lado direito rasgado"},
+
+    {"id": "epi", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "EPI DO CONDUTOR", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["COMBOIO", "ESPARG"], "dica": "Condutor com crachá e EPI; no espargidor, roupa de proteção para asfalto quente.", "ex": "Sem roupa de proteção para o asfalto quente"},
+
+    {"id": "mitig", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "KIT DE MITIGAÇÃO AMBIENTAL", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESPARG"], "dica": "Serragem, mantas absorventes e pá a bordo.", "ex": "Acabaram as mantas absorventes"},
+
+    {"id": "chaves", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "CHAVES DO VEÍCULO", "crit": "baixa", "prazo": 24, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Chave principal e reserva no lugar.", "ex": "Chave reserva sumiu"},
+
+    {"id": "rops", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "ESTRUTURA DE PROTEÇÃO (ROPS/FOPS)", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["MINI", "ROLO"], "dica": "Sem trincas ou amassados; parafusos firmes.", "ex": "Trinca na solda do pé esquerdo", "sugerido": true},
+
+    {"id": "emerg", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "PARADA DE EMERGÊNCIA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["VIBRO", "EQUIP"], "dica": "Testar os botões: na vibroacabadora, os dois lados da mesa e o posto do operador.", "ex": "Botão do lado direito da mesa não desliga", "sugerido": true},
+
+    {"id": "protmov", "cat": "DOCUMENTAÇÃO E SEGURANÇA", "nome": "PROTEÇÕES DAS PARTES MÓVEIS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["EQUIP"], "dica": "Carenagens e proteções no lugar e fixas.", "ex": "Proteção da correia solta", "sugerido": true},
+
+    {"id": "oleo", "cat": "MOTOR E FLUIDOS", "nome": "ÓLEO DO MOTOR", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Nível na vareta entre o mínimo e o máximo; sem marcas de vazamento.", "ex": "Nível abaixo do mínimo"},
+
+    {"id": "agua", "cat": "MOTOR E FLUIDOS", "nome": "LÍQUIDO DE ARREFECIMENTO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Nível no reservatório de expansão, com o motor frio. Na Kombi, só no motor 1.4 Flex.", "ex": "Reservatório vazio"},
+
+    {"id": "hidr", "cat": "SISTEMA HIDRÁULICO", "nome": "ÓLEO HIDRÁULICO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "COMBOIO", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO"], "dica": "Nível no visor, com os cilindros recolhidos; sem vazamento. No caminhão, inclui a direção hidráulica.", "ex": "Nível abaixo do visor"},
+
+    {"id": "transm", "cat": "MOTOR E FLUIDOS", "nome": "ÓLEO DA TRANSMISSÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["MOTO"], "dica": "Nível correto e sem vazamento.", "ex": "Vazamento na tampa lateral"},
+
+    {"id": "corr", "cat": "MOTOR E FLUIDOS", "nome": "CORREIAS DO MOTOR", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["CAVALO", "KOMBI", "ESCAV"], "dica": "Tensão correta e sem desgaste, trincas ou ruído.", "ex": "Correia do alternador trincada"},
+
+    {"id": "vaz", "cat": "MOTOR E FLUIDOS", "nome": "VAZAMENTOS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Chão sob o veículo limpo: sem poças de óleo, combustível, água ou fluido hidráulico.", "ex": "Mancha de óleo embaixo do motor"},
+
+    {"id": "comb", "cat": "MOTOR E FLUIDOS", "nome": "COMBUSTÍVEL", "crit": "baixa", "prazo": 24, "bloqueia": false, "ap": ["RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Suficiente para o turno de trabalho.", "ex": "Menos de 1/4 de tanque"},
+
+    {"id": "filtro", "cat": "MOTOR E FLUIDOS", "nome": "FILTRO DE AR E SEPARADOR DE ÁGUA", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["MINI", "MOTO"], "dica": "Válvula de poeira limpa e água drenada do separador de combustível.", "ex": "Separador cheio de água"},
+
+    {"id": "radiad", "cat": "MOTOR E FLUIDOS", "nome": "RADIADOR", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["ESCAV"], "dica": "Colmeias limpas, sem obstrução.", "ex": "Colmeia suja de barro"},
+
+    {"id": "limpmot", "cat": "MOTOR E FLUIDOS", "nome": "COMPARTIMENTO DO MOTOR", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["ESCAV"], "dica": "Sem acúmulo de sujeira, folhas ou óleo: risco de incêndio.", "ex": "Muito óleo acumulado no bloco"},
+
+    {"id": "bat", "cat": "ELÉTRICA", "nome": "BATERIA", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Sem vazamento, terminais limpos e suporte com proteção fixa.", "ex": "Terminal oxidado, falha na partida"},
+
+    {"id": "chic", "cat": "ELÉTRICA", "nome": "CHICOTE ELÉTRICO E FIAÇÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO", "ESCAV", "VIBRO"], "dica": "Sem fios expostos, soltos ou danificados.", "ex": "Fio descascado perto da bateria"},
+
+    {"id": "freio", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO DE SERVIÇO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Teste do pedal antes de movimentar: resposta firme, sem ir ao fundo.", "ex": "Pedal baixo, freio fraco"},
+
+    {"id": "freioe", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO DE ESTACIONAMENTO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Teste de retenção com o veículo parado (maneco ou catraca).", "ex": "Freio de mão não segura na rampa"},
+
+    {"id": "fluf", "cat": "FREIOS E DIREÇÃO", "nome": "FLUIDO DE FREIO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "COMBOIO", "LEVE", "KOMBI"], "dica": "Nível no reservatório e sem vazamento. No cavalo, inclui o fluido da embreagem.", "ex": "Reservatório abaixo do mínimo"},
+
+    {"id": "press", "cat": "FREIOS E DIREÇÃO", "nome": "PRESSÃO DO SISTEMA DE AR", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO"], "dica": "Manômetros sobem normalmente e seguram a pressão.", "ex": "Manômetro demora muito para subir"},
+
+    {"id": "dren", "cat": "FREIOS E DIREÇÃO", "nome": "DRENAGEM DO RESERVATÓRIO DE AR", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "COMBOIO"], "dica": "Eliminar a água acumulada nos reservatórios de ar.", "ex": "Saiu muita água do reservatório"},
+
+    {"id": "dir", "cat": "FREIOS E DIREÇÃO", "nome": "CAIXA DE DIREÇÃO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["PIPA", "COMBOIO", "KOMBI", "CAMINHAO", "CAVALO", "ESPARG", "RETRO", "MOTO", "CARREG"], "dica": "Sem folga excessiva ou ruído ao esterçar o volante.", "ex": "Folga grande no volante"},
+
     {"id": "cardan", "cat": "TRANSMISSÃO", "nome": "TRANSMISSÃO E EIXO CARDÃ", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG"], "dica": "Ao arrancar e trocar de marcha: sem estalo, batida ou vibração anormal; sem vazamento no diferencial. Se houver, não opere.", "ex": "ESTALO NO CARDÃ AO ARRANCAR"},
-    {"id": "alinh", "cat": "FREIOS E DIREÇÃO", "nome": "ALINHAMENTO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["LEVE", "COMBOIO"], "dica": "O volante não puxa para um dos lados.", "ex": "Puxa para a direita"},
-    {"id": "difer", "cat": "FREIOS E DIREÇÃO", "nome": "BLOQUEIO DO DIFERENCIAL", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["MOTO"], "dica": "Aciona e desaciona normalmente.", "ex": "Bloqueio não desarma"},
-    {"id": "giro", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO E TRAVA DE GIRO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV"], "dica": "Giro da superestrutura trava e freia.", "ex": "Freio de giro não segura na rampa", "sugerido": true},
-    {"id": "cmd", "cat": "FREIOS E DIREÇÃO", "nome": "COMANDOS E ALAVANCAS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESCAV", "RETRO", "ROLO", "MINI", "CARREG"], "dica": "Respondem com suavidade: joysticks, alavancas, direção e vibração.", "ex": "Alavanca da lança travando"},
-    {"id": "trvcmd", "cat": "FREIOS E DIREÇÃO", "nome": "TRAVA DE SEGURANÇA DOS COMANDOS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESCAV", "MINI"], "dica": "Com a alavanca de bloqueio levantada ou a barra do operador erguida, os comandos não respondem.", "ex": "Comandos mexem com a trava levantada"},
-    {"id": "artic", "cat": "FREIOS E DIREÇÃO", "nome": "ARTICULAÇÃO CENTRAL", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["MOTO", "CARREG"], "dica": "Sem folga ao articular; trava de articulação no lugar.", "ex": "Folga ao articular, batida seca", "sugerido": true},
-    {"id": "pneu", "cat": "RODAGEM", "nome": "PNEUS", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "REBOQUE", "RETRO", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO"], "dica": "Pressão e estado, inclusive o estepe: sem cortes, bolhas, sulco careca ou objetos encravados.", "ex": "Pneu traseiro esquerdo externo murcho"},
-    {"id": "roda", "cat": "RODAGEM", "nome": "RODAS, AROS E PORCAS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "REBOQUE", "MOTO", "CARREG"], "dica": "Porcas firmes, sem falta nem marca de ferrugem escorrendo; aros sem trincas.", "ex": "Falta uma porca na roda dianteira direita"},
-    {"id": "estepe", "cat": "RODAGEM", "nome": "ESTEPE", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["PIPA"], "dica": "Calibrado, fixado e pronto para uso.", "ex": "Estepe murcho"},
-    {"id": "susp", "cat": "RODAGEM", "nome": "SUSPENSÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAVALO", "CAMINHAO"], "dica": "Feixes de mola sem lâminas quebradas; sem ruídos.", "ex": "Lâmina quebrada no feixe traseiro direito"},
-    {"id": "esteir", "cat": "ESTEIRAS E MATERIAL RODANTE", "nome": "ESTEIRAS", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["ESCAV", "VIBRO", "MINI"], "dica": "Tensão correta, sem sapatas ou parafusos soltos; roletes e rodas-guia limpos.", "ex": "Esteira direita frouxa"},
-    {"id": "transl", "cat": "ESTEIRAS E MATERIAL RODANTE", "nome": "MOTORES DE TRANSLAÇÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV"], "dica": "Sem vazamentos.", "ex": "Vazamento no motor da esteira esquerda"},
-    {"id": "farol", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "FARÓIS", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Luz alta e baixa; nas máquinas, as luzes de trabalho.", "ex": "Farol baixo direito apagado"},
-    {"id": "lant", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "LANTERNAS, SETAS E LUZ DE FREIO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "REBOQUE"], "dica": "Posição, setas dos dois lados, pisca-alerta, freio e ré.", "ex": "Seta traseira esquerda não funciona"},
-    {"id": "re", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "ALARME SONORO DE RÉ", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO"], "dica": "Toca ao engatar a ré.", "ex": "Alarme de ré mudo"},
-    {"id": "buz", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "BUZINA", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Funciona.", "ex": "Buzina não funciona"},
-    {"id": "giroflx", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "GIROFLEX", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["ESPARG", "MOTO", "VIBRO"], "dica": "Luz de advertência funcionando.", "ex": "Giroflex apagado"},
-    {"id": "painel", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "PAINEL DE INSTRUMENTOS", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["PIPA", "COMBOIO", "LEVE", "RETRO", "ROLO", "VIBRO", "MINI", "CAMINHAO", "ESCAV", "MOTO"], "dica": "Sem luz de alerta acesa; velocímetro, odômetro ou horímetro, temperatura e combustível funcionando.", "ex": "Luz do motor acesa"},
-    {"id": "refl", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "FAIXAS REFLETIVAS E PLACAS", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["COMBOIO", "REBOQUE"], "dica": "Faixas inteiras e placas dianteira e traseira legíveis.", "ex": "Faixa da lateral direita solta"},
-    {"id": "vidros", "cat": "CABINE E ESTRUTURA", "nome": "PARA-BRISA, VIDROS E RETROVISORES", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Limpos, sem trincas no campo de visão; espelhos inteiros e ajustados.", "ex": "Trinca no para-brisa, lado do motorista"},
-    {"id": "limp", "cat": "CABINE E ESTRUTURA", "nome": "LIMPADOR DE PARA-BRISA", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA", "LEVE", "KOMBI", "COMBOIO"], "dica": "Palhetas em bom estado e esguicho com água.", "ex": "Palheta do motorista rasgada"},
-    {"id": "portas", "cat": "CABINE E ESTRUTURA", "nome": "PORTAS E FECHADURAS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["KOMBI", "COMBOIO"], "dica": "Dobradiças, trincos e fechaduras; na Kombi, trilho e trava da porta de correr.", "ex": "Porta de correr não trava"},
-    {"id": "bancos", "cat": "CABINE E ESTRUTURA", "nome": "BANCOS", "crit": "baixa", "prazo": 360, "bloqueia": false, "ap": ["KOMBI", "COMBOIO"], "dica": "Fixos, com estofamento inteiro.", "ex": "Banco do carona solto"},
-    {"id": "tampao", "cat": "CABINE E ESTRUTURA", "nome": "TAMPÃO DO MOTOR", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["KOMBI"], "dica": "Fecha e trava.", "ex": "Tampão não trava"},
-    {"id": "acesso", "cat": "CABINE E ESTRUTURA", "nome": "ACESSO À CABINE", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO", "VIBRO", "ROLO"], "dica": "Estribo, alças de apoio, escada e piso antiderrapante firmes; na máquina, plataforma e corrimãos.", "ex": "Estribo do lado do motorista solto"},
-    {"id": "parach", "cat": "CABINE E ESTRUTURA", "nome": "PARA-CHOQUES E PARA-BARRO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["COMBOIO", "REBOQUE"], "dica": "No lugar e fixos.", "ex": "Para-barro traseiro esquerdo rasgado"},
-    {"id": "acab", "cat": "CABINE E ESTRUTURA", "nome": "ACABAMENTO DA CABINE", "crit": "baixa", "prazo": 360, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Quebra-sol, porta-luvas, forro e manopla inteiros; lataria sem avaria nova.", "ex": "Quebra-sol do motorista caído"},
-    {"id": "escap", "cat": "CABINE E ESTRUTURA", "nome": "CANO DE DESCARGA", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Silencioso fixo, sem furos.", "ex": "Escapamento furado, barulho alto"},
-    {"id": "pto", "cat": "IMPLEMENTO", "nome": "TOMADA DE FORÇA (PTO)", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO"], "dica": "Engata e os comandos de basculamento respondem.", "ex": "PTO não engata", "flag": "basc"},
-    {"id": "cil", "cat": "SISTEMA HIDRÁULICO", "nome": "CILINDRO DE BASCULAMENTO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO"], "dica": "Sem vazamento, riscos ou amassados.", "ex": "Cilindro vazando óleo", "flag": "basc"},
-    {"id": "cac", "cat": "IMPLEMENTO", "nome": "TRAVA DE SEGURANÇA DA CAÇAMBA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO"], "dica": "Pino de segurança no lugar.", "ex": "Pino de segurança da caçamba sumiu", "flag": "basc"},
-    {"id": "lona", "cat": "IMPLEMENTO", "nome": "LONA DE COBERTURA", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["CAMINHAO"], "dica": "Cobre toda a carga, sem rasgos.", "ex": "Lona rasgada no meio", "sugerido": true, "flag": "basc"},
-    {"id": "qroda", "cat": "IMPLEMENTO", "nome": "QUINTA RODA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAVALO"], "dica": "Pino-rei travado e lubrificação em dia.", "ex": "Pino-rei com folga"},
-    {"id": "qtrava", "cat": "IMPLEMENTO", "nome": "TRAVA DE SEGURANÇA DA QUINTA RODA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAVALO"], "dica": "Copa ou cupilha de segurança no lugar.", "ex": "Cupilha de segurança faltando"},
-    {"id": "acopl", "cat": "IMPLEMENTO", "nome": "MANGUEIRAS E CABO DO ACOPLAMENTO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAVALO"], "dica": "Conexões pneumáticas (mão de amigo) e cabo elétrico espiral inteiros.", "ex": "Cabo espiral com fio exposto"},
-    {"id": "tqagua", "cat": "IMPLEMENTO", "nome": "TANQUE DE ÁGUA", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["PIPA"], "dica": "Sem trincas, vazamentos ou deformações.", "ex": "Vazamento no fundo do tanque"},
-    {"id": "bomba", "cat": "IMPLEMENTO", "nome": "MOTOBOMBA", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["PIPA"], "dica": "Motor auxiliar funcionando, sem vazamento de combustível ou óleo.", "ex": "Motobomba não pega"},
-    {"id": "mang", "cat": "IMPLEMENTO", "nome": "MANGUEIRAS E MANGOTES", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA", "ESPARG"], "dica": "Sem furos ou rachaduras; conexões e abraçadeiras firmes.", "ex": "Mangote traseiro rachado"},
-    {"id": "valv", "cat": "IMPLEMENTO", "nome": "REGISTROS E VÁLVULAS", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA", "ESPARG"], "dica": "Abrem e fecham livres, sem vazamento.", "ex": "Registro lateral emperrado"},
-    {"id": "barra", "cat": "IMPLEMENTO", "nome": "BARRA DE IRRIGAÇÃO", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA"], "dica": "Rabo de pavão alinhado, com todos os bicos abrindo.", "ex": "Dois bicos da esquerda entupidos"},
-    {"id": "ligante", "cat": "IMPLEMENTO", "nome": "TANQUE DE LIGANTE", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["ESPARG"], "dica": "Nível de emulsão ou CAP para o serviço.", "ex": "Pouca emulsão para o serviço"},
-    {"id": "bicos", "cat": "IMPLEMENTO", "nome": "BARRA ESPARGIDORA", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["ESPARG"], "dica": "Bocais e bicos limpos e sem obstrução.", "ex": "Três bicos entupidos no centro"},
-    {"id": "queim", "cat": "IMPLEMENTO", "nome": "QUEIMADOR", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESPARG"], "dica": "Sistema de aquecimento íntegro na inspeção visual, antes de acender.", "ex": "Mangueira do queimador ressecada"},
-    {"id": "termo", "cat": "IMPLEMENTO", "nome": "TERMÔMETRO DO TANQUE", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["ESPARG"], "dica": "Marcando a temperatura do ligante.", "ex": "Termômetro não marca", "sugerido": true},
-    {"id": "tqcomb", "cat": "IMPLEMENTO", "nome": "TANQUE DE COMBUSTÍVEL", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Sem vazamento; tampas, respiros e lacres no lugar.", "ex": "Lacre do tanque rompido", "sugerido": true},
-    {"id": "babast", "cat": "IMPLEMENTO", "nome": "BOMBAS DE ABASTECIMENTO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Bombas e mangueiras de S10 e S500 funcionando, sem vazamento.", "ex": "Bomba do S10 vazando na saída"},
-    {"id": "blubr", "cat": "IMPLEMENTO", "nome": "BOMBAS DE LUBRIFICAÇÃO E HIDROJATO", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Bomba de graxa, de óleo hidráulico e hidrojato funcionando.", "ex": "Bomba de graxa sem pressão"},
-    {"id": "pistola", "cat": "IMPLEMENTO", "nome": "TRAVA DA PISTOLA DE ABASTECIMENTO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Trava de segurança funcionando.", "ex": "Trava da pistola não solta"},
-    {"id": "teclado", "cat": "IMPLEMENTO", "nome": "TECLADO DE ABASTECIMENTO", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Registra o abastecimento.", "ex": "Teclado não registra o abastecimento"},
-    {"id": "manghid", "cat": "SISTEMA HIDRÁULICO", "nome": "MANGUEIRAS E CONEXÕES HIDRÁULICAS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV", "MINI", "MOTO"], "dica": "Sem vazamento, umidade ou mangueira ressecada; inclui articulação e giro.", "ex": "Mangueira da lança suando óleo"},
-    {"id": "pinos", "cat": "IMPLEMENTO", "nome": "PINOS, BUCHAS E ARTICULAÇÕES", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["ESCAV", "RETRO", "ROLO", "VIBRO", "CARREG"], "dica": "Lubrificados, sem folga.", "ex": "Pino da caçamba seco, com folga"},
-    {"id": "cacamb", "cat": "IMPLEMENTO", "nome": "CAÇAMBA, DENTES E LÂMINAS", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["ESCAV", "RETRO", "MINI", "CARREG"], "dica": "Sem desgaste excessivo, trincas ou dentes faltando.", "ex": "Falta um dente na caçamba"},
-    {"id": "engate", "cat": "IMPLEMENTO", "nome": "ENGATE RÁPIDO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESCAV", "MINI"], "dica": "Pino de trava inserido e implemento firme.", "ex": "Pino do engate rápido não trava"},
-    {"id": "patola", "cat": "IMPLEMENTO", "nome": "PATOLAS (ESTABILIZADORES)", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["RETRO"], "dica": "Descem, travam e não cedem.", "ex": "Patola direita cede sozinha", "sugerido": true},
-    {"id": "trvlan", "cat": "IMPLEMENTO", "nome": "TRAVA DE TRANSPORTE DA LANÇA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["RETRO"], "dica": "Lança travada para o deslocamento.", "ex": "Trava da lança não encaixa", "sugerido": true},
-    {"id": "lamina", "cat": "IMPLEMENTO", "nome": "LÂMINA", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["MOTO"], "dica": "Bordas sem desgaste excessivo.", "ex": "Borda da lâmina gasta"},
-    {"id": "circ", "cat": "IMPLEMENTO", "nome": "CÍRCULO E SAPATAS", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["MOTO"], "dica": "Sem folgas excessivas.", "ex": "Folga no círculo"},
-    {"id": "coroa", "cat": "IMPLEMENTO", "nome": "COROA E PINHÃO", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["MOTO"], "dica": "Lubrificação em dia.", "ex": "Coroa seca, sem graxa"},
-    {"id": "ripper", "cat": "IMPLEMENTO", "nome": "ESCARIFICADOR (RIPPER)", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["MOTO"], "dica": "Dentes sem desgaste excessivo nem faltando.", "ex": "Dente do ripper quebrado"},
-    {"id": "tambor", "cat": "IMPLEMENTO", "nome": "CILINDROS E TAMBORES", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["ROLO"], "dica": "Sem trincas ou desgaste.", "ex": "Trinca no tambor dianteiro"},
-    {"id": "rasp", "cat": "IMPLEMENTO", "nome": "BARRAS RASPADORAS", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["ROLO"], "dica": "Ajustadas e sem desgaste.", "ex": "Raspador traseiro gasto"},
-    {"id": "asper", "cat": "IMPLEMENTO", "nome": "SISTEMA DE ASPERSÃO DE ÁGUA", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["ROLO"], "dica": "Bicos abrindo e tanque com água, nos rolos de asfalto.", "ex": "Bicos da frente sem água", "flag": "aspersao"},
-    {"id": "hopper", "cat": "IMPLEMENTO", "nome": "HOPPER (TREMONHA)", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Limpo e sem deformação.", "ex": "Hopper amassado do lado esquerdo"},
-    {"id": "transp", "cat": "IMPLEMENTO", "nome": "TRANSPORTADORES DE MATERIAL", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Correntes sem desgaste excessivo.", "ex": "Corrente da esquerda frouxa"},
-    {"id": "rosca", "cat": "IMPLEMENTO", "nome": "ROSCAS SEM-FIM", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Espirais sem desgaste excessivo.", "ex": "Espiral direita gasta"},
-    {"id": "mesa", "cat": "IMPLEMENTO", "nome": "MESA", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["VIBRO"], "dica": "Aquecimento liga no início; controles de altura, inclinação e vibração respondem.", "ex": "Mesa não aquece do lado direito"},
-    {"id": "gas", "cat": "IMPLEMENTO", "nome": "GÁS DO AQUECIMENTO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["VIBRO"], "dica": "Botijões, mangueiras e válvulas sem cheiro de gás nem vazamento (mesas a gás).", "ex": "Cheiro de gás perto da válvula", "sugerido": true},
-    {"id": "sensor", "cat": "IMPLEMENTO", "nome": "SENSORES DE NIVELAMENTO", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Limpos e com leitura, se houver.", "ex": "Sensor esquerdo sem leitura"},
-    {"id": "engreb", "cat": "IMPLEMENTO", "nome": "ENGATE DO REBOQUE", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["REBOQUE"], "dica": "Engate, pino-rei e trava firmes.", "ex": "Trava do engate com folga", "sugerido": true},
-    {"id": "freior", "cat": "IMPLEMENTO", "nome": "FREIOS E MANGUEIRAS DE AR DO REBOQUE", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["REBOQUE"], "dica": "Conexões firmes e freio respondendo.", "ex": "Mangueira de ar vazando", "sugerido": true},
-    {"id": "amarr", "cat": "IMPLEMENTO", "nome": "AMARRAÇÃO DA CARGA", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["REBOQUE"], "dica": "Pontos de amarração, correntes e catracas inteiros.", "ex": "Catraca quebrada", "sugerido": true},
-    {"id": "ramp", "cat": "IMPLEMENTO", "nome": "RAMPAS E TRAVAS DA PRANCHA", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["REBOQUE"], "dica": "Rampas inteiras e travas funcionando.", "ex": "Trava da rampa esquerda não segura", "sugerido": true, "flag": "prancha"},
-    {"id": "kit", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT OBRIGATÓRIO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["LEVE", "KOMBI", "COMBOIO"], "dica": "Estepe, macaco, triângulo e chave de roda a bordo.", "ex": "Sem triângulo"},
-    {"id": "ferr", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "BOLSA DE FERRAMENTAS", "crit": "baixa", "prazo": 360, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Chaves inglesa, Philips e fenda, alicate, cabo e jogo de chaves completo.", "ex": "Falta a chave inglesa"},
-    {"id": "kitcont", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT DE EMERGÊNCIA · CONTENÇÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Batoques e calços de madeira, cabo terra de 5 m, 4 cones e 4 cavaletes de aviso.", "ex": "Só tem 2 cones"},
-    {"id": "kitepi", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT DE EMERGÊNCIA · EPI", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Óculos de ampla visão, capacete, enxada e pá antifaiscantes, lanterna à prova de explosão, martelo de madeira e balde.", "ex": "Lanterna não acende"},
-    {"id": "socorr", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT DE PRIMEIROS SOCORROS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Completo e dentro da validade.", "ex": "Kit vencido"}
-  ];
+    {"id": "alinh", "cat": "FREIOS E DIREÇÃO", "nome": "ALINHAMENTO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["LEVE", "COMBOIO"], "dica": "O volante não puxa para um dos lados.", "ex": "Puxa para a direita"},
+
+    {"id": "difer", "cat": "FREIOS E DIREÇÃO", "nome": "BLOQUEIO DO DIFERENCIAL", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["MOTO"], "dica": "Aciona e desaciona normalmente.", "ex": "Bloqueio não desarma"},
+
+    {"id": "giro", "cat": "FREIOS E DIREÇÃO", "nome": "FREIO E TRAVA DE GIRO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV"], "dica": "Giro da superestrutura trava e freia.", "ex": "Freio de giro não segura na rampa", "sugerido": true},
+
+    {"id": "cmd", "cat": "FREIOS E DIREÇÃO", "nome": "COMANDOS E ALAVANCAS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESCAV", "RETRO", "ROLO", "MINI", "CARREG"], "dica": "Respondem com suavidade: joysticks, alavancas, direção e vibração.", "ex": "Alavanca da lança travando"},
+
+    {"id": "trvcmd", "cat": "FREIOS E DIREÇÃO", "nome": "TRAVA DE SEGURANÇA DOS COMANDOS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESCAV", "MINI"], "dica": "Com a alavanca de bloqueio levantada ou a barra do operador erguida, os comandos não respondem.", "ex": "Comandos mexem com a trava levantada"},
+
+    {"id": "artic", "cat": "FREIOS E DIREÇÃO", "nome": "ARTICULAÇÃO CENTRAL", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["MOTO", "CARREG"], "dica": "Sem folga ao articular; trava de articulação no lugar.", "ex": "Folga ao articular, batida seca", "sugerido": true},
+
+    {"id": "pneu", "cat": "RODAGEM", "nome": "PNEUS", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "REBOQUE", "RETRO", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO"], "dica": "Pressão e estado, inclusive o estepe: sem cortes, bolhas, sulco careca ou objetos encravados.", "ex": "Pneu traseiro esquerdo externo murcho"},
+
+    {"id": "roda", "cat": "RODAGEM", "nome": "RODAS, AROS E PORCAS", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "REBOQUE", "MOTO", "CARREG"], "dica": "Porcas firmes, sem falta nem marca de ferrugem escorrendo; aros sem trincas.", "ex": "Falta uma porca na roda dianteira direita"},
+
+    {"id": "estepe", "cat": "RODAGEM", "nome": "ESTEPE", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["PIPA"], "dica": "Calibrado, fixado e pronto para uso.", "ex": "Estepe murcho"},
+
+    {"id": "susp", "cat": "RODAGEM", "nome": "SUSPENSÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAVALO", "CAMINHAO"], "dica": "Feixes de mola sem lâminas quebradas; sem ruídos.", "ex": "Lâmina quebrada no feixe traseiro direito"},
+
+    {"id": "esteir", "cat": "ESTEIRAS E MATERIAL RODANTE", "nome": "ESTEIRAS", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["ESCAV", "VIBRO", "MINI"], "dica": "Tensão correta, sem sapatas ou parafusos soltos; roletes e rodas-guia limpos.", "ex": "Esteira direita frouxa"},
+
+    {"id": "transl", "cat": "ESTEIRAS E MATERIAL RODANTE", "nome": "MOTORES DE TRANSLAÇÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV"], "dica": "Sem vazamentos.", "ex": "Vazamento no motor da esteira esquerda"},
+
+    {"id": "farol", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "FARÓIS", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Luz alta e baixa; nas máquinas, as luzes de trabalho.", "ex": "Farol baixo direito apagado"},
+
+    {"id": "lant", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "LANTERNAS, SETAS E LUZ DE FREIO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "REBOQUE"], "dica": "Posição, setas dos dois lados, pisca-alerta, freio e ré.", "ex": "Seta traseira esquerda não funciona"},
+
+    {"id": "re", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "ALARME SONORO DE RÉ", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO"], "dica": "Toca ao engatar a ré.", "ex": "Alarme de ré mudo"},
+
+    {"id": "buz", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "BUZINA", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Funciona.", "ex": "Buzina não funciona"},
+
+    {"id": "giroflx", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "GIROFLEX", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["ESPARG", "MOTO", "VIBRO"], "dica": "Luz de advertência funcionando.", "ex": "Giroflex apagado"},
+
+    {"id": "painel", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "PAINEL DE INSTRUMENTOS", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["PIPA", "COMBOIO", "LEVE", "RETRO", "ROLO", "VIBRO", "MINI", "CAMINHAO", "ESCAV", "MOTO"], "dica": "Sem luz de alerta acesa; velocímetro, odômetro ou horímetro, temperatura e combustível funcionando.", "ex": "Luz do motor acesa"},
+
+    {"id": "refl", "cat": "ILUMINAÇÃO E SINALIZAÇÃO", "nome": "FAIXAS REFLETIVAS E PLACAS", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["COMBOIO", "REBOQUE"], "dica": "Faixas inteiras e placas dianteira e traseira legíveis.", "ex": "Faixa da lateral direita solta"},
+
+    {"id": "vidros", "cat": "CABINE E ESTRUTURA", "nome": "PARA-BRISA, VIDROS E RETROVISORES", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO", "CAVALO", "PIPA", "COMBOIO", "ESPARG", "LEVE", "KOMBI", "RETRO", "ESCAV", "MINI", "CARREG", "MOTO", "ROLO", "VIBRO", "EQUIP"], "dica": "Limpos, sem trincas no campo de visão; espelhos inteiros e ajustados.", "ex": "Trinca no para-brisa, lado do motorista"},
+
+    {"id": "limp", "cat": "CABINE E ESTRUTURA", "nome": "LIMPADOR DE PARA-BRISA", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA", "LEVE", "KOMBI", "COMBOIO"], "dica": "Palhetas em bom estado e esguicho com água.", "ex": "Palheta do motorista rasgada"},
+
+    {"id": "portas", "cat": "CABINE E ESTRUTURA", "nome": "PORTAS E FECHADURAS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["KOMBI", "COMBOIO"], "dica": "Dobradiças, trincos e fechaduras; na Kombi, trilho e trava da porta de correr.", "ex": "Porta de correr não trava"},
+
+    {"id": "bancos", "cat": "CABINE E ESTRUTURA", "nome": "BANCOS", "crit": "baixa", "prazo": 360, "bloqueia": false, "ap": ["KOMBI", "COMBOIO"], "dica": "Fixos, com estofamento inteiro.", "ex": "Banco do carona solto"},
+
+    {"id": "tampao", "cat": "CABINE E ESTRUTURA", "nome": "TAMPÃO DO MOTOR", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["KOMBI"], "dica": "Fecha e trava.", "ex": "Tampão não trava"},
+
+    {"id": "acesso", "cat": "CABINE E ESTRUTURA", "nome": "ACESSO À CABINE", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO", "VIBRO", "ROLO"], "dica": "Estribo, alças de apoio, escada e piso antiderrapante firmes; na máquina, plataforma e corrimãos.", "ex": "Estribo do lado do motorista solto"},
+
+    {"id": "parach", "cat": "CABINE E ESTRUTURA", "nome": "PARA-CHOQUES E PARA-BARRO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["COMBOIO", "REBOQUE"], "dica": "No lugar e fixos.", "ex": "Para-barro traseiro esquerdo rasgado"},
+
+    {"id": "acab", "cat": "CABINE E ESTRUTURA", "nome": "ACABAMENTO DA CABINE", "crit": "baixa", "prazo": 360, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Quebra-sol, porta-luvas, forro e manopla inteiros; lataria sem avaria nova.", "ex": "Quebra-sol do motorista caído"},
+
+    {"id": "escap", "cat": "CABINE E ESTRUTURA", "nome": "CANO DE DESCARGA", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Silencioso fixo, sem furos.", "ex": "Escapamento furado, barulho alto"},
+
+    {"id": "pto", "cat": "IMPLEMENTO", "nome": "TOMADA DE FORÇA (PTO)", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO"], "dica": "Engata e os comandos de basculamento respondem.", "ex": "PTO não engata", "flag": "basc"},
+
+    {"id": "cil", "cat": "SISTEMA HIDRÁULICO", "nome": "CILINDRO DE BASCULAMENTO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["CAMINHAO"], "dica": "Sem vazamento, riscos ou amassados.", "ex": "Cilindro vazando óleo", "flag": "basc"},
+
+    {"id": "cac", "cat": "IMPLEMENTO", "nome": "TRAVA DE SEGURANÇA DA CAÇAMBA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAMINHAO"], "dica": "Pino de segurança no lugar.", "ex": "Pino de segurança da caçamba sumiu", "flag": "basc"},
+
+    {"id": "lona", "cat": "IMPLEMENTO", "nome": "LONA DE COBERTURA", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["CAMINHAO"], "dica": "Cobre toda a carga, sem rasgos.", "ex": "Lona rasgada no meio", "sugerido": true, "flag": "basc"},
+
+    {"id": "qroda", "cat": "IMPLEMENTO", "nome": "QUINTA RODA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAVALO"], "dica": "Pino-rei travado e lubrificação em dia.", "ex": "Pino-rei com folga"},
+
+    {"id": "qtrava", "cat": "IMPLEMENTO", "nome": "TRAVA DE SEGURANÇA DA QUINTA RODA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["CAVALO"], "dica": "Copa ou cupilha de segurança no lugar.", "ex": "Cupilha de segurança faltando"},
+
+    {"id": "acopl", "cat": "IMPLEMENTO", "nome": "MANGUEIRAS E CABO DO ACOPLAMENTO", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["CAVALO"], "dica": "Conexões pneumáticas (mão de amigo) e cabo elétrico espiral inteiros.", "ex": "Cabo espiral com fio exposto"},
+
+    {"id": "tqagua", "cat": "IMPLEMENTO", "nome": "TANQUE DE ÁGUA", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["PIPA"], "dica": "Sem trincas, vazamentos ou deformações.", "ex": "Vazamento no fundo do tanque"},
+
+    {"id": "bomba", "cat": "IMPLEMENTO", "nome": "MOTOBOMBA", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["PIPA"], "dica": "Motor auxiliar funcionando, sem vazamento de combustível ou óleo.", "ex": "Motobomba não pega"},
+
+    {"id": "mang", "cat": "IMPLEMENTO", "nome": "MANGUEIRAS E MANGOTES", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA", "ESPARG"], "dica": "Sem furos ou rachaduras; conexões e abraçadeiras firmes.", "ex": "Mangote traseiro rachado"},
+
+    {"id": "valv", "cat": "IMPLEMENTO", "nome": "REGISTROS E VÁLVULAS", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA", "ESPARG"], "dica": "Abrem e fecham livres, sem vazamento.", "ex": "Registro lateral emperrado"},
+
+    {"id": "barra", "cat": "IMPLEMENTO", "nome": "BARRA DE IRRIGAÇÃO", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["PIPA"], "dica": "Rabo de pavão alinhado, com todos os bicos abrindo.", "ex": "Dois bicos da esquerda entupidos"},
+
+    {"id": "ligante", "cat": "IMPLEMENTO", "nome": "TANQUE DE LIGANTE", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["ESPARG"], "dica": "Nível de emulsão ou CAP para o serviço.", "ex": "Pouca emulsão para o serviço"},
+
+    {"id": "bicos", "cat": "IMPLEMENTO", "nome": "BARRA ESPARGIDORA", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["ESPARG"], "dica": "Bocais e bicos limpos e sem obstrução.", "ex": "Três bicos entupidos no centro"},
+
+    {"id": "queim", "cat": "IMPLEMENTO", "nome": "QUEIMADOR", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESPARG"], "dica": "Sistema de aquecimento íntegro na inspeção visual, antes de acender.", "ex": "Mangueira do queimador ressecada"},
+
+    {"id": "termo", "cat": "IMPLEMENTO", "nome": "TERMÔMETRO DO TANQUE", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["ESPARG"], "dica": "Marcando a temperatura do ligante.", "ex": "Termômetro não marca", "sugerido": true},
+
+    {"id": "tqcomb", "cat": "IMPLEMENTO", "nome": "TANQUE DE COMBUSTÍVEL", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Sem vazamento; tampas, respiros e lacres no lugar.", "ex": "Lacre do tanque rompido", "sugerido": true},
+
+    {"id": "babast", "cat": "IMPLEMENTO", "nome": "BOMBAS DE ABASTECIMENTO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Bombas e mangueiras de S10 e S500 funcionando, sem vazamento.", "ex": "Bomba do S10 vazando na saída"},
+
+    {"id": "blubr", "cat": "IMPLEMENTO", "nome": "BOMBAS DE LUBRIFICAÇÃO E HIDROJATO", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Bomba de graxa, de óleo hidráulico e hidrojato funcionando.", "ex": "Bomba de graxa sem pressão"},
+
+    {"id": "pistola", "cat": "IMPLEMENTO", "nome": "TRAVA DA PISTOLA DE ABASTECIMENTO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["COMBOIO"], "dica": "Trava de segurança funcionando.", "ex": "Trava da pistola não solta"},
+
+    {"id": "teclado", "cat": "IMPLEMENTO", "nome": "TECLADO DE ABASTECIMENTO", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Registra o abastecimento.", "ex": "Teclado não registra o abastecimento"},
+
+    {"id": "manghid", "cat": "SISTEMA HIDRÁULICO", "nome": "MANGUEIRAS E CONEXÕES HIDRÁULICAS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["ESCAV", "MINI", "MOTO"], "dica": "Sem vazamento, umidade ou mangueira ressecada; inclui articulação e giro.", "ex": "Mangueira da lança suando óleo"},
+
+    {"id": "pinos", "cat": "IMPLEMENTO", "nome": "PINOS, BUCHAS E ARTICULAÇÕES", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["ESCAV", "RETRO", "ROLO", "VIBRO", "CARREG"], "dica": "Lubrificados, sem folga.", "ex": "Pino da caçamba seco, com folga"},
+
+    {"id": "cacamb", "cat": "IMPLEMENTO", "nome": "CAÇAMBA, DENTES E LÂMINAS", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["ESCAV", "RETRO", "MINI", "CARREG"], "dica": "Sem desgaste excessivo, trincas ou dentes faltando.", "ex": "Falta um dente na caçamba"},
+
+    {"id": "engate", "cat": "IMPLEMENTO", "nome": "ENGATE RÁPIDO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["ESCAV", "MINI"], "dica": "Pino de trava inserido e implemento firme.", "ex": "Pino do engate rápido não trava"},
+
+    {"id": "patola", "cat": "IMPLEMENTO", "nome": "PATOLAS (ESTABILIZADORES)", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["RETRO"], "dica": "Descem, travam e não cedem.", "ex": "Patola direita cede sozinha", "sugerido": true},
+
+    {"id": "trvlan", "cat": "IMPLEMENTO", "nome": "TRAVA DE TRANSPORTE DA LANÇA", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["RETRO"], "dica": "Lança travada para o deslocamento.", "ex": "Trava da lança não encaixa", "sugerido": true},
+
+    {"id": "lamina", "cat": "IMPLEMENTO", "nome": "LÂMINA", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["MOTO"], "dica": "Bordas sem desgaste excessivo.", "ex": "Borda da lâmina gasta"},
+
+    {"id": "circ", "cat": "IMPLEMENTO", "nome": "CÍRCULO E SAPATAS", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["MOTO"], "dica": "Sem folgas excessivas.", "ex": "Folga no círculo"},
+
+    {"id": "coroa", "cat": "IMPLEMENTO", "nome": "COROA E PINHÃO", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["MOTO"], "dica": "Lubrificação em dia.", "ex": "Coroa seca, sem graxa"},
+
+    {"id": "ripper", "cat": "IMPLEMENTO", "nome": "ESCARIFICADOR (RIPPER)", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["MOTO"], "dica": "Dentes sem desgaste excessivo nem faltando.", "ex": "Dente do ripper quebrado"},
+
+    {"id": "tambor", "cat": "IMPLEMENTO", "nome": "CILINDROS E TAMBORES", "crit": "alta", "prazo": 72, "bloqueia": false, "ap": ["ROLO"], "dica": "Sem trincas ou desgaste.", "ex": "Trinca no tambor dianteiro"},
+
+    {"id": "rasp", "cat": "IMPLEMENTO", "nome": "BARRAS RASPADORAS", "crit": "media", "prazo": 72, "bloqueia": false, "ap": ["ROLO"], "dica": "Ajustadas e sem desgaste.", "ex": "Raspador traseiro gasto"},
+
+    {"id": "asper", "cat": "IMPLEMENTO", "nome": "SISTEMA DE ASPERSÃO DE ÁGUA", "crit": "media", "prazo": 24, "bloqueia": false, "ap": ["ROLO"], "dica": "Bicos abrindo e tanque com água, nos rolos de asfalto.", "ex": "Bicos da frente sem água", "flag": "aspersao"},
+
+    {"id": "hopper", "cat": "IMPLEMENTO", "nome": "HOPPER (TREMONHA)", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Limpo e sem deformação.", "ex": "Hopper amassado do lado esquerdo"},
+
+    {"id": "transp", "cat": "IMPLEMENTO", "nome": "TRANSPORTADORES DE MATERIAL", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Correntes sem desgaste excessivo.", "ex": "Corrente da esquerda frouxa"},
+
+    {"id": "rosca", "cat": "IMPLEMENTO", "nome": "ROSCAS SEM-FIM", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Espirais sem desgaste excessivo.", "ex": "Espiral direita gasta"},
+
+    {"id": "mesa", "cat": "IMPLEMENTO", "nome": "MESA", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["VIBRO"], "dica": "Aquecimento liga no início; controles de altura, inclinação e vibração respondem.", "ex": "Mesa não aquece do lado direito"},
+
+    {"id": "gas", "cat": "IMPLEMENTO", "nome": "GÁS DO AQUECIMENTO", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["VIBRO"], "dica": "Botijões, mangueiras e válvulas sem cheiro de gás nem vazamento (mesas a gás).", "ex": "Cheiro de gás perto da válvula", "sugerido": true},
+
+    {"id": "sensor", "cat": "IMPLEMENTO", "nome": "SENSORES DE NIVELAMENTO", "crit": "media", "prazo": 48, "bloqueia": false, "ap": ["VIBRO"], "dica": "Limpos e com leitura, se houver.", "ex": "Sensor esquerdo sem leitura"},
+
+    {"id": "engreb", "cat": "IMPLEMENTO", "nome": "ENGATE DO REBOQUE", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["REBOQUE"], "dica": "Engate, pino-rei e trava firmes.", "ex": "Trava do engate com folga", "sugerido": true},
+
+    {"id": "freior", "cat": "IMPLEMENTO", "nome": "FREIOS E MANGUEIRAS DE AR DO REBOQUE", "crit": "critica", "prazo": 24, "bloqueia": true, "ap": ["REBOQUE"], "dica": "Conexões firmes e freio respondendo.", "ex": "Mangueira de ar vazando", "sugerido": true},
+
+    {"id": "amarr", "cat": "IMPLEMENTO", "nome": "AMARRAÇÃO DA CARGA", "crit": "alta", "prazo": 24, "bloqueia": false, "ap": ["REBOQUE"], "dica": "Pontos de amarração, correntes e catracas inteiros.", "ex": "Catraca quebrada", "sugerido": true},
+
+    {"id": "ramp", "cat": "IMPLEMENTO", "nome": "RAMPAS E TRAVAS DA PRANCHA", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["REBOQUE"], "dica": "Rampas inteiras e travas funcionando.", "ex": "Trava da rampa esquerda não segura", "sugerido": true, "flag": "prancha"},
+
+    {"id": "kit", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT OBRIGATÓRIO", "crit": "media", "prazo": 168, "bloqueia": false, "ap": ["LEVE", "KOMBI", "COMBOIO"], "dica": "Estepe, macaco, triângulo e chave de roda a bordo.", "ex": "Sem triângulo"},
+
+    {"id": "ferr", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "BOLSA DE FERRAMENTAS", "crit": "baixa", "prazo": 360, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Chaves inglesa, Philips e fenda, alicate, cabo e jogo de chaves completo.", "ex": "Falta a chave inglesa"},
+
+    {"id": "kitcont", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT DE EMERGÊNCIA · CONTENÇÃO", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Batoques e calços de madeira, cabo terra de 5 m, 4 cones e 4 cavaletes de aviso.", "ex": "Só tem 2 cones"},
+
+    {"id": "kitepi", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT DE EMERGÊNCIA · EPI", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Óculos de ampla visão, capacete, enxada e pá antifaiscantes, lanterna à prova de explosão, martelo de madeira e balde.", "ex": "Lanterna não acende"},
+
+    {"id": "socorr", "cat": "KIT DE EMERGÊNCIA E FERRAMENTAS", "nome": "KIT DE PRIMEIROS SOCORROS", "crit": "alta", "prazo": 48, "bloqueia": false, "ap": ["COMBOIO"], "dica": "Completo e dentro da validade.", "ex": "Kit vencido"}
+
+  ];
+
   (function(){ var ord = []; ITENS.forEach(function(i){ if (ord.indexOf(i.cat) < 0) ord.push(i.cat); });
     ITENS.forEach(function(i, k){ i._k = k; });
     ITENS.sort(function(a, b){ return ord.indexOf(a.cat) - ord.indexOf(b.cat) || a._k - b._k; }); })();
@@ -233,6 +345,10 @@ var CK = (function(){
                 preventivo:{ nome:'PREVENTIVO', plural:'PREVENTIVOS', quem:'mecânicos, na preventiva interna' },
                 preditivo:{ nome:'PREDITIVO', plural:'PREDITIVOS', quem:'frota, quando julgar importante' } };
   function catDe(m){ return !m ? null : m.freq === 'diario' ? 'diario' : (CATCK[m.categoria] ? m.categoria : 'inspecao'); }
+  /* quem executa o checklist da equipe no app (Renan, 26/10/2026: editável na ficha do tipo): equipe = master/admin/frota; motorista = o motorista também faz (a equipe sempre pode) */
+  var EXEC_QUEM = { equipe:{ nome:'EQUIPE', desc:'mecânicos e administradores' }, motorista:{ nome:'MOTORISTA E EQUIPE', desc:'o motorista faz no app; a equipe também pode' } };
+  function execDe(m){ return !m ? 'equipe' : m.freq === 'diario' ? 'motorista' : (EXEC_QUEM[m.exec] ? m.exec : 'equipe'); }
+  function execPermite(m, papel){ if (!m) return false; if (['master','admin','frota'].indexOf(papel) >= 0) return true; return papel === 'motorista' && execDe(m) === 'motorista'; }
   function freqOk(cat, f){ return cat === 'inspecao' ? ['semanal','quinzenal','mensal','semestral','uso'].indexOf(f) >= 0 : ['livre','semanal','quinzenal','mensal','semestral','uso'].indexOf(f) >= 0; }
   /* texto da frequência: 'QUINZENAL · a cada 15 dias', 'POR USO · a cada 10.000 km / 250 h', 'SOB DEMANDA' */
   function freqTxt(m){ if (!m) return ''; var f = FREQ[m.freq] || {}; if (m.freq === 'uso') { var p = []; if (m.intervalo_km) p.push(Number(m.intervalo_km).toLocaleString('pt-BR') + ' km'); if (m.intervalo_h) p.push(Number(m.intervalo_h).toLocaleString('pt-BR') + ' h'); return 'POR USO' + (p.length ? ' · a cada ' + p.join(' / ') : ''); } return f.dias ? f.nome + ' · a cada ' + f.dias + ' dias' : (f.nome || m.freq); }
@@ -273,7 +389,7 @@ var CK = (function(){
     var itens = (d.itens || []).filter(function(id){ return ITEM[id]; }).concat(novos.map(function(n){ return n.id; }));
     if (!itens.length) return { ok:false, erro:'O checklist precisa ter ao menos um item.' };
     if (d.freq === 'uso' && !(+d.intervalo_km > 0) && !(+d.intervalo_h > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
-    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, inclui:(cat === 'preventivo' && d.inclui && d.inclui.length) ? d.inclui.slice() : null, exec:'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
+    var m = { id:uid('m'), nome:nome, categoria:cat, freq:d.freq, intervalo_km:+d.intervalo_km || null, intervalo_h:+d.intervalo_h || null, ativos:(d.ativos && d.ativos.length) ? d.ativos.slice() : null, inclui:(cat === 'preventivo' && d.inclui && d.inclui.length) ? d.inclui.slice() : null, exec:EXEC_QUEM[d.exec] ? d.exec : 'equipe', tipos:d.tipos.slice(), itens:itens, sistema:false, ativo:true, criado_em:isoDT(new Date()), criado_por:d.por || null, origem:d.origem || 'manual' };
     db.modelos = db.modelos || []; db.modelos.push(m); save();
     garantePrevItens(); return { ok:true, modelo:m, itens_novos:novos.length };
   }
@@ -308,6 +424,7 @@ var CK = (function(){
     if (!freqOk(cat2, fr2)) return { ok:false, erro:'Frequência não vale para ' + CATCK[cat2].nome.toLowerCase() + '.' };
     if (fr2 === 'uso' && !(+(patch.intervalo_km != null ? patch.intervalo_km : m.intervalo_km) > 0) && !(+(patch.intervalo_h != null ? patch.intervalo_h : m.intervalo_h) > 0)) return { ok:false, erro:'Informe o intervalo em km e/ou em horas.' };
     ['nome','categoria','freq','tipos','itens','ativo'].forEach(function(k){ if (patch[k] != null) m[k] = patch[k]; });
+    if (patch.exec != null) m.exec = EXEC_QUEM[patch.exec] ? patch.exec : 'equipe';
     if (patch.ativos !== undefined) m.ativos = (patch.ativos && patch.ativos.length) ? patch.ativos.slice() : null;
     if (patch.inclui !== undefined) { var inc = (patch.inclui || []).filter(function(x){ return x !== m.id && modelo(x); });
       if (inc.some(function(x){ return inclusos(x).indexOf(m.id) >= 0; })) return { ok:false, erro:'Inclusão circular: uma revisão não pode incluir outra que já a inclui.' };
@@ -317,9 +434,9 @@ var CK = (function(){
   }
   /* inspeções da equipe para o usuário (admin/frota/master): modelo × ativo, com a situação pela última execução */
   function inspecoesPara(u){
-    if (!u || ['master','admin','frota'].indexOf(u.papel) < 0) return [];
+    if (!u) return [];
     var db = load(), agora = isoDT(new Date()), out = [], pct = (+metas().prev_aviso_pct || 10) / 100;   /* margem do 'em atenção' (Parâmetros) */
-    modelos().filter(function(m){ return m.freq !== 'diario'; }).forEach(function(m){
+    modelos().filter(function(m){ return m.freq !== 'diario' && execPermite(m, u.papel); }).forEach(function(m){   /* motorista só vê o que o tipo libera (quem executa) */
       db.ativos.filter(function(a){ return a.status === 'ativo' && modeloCobre(m, a); }).forEach(function(a){
         var cob = [m.id].concat(cobridores(m.id));   /* fazer a COMPLETA conta como BÁSICA feita (22/10/2026) */
         var ult = null; for (var i = db.checklists.length - 1; i >= 0; i--) { var c = db.checklists[i]; if (c.ativo === a.id && cob.indexOf(c.modelo) >= 0) { ult = c; break; } }
@@ -1125,7 +1242,7 @@ var CK = (function(){
   return {
     REMOTO:REMOTO, PIN_LEN:PIN_LEN, setDB:setDB, setCatalogo:setCatalogo,
     TIPOS:TIPOS, TIPO:TIPO, ITENS:ITENS, ITEM:ITEM, CRIT:CRIT, PAPEL:PAPEL, UNIDADES:UNIDADES, ICONES:ICONES, MESES:MESES, MESES_N:MESES_N,
-    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, fatSituacao:fatSituacao, faturaStatus:faturaStatus, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
+    load:load, save:save, reset:reset, recarregar:recarregar, prevBase:prevBase, prevBaseSalvar:prevBaseSalvar, fatSituacao:fatSituacao, faturaStatus:faturaStatus, modeloExcluir:modeloExcluir, modeloTemHistorico:modeloTemHistorico, inclusos:inclusos, cobridores:cobridores, taxaUso:taxaUso, aplicarCfgItens:aplicarCfgItens, EXEC:EXEC, CATCK:CATCK, catDe:catDe, EXEC_QUEM:EXEC_QUEM, execDe:execDe, execPermite:execPermite, fornecedores:fornecedores, fornecedor:fornecedor, freqTxt:freqTxt, CONDICAO:CONDICAO, DOC_TIPOS:DOC_TIPOS, documentos:documentos, documentosModelo:documentosModelo, modeloCobre:modeloCobre, documentoCriar:documentoCriar, documentoExcluir:documentoExcluir, fornecedorCriar:fornecedorCriar, fornecedorSet:fornecedorSet, anexo:anexo, itemCriar:itemCriar,
     modeloDoTipo:modeloDoTipo, itemAplica:itemAplica, itensDoAtivo:itensDoAtivo, ativoItensFora:ativoItensFora,
     FREQ:FREQ, modelos:modelos, modelo:modelo, diarioAtivo:diarioAtivo, itensDoModelo:itensDoModelo, modeloCriar:modeloCriar, modeloSet:modeloSet, diarioItensSet:diarioItensSet, inspecoesPara:inspecoesPara,
     modeloCsvTemplate:modeloCsvTemplate, lerCsvModelo:lerCsvModelo,

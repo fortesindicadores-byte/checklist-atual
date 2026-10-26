@@ -137,7 +137,7 @@ begin
     'itens', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'cat', i.categoria, 'nome', i.nome, 'dica', i.dica, 'ex', i.ex, 'crit', i.crit, 'prazo', i.prazo_h,
                 'bloqueia', i.bloqueia, 'insp', i.insp, 'sugerido', i.sugerido, 'ativo', i.ativo,
                 'ap', (select coalesce(array_agg(tipo_id), '{}') from ck_itens_tipos where item_id = i.id)) order by i.ordem), '[]') from ck_itens i),
-    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'ativos', m.ativos, 'tipos', m.tipos, 'ativo', m.ativo,
+    'modelos', (select coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'nome', m.nome, 'categoria', m.categoria, 'freq', m.freq, 'intervalo_km', m.intervalo_km, 'intervalo_h', m.intervalo_h, 'ativos', m.ativos, 'tipos', m.tipos, 'ativo', m.ativo, 'exec', m.exec,
                 'origem', m.origem, 'criado_em', m.criado_em, 'criado_por', m.criado_por,
                 'itens', (select coalesce(array_agg(item_id order by ordem), '{}') from ck_modelos_itens where modelo_id = m.id)) order by m.nome), '[]') from ck_modelos m),
     'usuarios', case when u.papel in ('master','admin','frota')
@@ -278,8 +278,8 @@ begin
     if cid is not null then return jsonb_build_object('ok', true, 'id', cid, 'repetido', true); end if;    -- reenvio offline
   end if;
   if p->>'modelo' is not null and p->>'modelo' !~ '^d-' then
-    perform ck_exige(u, array['master','admin','frota']::ck_papel[]);                                      -- inspeções: só equipe
     if not exists (select 1 from ck_modelos where id = p->>'modelo' and ativo) then raise exception 'MODELO_INVALIDO'; end if;
+    if u.papel = 'motorista' and not exists (select 1 from ck_modelos where id = p->>'modelo' and exec = 'motorista') then raise exception 'SEM_PERMISSAO'; end if;   -- quem executa (26/10/2026)
   end if;
   select count(*) filter (where (x->>'ok') is not null), count(*) filter (where (x->>'ok')::boolean = false)
     into tot, nc_n from jsonb_array_elements(p->'itens') x;
@@ -394,9 +394,10 @@ create or replace function ck_preventiva_iniciar(p_token uuid, p_ativo text, p_m
 language plpgsql security definer set search_path = public as $$
 declare u ck_usuarios := ck_sessao(p_token); iid text; nid int; m ck_modelos;
 begin
-  perform ck_exige(u, array['master','admin','frota']::ck_papel[]);
+  select * into m from ck_modelos where id = p_modelo and ativo; if m.id is null then raise exception 'MODELO_INVALIDO'; end if;
+  if u.papel = 'motorista' and m.exec <> 'motorista' then raise exception 'SEM_PERMISSAO'; end if;   -- quem executa (26/10/2026): motorista só se o tipo liberar
   if not exists (select 1 from ck_ativos where id = p_ativo and status = 'ativo') then raise exception 'ATIVO_NAO_ENCONTRADO'; end if;
-  iid := ck_prev_item(p_modelo); select * into m from ck_modelos where id = p_modelo;
+  iid := ck_prev_item(p_modelo);
   if exists (select 1 from ck_os where ativo_id = p_ativo and item_id = iid and status = 'em_andamento') then raise exception 'PREVENTIVA_JA_EM_ANDAMENTO'; end if;
   insert into ck_os (ativo_id, item_id, crit, prazo_h, bloqueia, limite, status, aberta_por, responsavel, execucao)
   values (p_ativo, iid, 'media', 24, false, now() + interval '24 hours', 'em_andamento', u.id, u.id, p_execucao) returning id into nid;
@@ -611,10 +612,11 @@ end $$;
 
 -- p = {id?, nome, categoria, freq, tipos:[...], itens:[ids], novos:[{nome,cat,crit,prazo,bloqueia}], ativo?, origem?}
 create or replace function ck_modelo_salvar(p_token uuid, p jsonb) returns jsonb language plpgsql security definer set search_path = public as $$
-declare u ck_usuarios := ck_sessao(p_token); mid text := p->>'id'; antes ck_modelos; cat ck_cat_modelo; fq ck_freq; n jsonb; nid text; ids text[] := '{}'; k int := 0;
+declare u ck_usuarios := ck_sessao(p_token); mid text := p->>'id'; antes ck_modelos; cat ck_cat_modelo; fq ck_freq; n jsonb; nid text; ids text[] := '{}'; k int := 0; ex text;
 begin
   perform ck_exige(u, array['master','admin']::ck_papel[]);
   cat := coalesce((p->>'categoria')::ck_cat_modelo, 'inspecao'); fq := (p->>'freq')::ck_freq;
+  ex := case when p->>'exec' in ('equipe','motorista') then p->>'exec' else 'equipe' end;   -- quem executa (26/10/2026): equipe, ou motorista e equipe
   if cat = 'inspecao' and fq not in ('semanal','quinzenal','mensal','semestral','uso') then raise exception 'FREQUENCIA_INVALIDA'; end if;
   if fq = 'uso' and coalesce((p->>'intervalo_km')::numeric, 0) <= 0 and coalesce((p->>'intervalo_h')::numeric, 0) <= 0 then raise exception 'INTERVALO_OBRIGATORIO'; end if;
   if cat <> 'inspecao' and fq = 'diario' then raise exception 'FREQUENCIA_INVALIDA'; end if;
@@ -630,8 +632,8 @@ begin
     mid := 'm-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
     if ck_up(p->>'nome') is null then raise exception 'NOME_OBRIGATORIO'; end if;
     if jsonb_array_length(coalesce(p->'tipos', '[]')) = 0 then raise exception 'TIPOS_OBRIGATORIOS'; end if;
-    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, ativos, origem, criado_por)
-    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}'), coalesce(p->>'origem', 'manual'), u.id);
+    insert into ck_modelos (id, nome, categoria, freq, intervalo_km, intervalo_h, tipos, ativos, origem, criado_por, exec)
+    values (mid, ck_up(p->>'nome'), cat, fq, nullif(p->>'intervalo_km','')::numeric, nullif(p->>'intervalo_h','')::numeric, (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x), nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}'), coalesce(p->>'origem', 'manual'), u.id, ex);
     perform ck_audit(u.id, 'ck_modelos', mid, 'insert', null, p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   else
@@ -640,7 +642,7 @@ begin
       intervalo_km = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_km','')::numeric, intervalo_km) end, intervalo_h = case when fq = 'uso' then coalesce(nullif(p->>'intervalo_h','')::numeric, intervalo_h) end,
       tipos = case when p ? 'tipos' then (select array_agg(x) from jsonb_array_elements_text(p->'tipos') x) else tipos end,
       ativos = case when p ? 'ativos' then nullif((select array_agg(x) from jsonb_array_elements_text(coalesce(p->'ativos','[]')) x), '{}') else ativos end,
-      ativo = coalesce((p->>'ativo')::boolean, ativo) where id = mid;
+      ativo = coalesce((p->>'ativo')::boolean, ativo), exec = case when p ? 'exec' then ex else exec end where id = mid;
     perform ck_audit(u.id, 'ck_modelos', mid, 'update', to_jsonb(antes), p);
     if cat = 'preventivo' then perform ck_prev_item(mid); end if;
   end if;
