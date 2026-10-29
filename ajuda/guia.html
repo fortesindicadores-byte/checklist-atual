@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia do Usuário · Checklist Atual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--acc:#0079B3;--acc2:#0098DA;--acc-f:#E6F3FA;--txt:#161D2B;--txt2:#4A5568;--txt3:#667180;--brd:#DCE2EA;--fundo:#F4F6F9;--verde:#0E8A3A;--verde-f:#E7F6EC;--vermelho:#D93025;--vermelho-f:#FDECEA;--ambar:#B26A00;--ambar-f:#FFF4E0;}
+*{box-sizing:border-box;}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{margin:0;background:var(--fundo);color:var(--txt);font:400 13.5px/1.6 Montserrat,system-ui,sans-serif;}
+.barra{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--brd);}
+.barra img{height:26px;}
+.barra b{font-size:13px;}
+.barra a.pdf{margin-left:auto;display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:9px 16px;border-radius:9px;}
+.pagina{max-width:860px;margin:24px auto;background:#fff;border:1px solid var(--brd);border-radius:14px;padding:48px 56px;}
+.capa{min-height:1040px;display:flex;flex-direction:column;}
+.capa .logo{height:54px;align-self:flex-start;}
+.capa h1{font-size:44px;line-height:1.1;margin:auto 0 14px;font-weight:800;letter-spacing:-.5px;}
+.capa h1 span{color:var(--acc);}
+.capa .sub{font-size:16px;color:var(--txt2);max-width:560px;}
+.capa .pe{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:var(--txt3);border-top:1px solid var(--brd);padding-top:16px;}
+.capa .pe img{height:18px;vertical-align:middle;}
+h2{font-size:24px;margin:0 0 6px;font-weight:800;letter-spacing:-.3px;}
+h2 .n{display:inline-block;min-width:38px;color:var(--acc);}
+.lead{color:var(--txt2);font-size:14px;margin:0 0 22px;}
+h3{font-size:15.5px;margin:26px 0 8px;font-weight:700;}
+h2,h3{break-after:avoid;page-break-after:avoid;}
+.tab,.passos li,.nota{break-inside:avoid;page-break-inside:avoid;}
+p{margin:0 0 10px;}
+ul,ol{margin:0 0 12px;padding-left:22px;}
+li{margin:3px 0;}
+.sec{page-break-before:always;}
+.tab{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:12.5px;}
+.tab th{background:var(--fundo);text-align:left;font-weight:700;padding:8px 10px;border-bottom:2px solid var(--brd);}
+.tab td{padding:8px 10px;border-bottom:1px solid var(--brd);vertical-align:top;}
+.tab td:first-child{font-weight:600;white-space:nowrap;}
+.nota{border-radius:10px;padding:12px 16px;margin:14px 0;font-size:13px;background:var(--acc-f);border-left:4px solid var(--acc);}
+.nota.ok{background:var(--verde-f);border-color:var(--verde);}
+.nota.alerta{background:var(--vermelho-f);border-color:var(--vermelho);}
+.nota.atencao{background:var(--ambar-f);border-color:var(--ambar);}
+.nota b:first-child{display:block;margin-bottom:2px;}
+figure{margin:16px 0 22px;page-break-inside:avoid;}
+figure img{display:block;width:100%;border-radius:10px;border:1px solid var(--brd);}
+figure.menor img{width:74%;margin:0 auto;}
+figure.menor figcaption{text-align:center;}
+figcaption{font-size:11.5px;color:var(--txt3);margin-top:6px;}
+.cel{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0 22px;page-break-inside:avoid;}
+.cel.dois{grid-template-columns:repeat(2,1fr);max-width:520px;}
+.cel figure{margin:0;}
+.cel img{border-radius:16px;}
+.passos{counter-reset:p;list-style:none;padding:0;}
+.passos li{counter-increment:p;position:relative;padding-left:40px;margin:10px 0;}
+.passos li::before{content:counter(p);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+.sumario{columns:2;column-gap:36px;padding:0;list-style:none;font-size:14px;}
+.sumario li{break-inside:avoid;padding:7px 0;border-bottom:1px solid var(--brd);display:flex;gap:10px;}
+.sumario li span{color:var(--acc);font-weight:800;min-width:26px;}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--fundo);border:1px solid var(--brd);white-space:nowrap;}
+.tag.cr{color:var(--vermelho);border-color:#F5B7B1;background:var(--vermelho-f);}
+.tag.al{color:var(--ambar);border-color:#F3D19C;background:var(--ambar-f);}
+.tag.me{color:var(--acc);border-color:#A8D4EC;background:var(--acc-f);}
+.rod{font-size:11px;color:var(--txt3);text-align:center;margin:30px 0 0;}
+@media (max-width:700px){.pagina{padding:28px 20px;margin:12px;border-radius:10px;}.cel{grid-template-columns:1fr 1fr;}.sumario{columns:1;}.capa{min-height:auto;}.capa h1{font-size:32px;margin-top:60px;}}
+@page{size:A4;margin:14mm 14mm 16mm;}
+@media print{body{background:#fff;font-size:12.5px;}.barra{display:none;}.pagina{max-width:none;margin:0;border:0;border-radius:0;padding:0;}.capa{min-height:262mm;}.pagina+.pagina{page-break-before:always;}}
+</style>
+</head>
+<body>
+<div class="barra"><img src="../img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual"><b>Guia do Usuário</b><a class="pdf" href="guia-do-usuario.pdf" download>Baixar PDF</a></div>
+
+<div class="pagina capa">
+  <img class="logo" src="../img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual">
+  <h1>Checklist Atual<br><span>Guia do Usuário</span></h1>
+  <div class="sub">App e portal do gestor para administradores, mecânicos e encarregados da frota: checklists, ordens de serviço, indicadores e cadastros.</div>
+  <div class="pe"><div>Versão de outubro de 2026<br>checklist-atual.onespot.com.br</div><div>por <img src="../img/onespot-icon.svg" alt=""> <b>OneSpot</b></div></div>
+</div>
+
+<div class="pagina">
+  <h2>Sumário</h2>
+  <ol class="sumario">
+    <li><span>1</span>Como o sistema funciona</li>
+    <li><span>2</span>Cargos e o que cada um faz</li>
+    <li><span>3</span>Acesso e instalação</li>
+    <li><span>4</span>App da equipe</li>
+    <li><span>5</span>Ordens de serviço</li>
+    <li><span>6</span>Portal: indicadores</li>
+    <li><span>7</span>Lançamentos e relatórios</li>
+    <li><span>8</span>Cadastro de ativos</li>
+    <li><span>9</span>Itens e SLA</li>
+    <li><span>10</span>Tipos de checklist</li>
+    <li><span>11</span>Usuários</li>
+    <li><span>12</span>Fornecedores e parâmetros</li>
+    <li><span>13</span>Perguntas frequentes</li>
+  </ol>
+
+  <h2 style="margin-top:34px"><span class="n">1</span>Como o sistema funciona</h2>
+  <p class="lead">Todo problema apontado no checklist vira uma ordem de serviço com prazo. A frota resolve, fecha com evidência e os indicadores mostram como está a operação.</p>
+  <ol class="passos">
+    <li><b>O motorista faz o checklist diário</b> no celular antes de operar: informa o km ou horímetro e responde item por item.</li>
+    <li><b>Não conforme pede foto.</b> Cada item reprovado abre uma <b>OS</b> (ordem de serviço) automaticamente, com o prazo cadastrado para aquele item.</li>
+    <li><b>Item que bloqueia</b> deixa o ativo com a bolinha vermelha, <b>Não opere</b>, até a OS ser fechada.</li>
+    <li><b>A equipe da frota atende</b> pelo Painel OS: inicia o atendimento (interno ou externo) e fecha com a solução, a foto ou descrição e a condição de segurança do ativo.</li>
+    <li><b>A equipe faz as inspeções, preventivas e preditivos</b> no app, na frequência de cada checklist.</li>
+    <li><b>O gestor acompanha</b> conformidade, SLA, MTTR e MTBF no portal e exporta relatórios.</li>
+  </ol>
+  <table class="tab">
+    <tr><th>Onde</th><th>Endereço</th><th>Para quê</th></tr>
+    <tr><td>App</td><td>checklist-atual.onespot.com.br</td><td>Fazer checklists no celular. Pode ser instalado como aplicativo.</td></tr>
+    <tr><td>Portal do gestor</td><td>checklist-atual.onespot.com.br/gestao</td><td>OS, indicadores, relatórios e cadastros, no computador.</td></tr>
+  </table>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">2</span>Cargos e o que cada um faz</h2>
+  <p class="lead">O cargo é definido na ficha do usuário. Ele decide o que a pessoa vê no app e no portal.</p>
+  <table class="tab">
+    <tr><th>Cargo</th><th>No app</th><th>No portal</th></tr>
+    <tr><td>Motorista</td><td>Faz os checklists liberados para motorista, em geral o diário. Vê o próprio histórico.</td><td>Não usa.</td></tr>
+    <tr><td>Mecânico</td><td>Faz inspeções, preventivas e preditivos liberados para mecânico. Pode fazer o diário quando liberado.</td><td>Resumo, Preventivas, Lançamentos, Painel OS, Relatórios e Ativos (só leitura). Inicia, reprograma e fecha OS.</td></tr>
+    <tr><td>Administrador</td><td>O mesmo que o mecânico, mais "Ver como motorista".</td><td>Tudo: indicadores, OS, cadastros, usuários e parâmetros. Reabre OS. Aprova motoristas e mecânicos.</td></tr>
+    <tr><td>Admin master</td><td>Tudo.</td><td>Suporte OneSpot. Também cria administradores e exclui OS e checklists lançados por engano.</td></tr>
+  </table>
+  <div class="nota"><b>Quem pode fazer cada checklist</b>Cada checklist tem os cargos liberados (Motorista, Mecânico, Administrador). Quem não está liberado não vê o checklist no app. Veja o capítulo 10.</div>
+
+  <h2 style="margin-top:34px"><span class="n">3</span>Acesso e instalação</h2>
+  <h3>Entrar</h3>
+  <p>O acesso é pelo <b>CPF</b> e por uma <b>senha de 6 números</b>. É o mesmo login no app e no portal.</p>
+  <ul>
+    <li><b>Cadastrado pelo gestor:</b> na primeira vez, toque em <b>Primeira vez aqui? Criar senha</b>, informe o CPF e crie a senha.</li>
+    <li><b>Ainda não cadastrado:</b> toque em <b>Solicitar acesso</b>, preencha nome, CPF, unidade e senha. O pedido fica em Usuários › Pendentes até um administrador aprovar.</li>
+    <li><b>Esqueceu a senha:</b> o administrador abre a ficha do usuário e toca em <b>Resetar senha</b>. A pessoa cria outra no próximo acesso.</li>
+    <li><b>5 senhas erradas seguidas</b> bloqueiam o acesso por 15 minutos.</li>
+  </ul>
+  <h3>Instalar o app no celular</h3>
+  <ul>
+    <li><b>Android (Chrome):</b> abra o endereço e toque em <b>Instalar o app no celular</b>, na tela de entrada.</li>
+    <li><b>iPhone (Safari):</b> toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>.</li>
+  </ul>
+  <p>O app abre pelo ícone, em tela cheia, e se atualiza sozinho quando há versão nova.</p>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">4</span>App da equipe</h2>
+  <p class="lead">Mecânicos e administradores entram na aba <b>Checklists</b>. Primeiro escolhem o tipo de checklist, depois o equipamento.</p>
+  <div class="cel">
+    <figure><img src="img/e01-tipos.jpg" alt=""><figcaption>Escolha do tipo. Cada linha mostra quantos estão atrasados ou nunca feitos.</figcaption></figure>
+    <figure><img src="img/e02-tipo.jpg" alt=""><figcaption>Equipamentos do tipo escolhido, os atrasados primeiro.</figcaption></figure>
+    <figure><img src="img/e03-inspecao.jpg" alt=""><figcaption>Ficha da inspeção: última execução, vencimento e itens.</figcaption></figure>
+  </div>
+  <h3>Situação de cada inspeção</h3>
+  <table class="tab">
+    <tr><th>Situação</th><th>Significa</th></tr>
+    <tr><td><span class="tag cr">Atrasada</span></td><td>Passou do prazo da frequência (dias) ou do intervalo de uso (km ou horas).</td></tr>
+    <tr><td><span class="tag al">Vence / Faltam</span></td><td>Perto de vencer. A margem é definida em Parâmetros (padrão: 10% do intervalo).</td></tr>
+    <tr><td><span class="tag">Nunca feita</span></td><td>Nenhuma execução registrada neste ativo.</td></tr>
+    <tr><td><span class="tag me">Em dia</span></td><td>Feita dentro do prazo.</td></tr>
+    <tr><td><span class="tag">Sob demanda</span></td><td>Sem frequência. É feita quando a frota julgar necessário.</td></tr>
+  </table>
+  <h3>Fazer uma inspeção</h3>
+  <ol class="passos">
+    <li>Toque no equipamento e em <b>Iniciar inspeção</b>.</li>
+    <li>Informe o km ou horímetro e responda os itens, igual ao checklist diário.</li>
+    <li>Ao finalizar, cada item reprovado abre uma OS para a frota.</li>
+  </ol>
+  <p>A <b>busca do topo</b> procura em todos os tipos de uma vez. Ler o <b>QR do ativo</b> com a câmera também filtra as inspeções daquele ativo.</p>
+  <div class="cel dois">
+    <figure><img src="img/e04-preventiva.jpg" alt=""><figcaption>Preventiva: o botão já abre a OS.</figcaption></figure>
+    <div>
+      <h3 style="margin-top:0">Preventiva</h3>
+      <ol class="passos">
+        <li><b>Iniciar preventiva</b> abre uma OS em andamento.</li>
+        <li>Marque cada tarefa feita.</li>
+        <li><b>Finalizar</b> fecha a OS. Tarefa não feita abre uma OS própria.</li>
+      </ol>
+      <p>Preventiva não conta para SLA, MTTR, MTBF nem conformidade.</p>
+      <p>Revisão que inclui outra (a COMPLETA inclui a BÁSICA) conta as duas como feitas.</p>
+    </div>
+  </div>
+  <div class="nota"><b>Ver como motorista</b>O administrador vê o app exatamente como um motorista escolhido vê, para conferir a tela dele ou ajudar numa dúvida. "Checklists da equipe" volta para a visão normal.</div>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">5</span>Ordens de serviço</h2>
+  <p class="lead">Toda não conformidade vira uma OS no <b>Painel OS</b>. A ordem é pela criticidade e pelo prazo.</p>
+  <figure class="menor"><img src="img/g08-gav.jpg" alt=""><figcaption>Painel OS: cartões por criticidade e lista com prazo restante. "Quadro" mostra as OS em colunas por situação.</figcaption></figure>
+  <div class="nota atencao"><b>Modo TV</b>Em Atalhos, <b>Modo TV · Painel OS</b> mostra o painel em tela cheia para a oficina. Ele se atualiza sozinho.</div>
+  <h3>Ciclo de vida</h3>
+  <table class="tab">
+    <tr><th>Situação</th><th>O que acontece</th></tr>
+    <tr><td>Aberta</td><td>Nasce no checklist com o prazo do item. O prazo conta da abertura.</td></tr>
+    <tr><td>Em andamento</td><td>Alguém tocou em <b>Iniciar atendimento</b> e escolheu <b>Interna</b> (equipe da Atual) ou <b>Externa</b> (oficina ou prestador).</td></tr>
+    <tr><td>Vencida</td><td>Passou do prazo sem fechar. Conta como fora do SLA.</td></tr>
+    <tr><td>Fechada</td><td>Serviço concluído com evidência. Se o ativo estava bloqueado, volta a ser liberado.</td></tr>
+  </table>
+  <h3>Fechar uma OS</h3>
+  <figure class="menor"><img src="img/g22-os-fechar.jpg" alt=""><figcaption>Formulário de fechamento, ao lado da linha do tempo da OS.</figcaption></figure>
+  <table class="tab">
+    <tr><th>Campo</th><th>Regra</th></tr>
+    <tr><td>Solução aplicada</td><td>Obrigatório. Descreva o que foi feito.</td></tr>
+    <tr><td>Foto da correção</td><td>Recomendada. Sem foto, a descrição precisa explicar o serviço.</td></tr>
+    <tr><td>Nº da OS no sistema de manutenção</td><td>Opcional. Liga o registro à OS da oficina.</td></tr>
+    <tr><td>Peças substituídas</td><td>Opcional, quando não estiverem na OS do sistema de manutenção.</td></tr>
+    <tr><td>Executado por</td><td>Obrigatório. Quem fez o serviço.</td></tr>
+    <tr><td>Condição de segurança</td><td>Obrigatório. <b>Apto, liberado para operar</b> ou <b>Apto com restrição</b> (descreva a restrição).</td></tr>
+    <tr><td>Atendimento externo</td><td>Informe o fornecedor. Custo e nota fiscal ou orçamento podem ser anexados.</td></tr>
+  </table>
+  <h3>Outras ações</h3>
+  <ul>
+    <li><b>Reprogramar:</b> muda o prazo com um motivo. O SLA continua medido pelo prazo original.</li>
+    <li><b>Reabrir:</b> o administrador reabre uma OS fechada quando o problema não foi resolvido.</li>
+    <li><b>Reincidência:</b> se o item for reprovado de novo com a OS ainda aberta, não nasce OS nova. A OS existente ganha uma reincidência.</li>
+    <li><b>Retorno:</b> OS aberta até 30 dias depois de fechar outra do mesmo item no mesmo ativo fica marcada como retorno.</li>
+  </ul>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">6</span>Portal: indicadores</h2>
+  <p class="lead">Os filtros do topo (período, unidade, tipo de ativo, ativo, criticidade e outros) valem para todas as telas. O portal se atualiza sozinho a cada 30 segundos.</p>
+  <figure><img src="img/g01-resumo.jpg" alt=""><figcaption>Resumo Gerencial: os quatro indicadores com as faixas de cor definidas em Parâmetros.</figcaption></figure>
+  <table class="tab">
+    <tr><th>Indicador</th><th>Como é calculado</th><th>Melhor</th></tr>
+    <tr><td>Conformidade</td><td>Itens conformes ÷ itens verificados nos checklists do período.</td><td>Maior</td></tr>
+    <tr><td>SLA</td><td>% das OS fechadas dentro do prazo do item.</td><td>Maior</td></tr>
+    <tr><td>MTTR</td><td>Tempo médio da abertura ao fechamento das OS.</td><td>Menor</td></tr>
+    <tr><td>MTBF</td><td>Tempo médio entre falhas do mesmo ativo, em dias e em km ou horas. Reincidência não conta como falha nova.</td><td>Maior</td></tr>
+  </table>
+  <p>As telas <b>Não Conformidades</b>, <b>SLA</b>, <b>MTTR</b> e <b>MTBF</b> abrem cada indicador por tipo, ativo, item, categoria, motorista ou mecânico. A coluna YTD mostra o acumulado do ano.</p>
+  <h3>Preventivas</h3>
+  <p>Uma linha por ativo com revisão programada: última revisão, próxima, leitura atual, quanto falta e a situação (no prazo, em atenção, vencida ou sem histórico). Revisões que vencem juntas aparecem na mesma linha.</p>
+  <p>Para ativos que já tinham revisão antes do sistema, o administrador informa o <b>ponto de partida</b> (data e leitura da última revisão) na ficha do ativo. Isso não conta como checklist.</p>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">7</span>Lançamentos e relatórios</h2>
+  <figure><img src="img/g23-lanc-detalhe.jpg" alt=""><figcaption>Lançamentos: clique na linha para ver os itens reprovados e as fotos.</figcaption></figure>
+  <p><b>Lançamentos</b> lista todos os checklists e todas as OS do período. Toda tabela ordena por qualquer coluna.</p>
+  <p><b>Relatórios</b> gera, com os filtros do topo, em <b>Excel</b> (para análise) ou <b>PDF</b> (para enviar ou imprimir):</p>
+  <ul>
+    <li>Checklists realizados e não conformidades.</li>
+    <li>Ordens de serviço do período, com atendimento, fornecedor e valor.</li>
+    <li>Bloqueios e liberações de ativos.</li>
+    <li>Relação da frota, com documentos e manuais anexados.</li>
+  </ul>
+  <div class="nota"><b>Excluir lançamento</b>Checklist ou OS lançados por engano são excluídos só pelo admin master. O registro fica cancelado e auditado, não some do banco.</div>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">8</span>Cadastro de ativos</h2>
+  <figure><img src="img/g24-ficha-ativo.jpg" alt=""><figcaption>Ficha do ativo: dados, status, QR, documentos e itens que este ativo não tem.</figcaption></figure>
+  <ul>
+    <li><b>Clique na linha</b> para abrir a ficha e editar tudo. O código (placa ou nº de frota) não muda depois de criado.</li>
+    <li><b>Itens do checklist:</b> desmarque o que o ativo não tem (ex.: basculamento, estepe). O item sai do checklist só desse ativo.</li>
+    <li><b>QR do ativo:</b> imprima e cole no equipamento. O motorista aponta a câmera e cai direto no checklist.</li>
+    <li><b>Documentos:</b> manual, plano de manutenção do fabricante, laudos, ART.</li>
+    <li><b>Inativo:</b> o ativo sai do app e das inspeções. O histórico fica.</li>
+  </ul>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">9</span>Itens e SLA</h2>
+  <p class="lead">O catálogo de itens que os checklists verificam. Cada item tem três atributos independentes.</p>
+  <figure><img src="img/g25-ficha-item.jpg" alt=""><figcaption>Ficha do item: orientação para quem faz, criticidade, prazo, bloqueio e tipos de ativo.</figcaption></figure>
+  <table class="tab">
+    <tr><th>Atributo</th><th>Para que serve</th></tr>
+    <tr><td>Criticidade</td><td>Crítica, alta, média ou baixa. Ordena o Painel OS.</td></tr>
+    <tr><td>Prazo</td><td>Meta do SLA, em minutos, horas ou dias, contada da abertura da OS.</td></tr>
+    <tr><td>Bloqueia</td><td>Com o item reprovado, o ativo fica <b>Não opere</b> até a OS fechar.</td></tr>
+  </table>
+  <p>Um item crítico pode ter prazo curto (farol, 1 hora) ou longo (embreagem, 15 dias). Os três atributos não dependem um do outro.</p>
+  <div class="nota atencao"><b>Mudanças valem para OS novas</b>As OS já abertas mantêm o prazo do dia em que abriram.</div>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">10</span>Tipos de checklist</h2>
+  <figure class="menor"><img src="img/g26-editar-checklist.jpg" alt=""><figcaption>Clique na linha e a edição abre direto em Dados. Os passos Itens e Revisar vêm em seguida.</figcaption></figure>
+  <table class="tab">
+    <tr><th>Tipo</th><th>Uso</th><th>Frequência</th></tr>
+    <tr><td>Diário</td><td>Um por tipo de ativo. Os itens vêm de Itens e SLA.</td><td>Todo dia, antes de operar</td></tr>
+    <tr><td>Inspeção</td><td>Verificação periódica pela equipe.</td><td>Semanal, quinzenal, mensal, semestral ou por uso</td></tr>
+    <tr><td>Preventivo</td><td>Revisões do plano de manutenção. Abre OS.</td><td>Sob demanda, por tempo ou por uso</td></tr>
+    <tr><td>Preditivo</td><td>Análise de óleo, termografia e similares.</td><td>Sob demanda, por tempo ou por uso</td></tr>
+  </table>
+  <h3>No passo Dados</h3>
+  <ul>
+    <li><b>Quem pode fazer:</b> marque os cargos (Motorista, Mecânico, Administrador). O admin master sempre pode.</li>
+    <li><b>Status:</b> inativo some do app. O histórico fica.</li>
+    <li><b>Por uso:</b> informe o intervalo em km e/ou em horas. Vale o medidor de cada ativo.</li>
+    <li><b>Quais ativos:</b> todos dos tipos escolhidos, ou só alguns (ex.: só os VW 15.180).</li>
+    <li><b>Inclui outra revisão</b> (preventivos): a maior faz as tarefas da menor e zera as duas.</li>
+    <li><b>Manual / plano do fabricante:</b> anexo opcional do próprio checklist.</li>
+  </ul>
+  <p>O <b>diário</b> abre com os cargos e depois os itens, com o botão <b>Desligar diário</b>. Diário desligado: ninguém faz checklist diário naquele tipo de ativo.</p>
+  <p><b>Excluir</b> só aparece para checklist sem nenhuma execução. Com histórico, desative.</p>
+  <p><b>Importar planilha:</b> baixe o template, preencha e envie. O assistente mostra a prévia antes de salvar.</p>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">11</span>Usuários</h2>
+  <div class="cel dois" style="max-width:none">
+    <figure><img src="img/g27-ficha-usuario.jpg" alt=""><figcaption>Ficha do usuário.</figcaption></figure>
+    <figure><img src="img/g28-usuario-pendente.jpg" alt=""><figcaption>Pedido de acesso: aprovar ou recusar na própria ficha.</figcaption></figure>
+  </div>
+  <ul>
+    <li><b>Clique na linha</b> para editar nome, cargo, unidade, telefone, especialidade e status.</li>
+    <li><b>CPF</b> não muda depois de criado, porque é a chave do acesso.</li>
+    <li><b>Bloqueado</b> não entra no app nem no portal. O histórico fica.</li>
+    <li><b>Pendentes:</b> confira o cargo e toque em <b>Aprovar</b>, ou em <b>Recusar</b>.</li>
+    <li><b>Administradores</b> são criados e aprovados só pelo admin master.</li>
+    <li><b>Novo usuário</b> já nasce aprovado. A pessoa cria a senha no primeiro acesso.</li>
+  </ul>
+
+  <h2 style="margin-top:34px"><span class="n">12</span>Fornecedores e parâmetros</h2>
+  <p><b>Fornecedores:</b> oficinas e prestadores usados no fechamento de OS com atendimento externo. Inativo some da lista do fechamento.</p>
+  <p><b>Parâmetros:</b> metas e faixas de cor de Conformidade, SLA, MTTR e MTBF, e a margem de "em atenção" das preventivas. Toda mudança fica registrada em "Últimas alterações".</p>
+  <p><b>Template e importação:</b> Ativos, Itens, Usuários, Fornecedores e Tipos de checklist aceitam planilha. Linha com chave igual atualiza; chave nova cria.</p>
+</div>
+
+<div class="pagina sec">
+  <h2><span class="n">13</span>Perguntas frequentes</h2>
+  <h3>O motorista não encontra o ativo.</h3>
+  <p>Confira se o ativo está ativo em Ativos e se o diário do tipo está ligado e liberado para Motorista em Tipos de checklist. A busca aceita parte da placa ou o nº da frota, sem hífen.</p>
+  <h3>O motorista diz que o checklist não foi enviado.</h3>
+  <p>Sem sinal, o app avisa "Sem conexão. Tente de novo." e guarda as respostas no celular. Basta tocar em Finalizar de novo quando o sinal voltar. Enviar duas vezes não duplica o checklist.</p>
+  <h3>O ativo está "Não opere", mas já foi consertado.</h3>
+  <p>A OS do item que bloqueia ainda está aberta. Feche a OS no Painel OS com a condição de segurança. O ativo volta a ser liberado na hora.</p>
+  <h3>Um mecânico não vê uma inspeção no app.</h3>
+  <p>Abra o checklist em Tipos de checklist e confira se Mecânico está marcado em "Quem pode fazer".</p>
+  <h3>Mudei o prazo de um item e a OS aberta não mudou.</h3>
+  <p>É o esperado. Mudanças valem para OS novas.</p>
+  <h3>A tela não mostra a versão nova.</h3>
+  <p>Feche o app por completo e abra de novo. No computador, recarregue a página duas vezes.</p>
+  <div class="nota ok"><b>Suporte</b>Dúvidas e ajustes: fale com o administrador da frota da Atual. Ele aciona a OneSpot quando necessário.</div>
+  <p class="rod">Checklist Atual · Construtora e Pavimentadora Atual · por OneSpot · outubro de 2026</p>
+</div>
+</body>
+</html>

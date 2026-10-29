@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treinamento de Motoristas · Checklist Atual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--acc:#0079B3;--acc2:#0098DA;--acc-f:#E6F3FA;--txt:#161D2B;--txt2:#4A5568;--txt3:#667180;--brd:#DCE2EA;--fundo:#E9EDF2;--verde:#0E8A3A;--verde-f:#E7F6EC;--vermelho:#D93025;--vermelho-f:#FDECEA;--ambar:#B26A00;--ambar-f:#FFF4E0;}
+*{box-sizing:border-box;}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{margin:0;background:var(--fundo);color:var(--txt);font-family:Montserrat,system-ui,sans-serif;}
+.barra{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--brd);}
+.barra img{height:26px;}
+.barra b{font-size:13px;}
+.barra span{font-size:12px;color:var(--txt3);}
+.barra a.pdf{margin-left:auto;background:var(--acc);color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:9px 16px;border-radius:9px;}
+.slide{width:1280px;height:720px;margin:28px auto;background:#fff;border-radius:16px;box-shadow:0 2px 14px rgba(15,23,42,.08);position:relative;overflow:hidden;display:flex;padding:64px 72px;gap:56px;}
+.slide .tx{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+.slide .num{position:absolute;right:30px;bottom:22px;font-size:14px;color:var(--txt3);font-weight:600;}
+.slide .marca{position:absolute;left:72px;bottom:22px;height:22px;opacity:.85;}
+.kick{font-size:17px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+h1{font-size:64px;line-height:1.05;margin:0 0 20px;font-weight:800;letter-spacing:-1px;}
+h2{font-size:46px;line-height:1.1;margin:0 0 26px;font-weight:800;letter-spacing:-.6px;}
+p,li{font-size:26px;line-height:1.4;}
+p{margin:0 0 16px;color:var(--txt2);}
+ul,ol{margin:0;padding-left:0;list-style:none;}
+li{margin:0 0 16px;padding-left:46px;position:relative;}
+ul li::before{content:'';position:absolute;left:8px;top:13px;width:14px;height:14px;border-radius:50%;background:var(--acc);}
+ol{counter-reset:c;}
+ol li{counter-increment:c;}
+ol li::before{content:counter(c);position:absolute;left:0;top:2px;width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;font-size:19px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+b{color:var(--txt);}
+.cel{flex:0 0 auto;display:flex;gap:22px;align-items:center;}
+.cel img{height:592px;border-radius:26px;border:6px solid #11161E;box-shadow:0 10px 30px rgba(15,23,42,.25);display:block;}
+.cel.p img{height:520px;}
+.capa{background:linear-gradient(135deg,#0B2A3D 0%,#0079B3 100%);color:#fff;}
+.capa h1,.capa b{color:#fff;}
+.capa p{color:#D5E9F5;}
+.capa .kick{color:#9FD8F5;}
+.capa .logo{position:absolute;left:72px;top:56px;height:58px;}
+.capa .num{color:#9FD8F5;}
+.cartao{border-radius:16px;padding:22px 26px;margin:0 0 18px;font-size:24px;line-height:1.35;display:flex;gap:18px;align-items:center;}
+.cartao .bol{flex:0 0 auto;width:34px;height:34px;border-radius:50%;}
+.cartao.ok{background:var(--verde-f);} .cartao.ok .bol{background:#2DBE64;}
+.cartao.no{background:var(--vermelho-f);} .cartao.no .bol{background:var(--vermelho);}
+.cartao.az{background:var(--acc-f);}
+.cartao div > b:first-child{display:block;font-size:27px;}
+.grande{font-size:30px;font-weight:700;color:var(--txt);}
+.regras{display:grid;grid-template-columns:1fr 1fr;gap:18px 26px;}
+.regras div{background:var(--fundo);border-radius:14px;padding:20px 22px;font-size:23px;line-height:1.35;}
+.regras div b{display:block;font-size:25px;margin-bottom:4px;color:var(--acc);}
+.quiz li{font-size:25px;}
+.quiz li span{display:block;font-size:20px;color:var(--txt3);margin-top:4px;}
+.roteiro{width:1280px;height:720px;overflow:hidden;margin:28px auto;background:#fff;border-radius:16px;padding:36px 64px;display:grid;grid-template-columns:1.25fr 1fr;gap:0 44px;align-content:start;}
+.roteiro .topo{grid-column:1/-1;}
+.roteiro h2{font-size:30px;margin-bottom:14px;}
+.roteiro h3{font-size:19px;margin:0 0 10px;}
+.roteiro table{width:100%;border-collapse:collapse;font-size:14.5px;}
+.roteiro th{text-align:left;background:var(--fundo);padding:7px 10px;border-bottom:2px solid var(--brd);}
+.roteiro td{padding:7px 10px;border-bottom:1px solid var(--brd);vertical-align:top;line-height:1.4;}
+.roteiro td:first-child{white-space:nowrap;font-weight:700;}
+.roteiro p,.roteiro li{font-size:14.5px;line-height:1.4;}
+.roteiro li{padding-left:30px;margin-bottom:7px;}
+.roteiro ul li::before{top:6px;width:9px;height:9px;left:6px;}
+.roteiro ol li::before{width:21px;height:21px;font-size:12px;top:0;}
+@media (max-width:1320px){.slide,.roteiro{transform-origin:top left;}}
+@page{size:1280px 720px;margin:0;}
+@media print{body{background:#fff;}.barra{display:none;}.slide,.roteiro{margin:0;border-radius:0;box-shadow:none;page-break-after:always;}.roteiro{min-height:720px;}}
+</style>
+</head>
+<body>
+<div class="barra"><img src="../img/logo-atual-claro.png" alt="Construtora e Pavimentadora Atual"><b>Treinamento de Motoristas</b><span>Para mostrar na TV ou no projetor · cerca de 20 minutos</span><a class="pdf" href="treinamento-motoristas.pdf" download>Baixar PDF</a></div>
+
+<section class="slide capa">
+  <img class="logo" src="../img/logo-atual-escuro.png" alt="Construtora e Pavimentadora Atual">
+  <div class="tx">
+    <div class="kick">Treinamento de motoristas e operadores</div>
+    <h1>Checklist diário<br>no celular</h1>
+    <p>Como fazer o checklist antes de operar, apontar um problema e saber se o equipamento está liberado.</p>
+  </div>
+  <div class="num">1</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Por que</div>
+    <h2>O checklist protege você e o equipamento</h2>
+    <ul>
+      <li>Você confere o equipamento <b>antes de ligar</b>.</li>
+      <li>Todo problema que você aponta <b>vai direto para a frota</b> consertar, com prazo.</li>
+      <li>Fica registrado <b>com seu nome e horário</b>: você fez a sua parte.</li>
+      <li>Leva <b>poucos minutos</b>.</li>
+    </ul>
+  </div>
+  <img class="marca" src="../img/logo-atual-claro.png" alt=""><div class="num">2</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Antes de começar</div>
+    <h2>Entrar no app</h2>
+    <ol>
+      <li>Abra <b>checklist-atual.onespot.com.br</b> no celular.</li>
+      <li>Toque em <b>Instalar o app no celular</b>. No iPhone: Compartilhar › Adicionar à Tela de Início.</li>
+      <li>Primeira vez: <b>Criar senha</b> com seu CPF. A senha tem <b>6 números</b>.</li>
+      <li>Depois é só entrar com <b>CPF e senha</b>.</li>
+    </ol>
+    <p style="margin-top:8px">Sem cadastro? Toque em <b>Solicitar acesso</b> e aguarde o gestor aprovar.</p>
+  </div>
+  <img class="marca" src="../img/logo-atual-claro.png" alt=""><div class="num">3</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Passo 1</div>
+    <h2>Ache o seu equipamento</h2>
+    <ul>
+      <li>Digite <b>parte da placa ou o nº da frota</b> na busca. Sem hífen, sem se preocupar com maiúscula.</li>
+      <li>Ou aponte a câmera para o <b>QR colado no equipamento</b>.</li>
+      <li>Os equipamentos que você já usou ficam em <b>Meus ativos</b>.</li>
+    </ul>
+  </div>
+  <div class="cel"><img src="img/m02-inicio.jpg" alt="Tela inicial"><img src="img/m03-busca.jpg" alt="Busca"></div>
+  <div class="num">4</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Atenção</div>
+    <h2>A bolinha diz se pode operar</h2>
+    <div class="cartao ok"><span class="bol"></span><div><b>Verde: liberado</b>Pode fazer o checklist e operar.</div></div>
+    <div class="cartao no"><span class="bol"></span><div><b>Vermelha: NÃO OPERE</b>Tem problema de segurança em aberto. Não ligue e avise o gestor.</div></div>
+  </div>
+  <div class="cel"><img src="img/m13-nao-opere.jpg" alt="Ativo bloqueado"></div>
+  <div class="num">5</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Passo 2</div>
+    <h2>Informe o km ou o horímetro</h2>
+    <ol>
+      <li>Toque em <b>Iniciar checklist</b>.</li>
+      <li>Olhe o <b>painel do equipamento</b> e digite o número.</li>
+      <li>Não pode ser menor que a última leitura. Se o app reclamar, confira o painel.</li>
+      <li>Toque em <b>Começar os itens</b>.</li>
+    </ol>
+  </div>
+  <div class="cel"><img src="img/m04-ativo.jpg" alt="Tela do ativo"><img src="img/m05-leitura.jpg" alt="Leitura"></div>
+  <div class="num">6</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Passo 3</div>
+    <h2>Um item de cada vez</h2>
+    <ul>
+      <li>Leia o item e a <b>orientação</b> embaixo do nome.</li>
+      <li>Olhe de verdade. Depois toque em <b>Conforme</b> ou <b>Não conforme</b>.</li>
+      <li>Conforme já passa para o próximo.</li>
+      <li>A barra de cima mostra quanto falta. Errou? <b>Anterior</b> volta.</li>
+    </ul>
+  </div>
+  <div class="cel"><img src="img/m06-item.jpg" alt="Item"></div>
+  <div class="num">7</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Problema encontrado</div>
+    <h2>Não conforme pede foto</h2>
+    <ol>
+      <li>Toque em <b>Tirar foto do problema</b>. A foto é <b>obrigatória</b>.</li>
+      <li>Fotografe <b>de perto e com luz</b>, mostrando o defeito.</li>
+      <li>Escreva o que viu. Ex.: "pneu traseiro esquerdo careca".</li>
+      <li>Toque em <b>Confirmar e seguir</b>.</li>
+    </ol>
+  </div>
+  <div class="cel"><img src="img/m07-nc.jpg" alt="Não conforme"><img src="img/m08-nc-foto.jpg" alt="Com foto"></div>
+  <div class="num">8</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Passo 4</div>
+    <h2>Confira e finalize</h2>
+    <ul>
+      <li>O app mostra quantos itens ficaram <b>conformes</b> e os <b>problemas</b> que você apontou.</li>
+      <li>Quer mudar algo? <b>Revisar todos os itens</b>.</li>
+      <li>Tudo certo? Toque em <b>Finalizar checklist</b>.</li>
+    </ul>
+    <p style="margin-top:6px">Cada problema vira uma <b>ordem de serviço</b> para a frota.</p>
+  </div>
+  <div class="cel"><img src="img/m09-resumo.jpg" alt="Resumo"></div>
+  <div class="num">9</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Resultado</div>
+    <h2>O app diz se pode operar</h2>
+    <div class="cartao ok"><span class="bol"></span><div><b>Pode operar</b>O problema foi enviado e a frota vai resolver.</div></div>
+    <div class="cartao no"><span class="bol"></span><div><b>Não opere este ativo</b>O problema é de segurança. Não ligue e avise o gestor.</div></div>
+  </div>
+  <div class="cel"><img src="img/m10-resultado.jpg" alt="Resultado"></div>
+  <div class="num">10</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Situações comuns</div>
+    <h2>E se...</h2>
+    <div class="cartao az"><div><b>Sem sinal na hora de finalizar?</b>O app avisa e guarda suas respostas. Toque em Finalizar de novo quando o sinal voltar. Não duplica.</div></div>
+    <div class="cartao az"><div><b>Fechou o app no meio?</b>Ao abrir de novo aparece o checklist pela metade. Toque em <b>Retomar</b>.</div></div>
+    <div class="cartao az"><div><b>Quer ver o que já fez?</b>Aba <b>Histórico</b>, separado por dia.</div></div>
+  </div>
+  <div class="cel p"><img src="img/m11-historico.jpg" alt="Histórico"></div>
+  <div class="num">11</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Regras de ouro</div>
+    <h2>Grave isto</h2>
+    <div class="regras">
+      <div><b>Todo dia</b>Checklist antes de operar, em todo equipamento que você usar.</div>
+      <div><b>Olhe de verdade</b>Não marque Conforme sem conferir o item.</div>
+      <div><b>Foto clara</b>De perto, com luz, mostrando o defeito.</div>
+      <div><b>Bolinha vermelha</b>Não ligue. Avise o gestor.</div>
+      <div><b>Senha é sua</b>Não empreste. O checklist sai com o seu nome.</div>
+      <div><b>Dúvida?</b>Aba Ajuda no app, ou o gestor da frota.</div>
+    </div>
+  </div>
+  <img class="marca" src="../img/logo-atual-claro.png" alt=""><div class="num">12</div>
+</section>
+
+<section class="slide">
+  <div class="tx">
+    <div class="kick">Teste rápido</div>
+    <h2>Responda em voz alta</h2>
+    <ol class="quiz">
+      <li>Quando o checklist deve ser feito?</li>
+      <li>O que o app pede quando você marca Não conforme?</li>
+      <li>O equipamento está com a bolinha vermelha. O que você faz?</li>
+      <li>Ficou sem sinal na hora de finalizar. Perdeu o checklist?</li>
+      <li>Pode marcar Conforme sem olhar o item?</li>
+    </ol>
+  </div>
+  <img class="marca" src="../img/logo-atual-claro.png" alt=""><div class="num">13</div>
+</section>
+
+<section class="slide capa">
+  <img class="logo" src="../img/logo-atual-escuro.png" alt="Construtora e Pavimentadora Atual">
+  <div class="tx">
+    <div class="kick">Agora é com você</div>
+    <h1>Faça o primeiro checklist<br>junto com o instrutor</h1>
+    <p>Pegue o celular, entre no app e faça o checklist do seu equipamento agora. Dúvidas: fale com o gestor da frota.</p>
+  </div>
+  <div class="num">14</div>
+</section>
+
+<section class="roteiro">
+  <div class="topo"><div class="kick" style="margin-bottom:6px">Para o instrutor</div><h2>Roteiro do treinamento · cerca de 20 minutos</h2></div>
+  <div>
+  <table>
+    <tr><th>Tempo</th><th>Slides</th><th>O que fazer</th></tr>
+    <tr><td>3 min</td><td>1 e 2</td><td>Explique que o checklist protege o motorista e que todo problema vira ordem de serviço com prazo.</td></tr>
+    <tr><td>4 min</td><td>3</td><td>Peça para todos abrirem o endereço no celular e instalarem o app. Confirme que cada um está cadastrado: quem não estiver toca em Solicitar acesso, e o gestor aprova em Usuários › Pendentes.</td></tr>
+    <tr><td>6 min</td><td>4 a 10</td><td>Mostre o fluxo completo. Reforce a foto obrigatória e o significado da bolinha vermelha.</td></tr>
+    <tr><td>2 min</td><td>11 e 12</td><td>Situações comuns e regras de ouro.</td></tr>
+    <tr><td>2 min</td><td>13</td><td>Teste rápido. Respostas abaixo.</td></tr>
+    <tr><td>3 min</td><td>14</td><td>Todos fazem um checklist real no equipamento que vão usar. Ajude quem travar.</td></tr>
+  </table>
+  </div>
+  <div>
+  <h3>Respostas do teste</h3>
+  <ol>
+    <li>Todo dia, antes de operar, em todo equipamento que for usar.</li>
+    <li>Foto do problema, obrigatória. A descrição é opcional, mas ajuda a frota.</li>
+    <li>Não liga e avisa o gestor. Tem problema de segurança em aberto.</li>
+    <li>Não. As respostas ficam no celular. É só tocar em Finalizar quando o sinal voltar.</li>
+    <li>Não. O checklist sai com o nome dele e conta para a segurança de todos.</li>
+  </ol>
+  <h3 style="margin-top:18px">Antes do treinamento</h3>
+  <ul>
+    <li>Cadastre os motoristas em Usuários, ou combine que eles vão solicitar acesso na hora.</li>
+    <li>Confira se os equipamentos estão cadastrados e com o QR colado.</li>
+    <li>Confira se o diário de cada tipo de equipamento está ligado e liberado para Motorista em Tipos de checklist.</li>
+  </ul>
+  </div>
+</section>
+</body>
+</html>
