@@ -963,7 +963,12 @@ body.claro .lgA.esc{display:none;} body.claro .lgA.cla{display:block;}
       <div class="filtros" id="filtros">
       <div class="ms-wrap" id="ms-mes"><button class="ms-btn" onclick="toggleMs('ms-mes')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
-        Período<span class="ms-cnt"></span></button>
+        Vigência<span class="ms-cnt"></span></button>
+        <div class="ms-panel"><div class="ms-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Pesquisar…"></div><div class="ms-list"></div></div>
+      </div>
+      <div class="ms-wrap" id="ms-dia"><button class="ms-btn" onclick="toggleMs('ms-dia')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+        Data<span class="ms-cnt"></span></button>
         <div class="ms-panel"><div class="ms-search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg><input type="text" placeholder="Pesquisar…"></div><div class="ms-list"></div></div>
       </div>
       <div class="ms-wrap" id="ms-unidade"><button class="ms-btn" onclick="toggleMs('ms-unidade')">
@@ -1474,7 +1479,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.ms-wrap')) documen
 /* ── filtros: leitura + cascata ── */
 function getF(){
   const m=id=>$(id)&&$(id).style.display==='none'?[]:getMsValues(id);   /* filtro escondido na visão não vale nela */
-  return { mes:m('ms-mes').map(l=>MAP.mes[l]).filter(Boolean), unidade:m('ms-unidade'), tipo:m('ms-tipo').map(l=>MAP.tipo[l]).filter(Boolean), modelo:m('ms-modelo').map(l=>MAP.modelo[l]).filter(Boolean),
+  return { mes:m('ms-mes').map(l=>MAP.mes[l]).filter(Boolean), dia:m('ms-dia').map(l=>(MAP.dia||{})[l]).filter(Boolean), unidade:m('ms-unidade'), tipo:m('ms-tipo').map(l=>MAP.tipo[l]).filter(Boolean), modelo:m('ms-modelo').map(l=>MAP.modelo[l]).filter(Boolean),
     ativo:m('ms-ativo').map(l=>MAP.ativo[l]).filter(Boolean), crit:m('ms-crit').map(l=>MAP.crit[l]).filter(Boolean), cat:m('ms-cat'), sit:m('ms-sit'), status:m('ms-status').map(l=>MAP.status[l]).filter(Boolean), exec:m('ms-exec').map(l=>MAP.exec[l]).filter(Boolean) };
 }
 function ativoOk(f,a,skip){
@@ -1485,7 +1490,8 @@ function ativoOk(f,a,skip){
   if(skip!=='modelo'&&f.modelo&&f.modelo.length&&!f.modelo.some(id=>MOD[id]&&MOD[id].tipos.includes(a.tipo))) return false;
   return true;
 }
-const mesOk=(f,s)=>!f.mes.length||f.mes.includes(CK.mesKey(s));
+const diaOk=(f,s)=>!f.dia||!f.dia.length||f.dia.includes(String(s||'').slice(0,10));   /* filtro Data: dia a dia (Renan, 09/11/2026) */
+const mesOk=(f,s)=>(!f.mes.length||f.mes.includes(CK.mesKey(s)))&&diaOk(f,s);
 const critOk=(f,o)=>!f.crit.length||f.crit.includes(o.crit);
 const catOk=(f,o)=>!f.cat||!f.cat.length||f.cat.includes((CK.ITEM[o.item]||{}).cat);
 const osMod=o=>{ if(o.modelo) return o.modelo; const c=CKS[o.checklist]; return c?ckMod(c):('d-'+((ATV[o.ativo]||{}).tipo||'')); };
@@ -1493,13 +1499,13 @@ const modOk=(f,k)=>!f.modelo||!f.modelo.length||f.modelo.includes(k);
 const execOk=(f,o)=>!f.exec||!f.exec.length||f.exec.includes(o.status==='aberta'||!o.execucao?'nao':o.execucao);
 const osOk=(f,o)=>ativoOk(f,ATV[o.ativo])&&critOk(f,o)&&catOk(f,o)&&modOk(f,osMod(o))&&execOk(f,o);
 const ehPrevOS=o=>CK.ehPrev(o);   /* preventiva = OS de serviço: fora de SLA/MTTR/MTBF/conformidade (Renan, 12/10/2026) */
-function fCks(f,mk,tudo){ return DB.checklists.filter(c=>(tudo||c.origem!=='preventiva')&&(mk?CK.mesKey(c.data)===mk:mesOk(f,c.data))&&ativoOk(f,ATV[c.ativo])&&modOk(f,ckMod(c))); }
+function fCks(f,mk,tudo){ return DB.checklists.filter(c=>(tudo||c.origem!=='preventiva')&&(mk?CK.mesKey(c.data)===mk&&diaOk(f,c.data):mesOk(f,c.data))&&ativoOk(f,ATV[c.ativo])&&modOk(f,ckMod(c))); }
 function fOS(f,mk,semStatus,tudo){
-  return DB.os.filter(o=>(tudo||!ehPrevOS(o))&&(mk?CK.mesKey(o.abertura)===mk:mesOk(f,o.abertura))&&osOk(f,o)
+  return DB.os.filter(o=>(tudo||!ehPrevOS(o))&&(mk?CK.mesKey(o.abertura)===mk&&diaOk(f,o.abertura):mesOk(f,o.abertura))&&osOk(f,o)
     &&(semStatus||!f.status.length||f.status.includes(osStatus(o))));
 }
 /* OS fechadas no período, pela data de fechamento (base do SLA) */
-function fFech(f,mk){ return DB.os.filter(o=>o.status==='fechada'&&o.fechada_em&&(mk?CK.mesKey(o.fechada_em)===mk:mesOk(f,o.fechada_em))&&osOk(f,o)); }
+function fFech(f,mk){ return DB.os.filter(o=>o.status==='fechada'&&o.fechada_em&&(mk?CK.mesKey(o.fechada_em)===mk&&diaOk(f,o.fechada_em):mesOk(f,o.fechada_em))&&osOk(f,o)); }
 function mesesPeriodo(f){ return f.mes.length?f.mes.slice().sort():MESES_DADOS.slice(); }
 function anoRef(f){ const ms=mesesPeriodo(f); return ms.length?Math.max(...ms.map(k=>+k.slice(0,4))):CK.HOJE.getFullYear(); }
 function bloqueados(f){ return new Set(DB.os.filter(o=>o.status!=='fechada'&&o.bloqueia&&ativoOk(f,ATV[o.ativo])&&modOk(f,osMod(o))).map(o=>o.ativo)).size; }
@@ -1508,6 +1514,7 @@ function populateFilters(){
   MAP.mes={}; const meses=MESES_DADOS.slice().reverse().map(k=>{ const l=CK.mesLabel(k); MAP.mes[l]=k; return l; });
   const w=$('ms-mes'); if(!(w._sel instanceof Set)){ w._sel=new Set(); if(meses.length) w._sel.add(meses[0]); }
   buildMsFilter('ms-mes', meses);
+  MAP.dia={}; buildMsFilter('ms-dia', []);
   buildMsFilter('ms-unidade', []);
   buildMsFilter('ms-tipo', []);
   buildMsFilter('ms-modelo', []);
@@ -1532,13 +1539,17 @@ function cascata(){
   MAP.ativo={};
   const at=DB.ativos.filter(a=>ativoOk(f,a,'ativo')).map(a=>{ const l=ativoLbl(a); MAP.ativo[l]=a.id; return l; }).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   setMsOptions('ms-ativo', at);
+  MAP.dia={};
+  const dias=[...new Set([...DB.checklists.map(c=>c.data),...DB.os.map(o=>o.abertura)].filter(Boolean).map(x=>String(x).slice(0,10)).filter(d=>!f.mes.length||f.mes.includes(d.slice(0,7))))].sort().reverse()
+    .map(d=>{ const l=d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4); MAP.dia[l]=d; return l; });
+  setMsOptions('ms-dia', dias);
 }
 /* ── atualizar tudo ── */
 function atualizar(){
   if(!EU) return;
   const f=getF(); lastF=f;
   cascata();
-  const per=f.mes.length?f.mes.slice().sort().map(k=>CK.mesLabel(k)).join(', '):'Todo o período';
+  const per=f.dia&&f.dia.length?f.dia.slice().sort().map(d=>d.slice(8,10)+'/'+d.slice(5,7)).join(', '):f.mes.length?f.mes.slice().sort().map(k=>CK.mesLabel(k)).join(', '):'Toda a vigência';
   const nAt=DB.ativos.filter(a=>a.status==='ativo'&&ativoOk(f,a)).length;
   set('titSub', `${per} · ${n(nAt)} ativos · ${n(fCks(f).length)} checklists · ${n(fOS(f,null,true).length)} OS`);
   const ab=DB.os.filter(o=>o.status!=='fechada').length, pend=DB.usuarios.filter(u=>u.status==='pendente').length;
@@ -2201,8 +2212,8 @@ function renderRelatorios(){
 }
 function relFiltros(f){
   const out=[]; const add=(l,id)=>{ const w=$(id); if(!w||w.style.display==='none') return; const v=getMsValues(id); if(v.length) out.push(l+': '+v.join(', ')); };
-  const w=$('ms-mes'); out.push('Período: '+(f.mes.length?f.mes.slice().sort().map(k=>CK.mesLabel(k)).join(', '):'todo'));
-  add('Unidade','ms-unidade'); add('Tipo','ms-tipo'); add('Tipo de checklist','ms-modelo'); add('Ativo','ms-ativo'); add('Criticidade','ms-crit'); add('Categoria','ms-cat'); add('Situação','ms-sit'); add('Status OS','ms-status'); add('Atendimento','ms-exec');
+  const w=$('ms-mes'); out.push('Vigência: '+(f.mes.length?f.mes.slice().sort().map(k=>CK.mesLabel(k)).join(', '):'toda'));
+  add('Data','ms-dia'); add('Unidade','ms-unidade'); add('Tipo','ms-tipo'); add('Tipo de checklist','ms-modelo'); add('Ativo','ms-ativo'); add('Criticidade','ms-crit'); add('Categoria','ms-cat'); add('Situação','ms-sit'); add('Status OS','ms-status'); add('Atendimento','ms-exec');
   return out;
 }
 const relArq=r=>`checklist-atual_${r.id}_${CK.isoDT(new Date()).slice(0,10)}`;
@@ -3252,8 +3263,8 @@ function setVw(v){
   $('filtros').classList.toggle('oculto', v==='faturamento'||v==='fatura'||v==='usuarios'||v==='parametros'||v==='fornecedores');
   // Gestão à Vista é o estado atual: Período e Status OS não se aplicam
   /* filtros que não fazem sentido na visão ficam escondidos: Painel OS = estado atual; Itens e SLA = cadastro; Tipos de checklist = cadastro (Período vale só para Execuções) */
-  const FORA={preventivas:['ms-mes','ms-crit','ms-cat','ms-status','ms-exec'], gav:['ms-mes'], itens:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-status','ms-exec'], modelos:['ms-mes','ms-unidade','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'], ativos:['ms-mes','ms-modelo','ms-crit','ms-cat','ms-status','ms-exec'], nc:['ms-exec'], usuarios:['ms-modelo','ms-cat'], faturamento:['ms-modelo','ms-cat'], fatura:['ms-modelo','ms-cat'], resumo:['ms-cat'], lanc:['ms-cat'], relatorios:['ms-cat'], fornecedores:['ms-cat'], parametros:['ms-cat']};
-  ['ms-mes','ms-unidade','ms-tipo','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'].forEach(id=>{ $(id).style.display=(FORA[v]||[]).includes(id)?'none':''; });
+  const FORA={preventivas:['ms-mes','ms-dia','ms-crit','ms-cat','ms-status','ms-exec'], gav:['ms-mes','ms-dia'], itens:['ms-mes','ms-dia','ms-unidade','ms-modelo','ms-ativo','ms-status','ms-exec'], modelos:['ms-mes','ms-dia','ms-unidade','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'], ativos:['ms-mes','ms-dia','ms-modelo','ms-crit','ms-cat','ms-status','ms-exec'], nc:['ms-exec'], usuarios:['ms-modelo','ms-cat'], faturamento:['ms-modelo','ms-cat'], fatura:['ms-modelo','ms-cat'], resumo:['ms-cat'], lanc:['ms-cat'], relatorios:['ms-cat'], fornecedores:['ms-cat'], parametros:['ms-cat']};
+  ['ms-mes','ms-dia','ms-unidade','ms-tipo','ms-modelo','ms-ativo','ms-crit','ms-cat','ms-status','ms-exec'].forEach(id=>{ $(id).style.display=(FORA[v]||[]).includes(id)?'none':''; });
   $('ms-sit').style.display=v==='ativos'?'':'none';
   if(lastF) atualizar();
   if(lastF && v==='resumo') setTimeout(()=>renderCharts(lastF),30);
